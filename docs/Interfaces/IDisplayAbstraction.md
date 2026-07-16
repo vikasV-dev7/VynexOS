@@ -1,0 +1,34 @@
+<!-- AUTO-GENERATED START -->
+# [[IDisplayAbstraction]]
+
+## Purpose
+Interface for [[IDisplayAbstraction]].
+
+## Namespace
+`vynexos::desktop`
+
+## Source Location
+`C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/desktop/display_abstraction.hpp`
+
+## Responsibilities
+To be documented.
+
+## Dependencies
+None (pure interface).
+
+## Methods
+- `virtual ~[[IDisplayAbstraction]]() = default`
+- `virtual std::expected<void, [[DisplayError]]> initialize() = 0`
+- `virtual std::expected<void, [[DisplayError]]> flush_buffer(const hal::FrameBuffer& buffer) = 0`
+- `virtual void shutdown() = 0`
+
+## Thread Safety
+Implementations must ensure thread safety if accessed across multiple sub-systems via Dependency Injection.
+
+## Used By
+See [[Composition Root]]
+
+## Implemented By
+See Services directory.
+
+<!-- AUTO-GENERATED END -->
