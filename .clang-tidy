@@ -1,0 +1,4 @@
+Checks: '-*,clang-analyzer-*,cppcoreguidelines-*,modernize-*,performance-*,readability-*,bugprone-*,misc-*,-modernize-use-trailing-return-type,-cppcoreguidelines-pro-type-reinterpret-cast,-cppcoreguidelines-pro-bounds-pointer-arithmetic'
+WarningsAsErrors: '*'
+HeaderFilterRegex: '.*'
+FormatStyle: 'file'
