@@ -1,0 +1,3 @@
+add_library(vynex_desktop STATIC mock_display_backend.cpp basic_compositor.cpp basic_window_manager.cpp basic_widget_toolkit.cpp basic_notification_service.cpp)
+target_include_directories(vynex_desktop PUBLIC ${PROJECT_SOURCE_DIR}/include)
+target_link_libraries(vynex_desktop PUBLIC vynex_core)
