@@ -17,8 +17,8 @@ The system is divided into highly cohesive, loosely coupled sub-modules:
 - **Bootstrap (`vynex_bootstrap`)**: The Composition Root that wires all dependencies via dependency injection and launches the main event loop.
 
 ## Current Status
-**Architecture Version 1.0 (Stable)**
-The core subsystem architectures have been defined, implemented with mock interfaces, and verified to compile and execute flawlessly under MSVC C++23. The runtime is capable of routing hardware IRQs (e.g., mouse clicks) and dispatching desktop notifications over the EventBus to the UI shell.
+**Architecture Version 0.3.0 (Stable)**
+The core subsystem architectures have been defined, implemented with mock interfaces, and verified to compile and execute flawlessly under MSVC C++23. The Runtime Extension Framework (v0.3.0) introduces an ABI-stable plugin architecture capable of dynamically loading libraries across Windows and POSIX environments safely.
 
 ## Features Implemented
 ✓ Runtime Framework  
@@ -69,9 +69,10 @@ The core subsystem architectures have been defined, implemented with mock interf
 ```
 
 ## Roadmap
-1. **Architecture Version 1.0 (Current)**: Foundational services, EventBus, Mock HAL, Window Manager, and Plugin stub.
-2. **Architecture Version 1.1**: Transition from mock subsystems to physical implementations (SDL2/OpenGL integrations for physical rendering).
-3. **Architecture Version 2.0**: Native cross-process IPC, ELF loading, and real process isolation.
+1. **Architecture Version 0.2.0**: Foundational services, EventBus, Mock HAL, Window Manager.
+2. **Architecture Version 0.3.0 (Current)**: Runtime Extension Framework (Dynamic Plugin ABI).
+3. **Architecture Version 0.4.0**: Hardware Abstraction Layer completion.
+4. **Architecture Version 0.5.0**: Physical Graphical Compositor (SDL2/OpenGL).
 
 ## Current Limitations
 - Mock Display Backend (No physical rendering to screen)
@@ -87,7 +88,6 @@ The core subsystem architectures have been defined, implemented with mock interf
 ## Future Work
 - Implementation of a real software rasterizer or OpenGL rendering backend.
 - Physical integration of keyboard/mouse inputs via Win32 or SDL2.
-- Expanding the Plugin Manager to dynamically load `.dll` or `.so` libraries.
 - Expanding `WidgetToolkit` with standard UI components (buttons, sliders, text inputs).
 
 ## License

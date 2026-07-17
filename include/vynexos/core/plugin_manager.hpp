@@ -11,7 +11,8 @@ enum class PluginError {
     InvalidABI,
     VersionMismatch,
     SandboxViolation,
-    InitFailed
+    InitFailed,
+    DuplicatePlugin
 };
 
 class IPlugin {

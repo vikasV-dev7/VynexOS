@@ -12,6 +12,8 @@
 #include "../hal/mock_input_driver.hpp"
 #include <thread>
 #include <chrono>
+#include <vynexos/hal/library_loader.hpp>
+#include <vynexos/core/plugin_context_factory.hpp>
 
 namespace vynexos::bootstrap {
 
@@ -35,7 +37,10 @@ CompositionRoot::CompositionRoot() {
     m_file_explorer = std::make_shared<apps::BasicFileExplorer>(m_window_manager, m_compositor, m_widget_toolkit);
     
     // New V1.0 Architecture Components
-    m_plugin_manager = std::make_shared<core::BasicPluginManager>(m_logger);
+    auto lib_loader = hal::create_library_loader();
+    auto ctx_factory = std::make_unique<core::PluginContextFactory>(m_logger, m_event_bus, m_task_scheduler.get(), m_config_manager);
+    m_plugin_manager = std::make_shared<core::BasicPluginManager>(m_logger, std::move(lib_loader), std::move(ctx_factory));
+    
     m_audio_driver = std::make_shared<hal::MockAudioDriver>(m_logger);
     m_compute_driver = std::make_shared<hal::MockComputeDriver>(m_logger);
     m_notification_service = std::make_shared<desktop::BasicNotificationService>(m_event_bus, m_logger);

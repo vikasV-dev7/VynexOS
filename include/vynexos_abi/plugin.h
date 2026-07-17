@@ -29,10 +29,38 @@ typedef struct {
     VynexVersion required_os_version;
 } VynexPluginManifest;
 
-// Base operations all plugins must export
+// ============================================================================
+// Plugin Context (Dependency Injection)
+// ============================================================================
+typedef void (*VynexLogFunc)(int level, const char* message, void* user_data);
+typedef bool (*VynexPublishEventFunc)(const char* topic, const uint8_t* payload, size_t size, void* user_data);
+
+typedef void (*VynexTaskCallback)(void* task_data);
+typedef bool (*VynexScheduleTaskFunc)(VynexTaskCallback task_func, void* task_data, void* user_data);
+
+typedef const char* (*VynexGetConfigFunc)(const char* key, void* user_data);
+
+typedef struct {
+    void* internal_context;
+    VynexLogFunc log;
+    VynexPublishEventFunc publish_event;
+    VynexScheduleTaskFunc schedule_task;
+    VynexGetConfigFunc get_configuration;
+} VynexPluginContext;
+
+// ============================================================================
+// Plugin Lifecycle Operations
+// ============================================================================
 VynexPluginManifest vynex_plugin_get_manifest(void);
-bool vynex_plugin_initialize(void);
+
+bool vynex_plugin_create(void);
+bool vynex_plugin_initialize(const VynexPluginContext* ctx);
+bool vynex_plugin_register_services(void);
+bool vynex_plugin_start(void);
+
+void vynex_plugin_stop(void);
 void vynex_plugin_shutdown(void);
+void vynex_plugin_destroy(void);
 
 // Memory lifecycle (called by OS when it is done with plugin-allocated memory)
 void vynex_plugin_free_string(char* str);
