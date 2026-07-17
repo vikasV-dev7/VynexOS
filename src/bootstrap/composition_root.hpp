@@ -2,6 +2,7 @@
 #include "vynexos/core/logger.hpp"
 #include "vynexos/core/event_bus.hpp"
 #include "vynexos/core/config_manager.hpp"
+#include "vynexos/core/task_scheduler.hpp"
 #include "vynexos/core/service_manager.hpp"
 #include "vynexos/core/ipc_framework.hpp"
 #include "vynexos/desktop/display_abstraction.hpp"
@@ -38,6 +39,7 @@ private:
     std::shared_ptr<core::ILogger> m_logger;
     std::shared_ptr<core::IEventBus> m_event_bus;
     std::shared_ptr<core::IConfigManager> m_config_manager;
+    std::unique_ptr<core::ITaskScheduler> m_task_scheduler;
     std::shared_ptr<core::IServiceManager> m_service_manager;
     std::shared_ptr<core::IIpcFramework> m_ipc_framework;
     std::shared_ptr<desktop::IDisplayAbstraction> m_display_backend;

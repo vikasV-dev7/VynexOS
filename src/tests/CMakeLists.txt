@@ -1,0 +1,2 @@
+add_executable(vynex_test_scheduler test_task_scheduler.cpp)
+target_link_libraries(vynex_test_scheduler PRIVATE vynex_core)

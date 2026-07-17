@@ -4,6 +4,7 @@
 #include "../core/basic_service_manager.hpp"
 #include "../core/file_logger.hpp"
 #include "../core/local_ipc_framework.hpp"
+#include "../core/basic_task_scheduler.hpp"
 #include "../desktop/mock_display_backend.hpp"
 #include "../desktop/basic_compositor.hpp"
 #include "../desktop/basic_window_manager.hpp"
@@ -19,6 +20,7 @@ CompositionRoot::CompositionRoot() {
     m_logger = std::make_shared<core::FileLogger>("vynexos_runtime.log");
     m_event_bus = std::make_shared<core::InMemoryEventBus>();
     m_config_manager = std::make_shared<core::InMemoryConfigManager>();
+    m_task_scheduler = std::make_unique<core::BasicTaskScheduler>(*m_logger);
     m_ipc_framework = std::make_shared<core::LocalIpcFramework>();
     
     m_display_backend = std::make_shared<desktop::MockDisplayBackend>(m_logger);
@@ -121,8 +123,19 @@ void CompositionRoot::request_stop() {
 
 void CompositionRoot::shutdown() {
     m_logger->info("VynexOS Bootstrap: Shutting down...");
+    
+    // 1. Stop all high-level services first. They may enqueue final cleanup tasks.
     m_service_manager->stop_all();
+    
+    // 2. Shut down hardware abstractions.
     m_display_backend->shutdown();
+    
+    // 3. Finally, shut down the Task Scheduler.
+    // This blocks and drains the queue, executing any cleanup tasks queued during steps 1 and 2.
+    if (m_task_scheduler) {
+        m_task_scheduler->shutdown();
+    }
+    
     m_logger->info("Shutdown complete.");
 }
 
