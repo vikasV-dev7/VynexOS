@@ -11,10 +11,15 @@ using namespace vynexos::hal;
 // Dummy classes for dependencies
 class DummyLogger : public ILogger {
 public:
+    void set_log_level(LogLevel level) override { m_level = level; }
+    [[nodiscard]] LogLevel get_log_level() const override { return m_level; }
+
     void log_raw(LogLevel level, std::string_view message) override {
         (void)level;
         (void)message;
     }
+private:
+    LogLevel m_level{LogLevel::Info};
 };
 
 int main() {

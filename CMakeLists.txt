@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.25)
-project(VynexOS VERSION 0.5.0 LANGUAGES CXX C)
+project(VynexOS VERSION 0.4.1 LANGUAGES CXX C)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
@@ -34,4 +34,5 @@ add_subdirectory(src/desktop)
 add_subdirectory(src/apps)
 add_subdirectory(src/sdk)
 add_subdirectory(src/plugins)
+enable_testing()
 add_subdirectory(src/tests)

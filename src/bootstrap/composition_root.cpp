@@ -106,21 +106,9 @@ void CompositionRoot::run() {
     auto local_ipc = std::static_pointer_cast<core::LocalIpcFramework>(m_ipc_framework);
     
     // Main Event Loop
-    int ticks = 0;
     while (m_is_running) {
         m_input_driver->poll();
         local_ipc->poll_messages();
-        
-        // Simulate a hardware mouse click every 100 ticks to verify focus routing works
-        if (++ticks % 100 == 0) {
-            auto mock_input = std::static_pointer_cast<hal::MockInputDriver>(m_input_driver);
-            mock_input->inject_mouse(150, 150, 1); // Click inside the DemoApp window
-            
-            // Periodically emit a test notification
-            if (ticks % 300 == 0) {
-                m_notification_service->notify("System", "Periodic diagnostic event", desktop::NotificationPriority::Normal);
-            }
-        }
         
         // Let apps update their buffers using the toolkit
         m_desktop_shell->update_frame();

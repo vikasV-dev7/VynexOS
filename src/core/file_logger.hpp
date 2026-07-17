@@ -11,6 +11,9 @@ public:
     explicit FileLogger(const std::string& file_path);
     ~FileLogger() override;
 
+    void set_log_level(LogLevel level) override;
+    [[nodiscard]] LogLevel get_log_level() const override;
+
     void log_raw(LogLevel level, std::string_view message) override;
 
 private:
@@ -18,6 +21,7 @@ private:
     
     std::ofstream m_file;
     std::mutex m_mutex;
+    LogLevel m_current_level{LogLevel::Info};
 };
 
 } // namespace vynexos::core

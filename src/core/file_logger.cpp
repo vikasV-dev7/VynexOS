@@ -18,7 +18,18 @@ FileLogger::~FileLogger() {
     }
 }
 
+void FileLogger::set_log_level(LogLevel level) {
+    std::lock_guard lock(m_mutex);
+    m_current_level = level;
+}
+
+LogLevel FileLogger::get_log_level() const {
+    return m_current_level;
+}
+
 void FileLogger::log_raw(LogLevel level, std::string_view message) {
+    if (level < m_current_level) return;
+
     std::lock_guard lock(m_mutex);
     
     // Get timestamp

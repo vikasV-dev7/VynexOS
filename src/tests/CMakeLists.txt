@@ -27,6 +27,10 @@ add_executable(test_plugin_manager test_plugin_manager.cpp)
 target_include_directories(test_plugin_manager PRIVATE ${PROJECT_SOURCE_DIR}/include)
 target_link_libraries(test_plugin_manager PRIVATE vynex_core vynex_hal)
 
+add_executable(test_hal test_hal.cpp ${PROJECT_SOURCE_DIR}/src/bootstrap/composition_root.cpp)
+target_include_directories(test_hal PRIVATE ${PROJECT_SOURCE_DIR}/include)
+target_link_libraries(test_hal PRIVATE vynex_core vynex_hal vynex_desktop vynex_apps)
+
 # Copy the libraries to the executable directory so it can find them
 add_custom_command(TARGET test_plugin_manager POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
@@ -38,5 +42,6 @@ add_custom_command(TARGET test_plugin_manager POST_BUILD
 )
 
 enable_testing()
-add_test(NAME TaskSchedulerTests COMMAND vynex_test_scheduler)
+add_test(NAME SchedulerTests COMMAND vynex_test_scheduler)
 add_test(NAME PluginManagerTests COMMAND test_plugin_manager)
+add_test(NAME HALTests COMMAND test_hal)

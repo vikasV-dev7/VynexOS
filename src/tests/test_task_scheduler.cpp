@@ -11,7 +11,11 @@ using namespace vynexos::core;
 
 class DummyLogger : public ILogger {
 public:
+    void set_log_level(LogLevel level) override { m_level = level; }
+    [[nodiscard]] LogLevel get_log_level() const override { return m_level; }
     void log_raw(LogLevel, std::string_view) override {}
+private:
+    LogLevel m_level{LogLevel::Info};
 };
 
 void run_concurrency_tests() {
