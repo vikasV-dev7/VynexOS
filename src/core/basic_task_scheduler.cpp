@@ -10,7 +10,7 @@ BasicTaskScheduler::BasicTaskScheduler(ILogger& logger, size_t thread_count)
         thread_count = 1; // Fallback if hardware_concurrency returns 0
     }
 
-    logger_.log(LogLevel::Info, "BasicTaskScheduler: Initializing " + std::to_string(thread_count) + " worker threads.");
+    logger_.info("BasicTaskScheduler: Initializing {} worker threads.", thread_count);
 
     for (size_t i = 0; i < thread_count; ++i) {
         workers_.emplace_back([this, i](std::stop_token stoken) {
@@ -27,7 +27,7 @@ bool BasicTaskScheduler::enqueue(std::move_only_function<void(const ExecutionCon
     {
         std::lock_guard<std::mutex> lock(mutex_);
         if (!is_running_) {
-            logger_.log(LogLevel::Warning, "BasicTaskScheduler: Enqueue called while shutting down. Task discarded.");
+            logger_.warning("BasicTaskScheduler: Enqueue called while shutting down. Task discarded.");
             return false;
         }
         tasks_.push(std::move(task));
@@ -39,7 +39,7 @@ bool BasicTaskScheduler::enqueue(std::move_only_function<void(const ExecutionCon
 void BasicTaskScheduler::shutdown() {
     bool expected = true;
     if (is_running_.compare_exchange_strong(expected, false)) {
-        logger_.log(LogLevel::Info, "BasicTaskScheduler: Initiating shutdown. Draining queue...");
+        logger_.info("BasicTaskScheduler: Initiating shutdown. Draining queue...");
         
         // Notify all threads to wake up and process remaining tasks or exit
         for (auto& worker : workers_) {
@@ -50,12 +50,12 @@ void BasicTaskScheduler::shutdown() {
         // std::jthread destructors in workers_.clear() will automatically join()
         workers_.clear(); 
         
-        logger_.log(LogLevel::Info, "BasicTaskScheduler: Shutdown complete.");
+        logger_.info("BasicTaskScheduler: Shutdown complete.");
     }
 }
 
 void BasicTaskScheduler::worker_loop(std::stop_token stoken, size_t thread_id) {
-    logger_.log(LogLevel::Debug, "BasicTaskScheduler: Worker thread " + std::to_string(thread_id) + " started.");
+    logger_.debug("BasicTaskScheduler: Worker thread {} started.", thread_id);
     
     ExecutionContext context{};
 
@@ -91,13 +91,13 @@ void BasicTaskScheduler::worker_loop(std::stop_token stoken, size_t thread_id) {
                 task(context);
             }
         } catch (const std::exception& e) {
-            logger_.log(LogLevel::Error, std::string("BasicTaskScheduler: Worker thread caught exception: ") + e.what());
+            logger_.error("BasicTaskScheduler: Worker thread caught exception: {}", e.what());
         } catch (...) {
-            logger_.log(LogLevel::Error, "BasicTaskScheduler: Worker thread caught unknown exception.");
+            logger_.error("BasicTaskScheduler: Worker thread caught unknown exception.");
         }
     }
 
-    logger_.log(LogLevel::Debug, "BasicTaskScheduler: Worker thread " + std::to_string(thread_id) + " exiting.");
+    logger_.debug("BasicTaskScheduler: Worker thread {} exiting.", thread_id);
 }
 
 } // namespace vynexos::core
