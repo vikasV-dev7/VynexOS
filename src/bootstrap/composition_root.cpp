@@ -43,6 +43,10 @@ CompositionRoot::CompositionRoot() {
     
     m_audio_driver = std::make_shared<hal::MockAudioDriver>(m_logger);
     m_compute_driver = std::make_shared<hal::MockComputeDriver>(m_logger);
+    m_network_adapter = std::make_shared<hal::MockNetworkAdapter>(m_logger);
+    m_block_device = std::make_shared<hal::MockBlockDevice>(m_logger, 1024 * 1024); // 512MB
+    m_hardware_clock = std::make_shared<hal::MockHardwareClock>(m_logger);
+    
     m_notification_service = std::make_shared<desktop::BasicNotificationService>(m_event_bus, m_logger);
     
     // Inject logger into Service Manager
@@ -63,6 +67,18 @@ void CompositionRoot::initialize() {
     
     if (auto res = m_compute_driver->initialize(); !res) {
         m_logger->error("Failed to initialize Compute Backend!");
+    }
+    
+    if (auto res = m_hardware_clock->initialize(); !res) {
+        m_logger->error("Failed to initialize Hardware Clock!");
+    }
+    
+    if (auto res = m_block_device->initialize(); !res) {
+        m_logger->error("Failed to initialize Block Device!");
+    }
+    
+    if (auto res = m_network_adapter->initialize(); !res) {
+        m_logger->error("Failed to initialize Network Adapter!");
     }
     
     m_logger->info("VynexOS Bootstrap: Launching Desktop Shell...");
@@ -141,6 +157,9 @@ void CompositionRoot::shutdown() {
     
     // 2. Shut down hardware abstractions. 
     // Cutting off drivers prevents new hardware interrupts from entering the system.
+    m_network_adapter->shutdown();
+    m_block_device->shutdown();
+    m_hardware_clock->shutdown();
     m_display_backend->shutdown();
     
     // 3. Finally, shut down the Task Scheduler.

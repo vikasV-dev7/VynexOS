@@ -2,6 +2,9 @@ set(HAL_SOURCES
     mock_input_driver.cpp
     mock_audio_driver.cpp
     mock_compute_driver.cpp
+    mock_network_adapter.cpp
+    mock_block_device.cpp
+    mock_hardware_clock.cpp
     library_loader_factory.cpp
 )
 

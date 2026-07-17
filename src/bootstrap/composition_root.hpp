@@ -17,6 +17,9 @@
 #include "../core/basic_plugin_manager.hpp"
 #include "../hal/mock_audio_driver.hpp"
 #include "../hal/mock_compute_driver.hpp"
+#include "../hal/mock_network_adapter.hpp"
+#include "../hal/mock_block_device.hpp"
+#include "../hal/mock_hardware_clock.hpp"
 #include "../desktop/basic_notification_service.hpp"
 #include <memory>
 #include <atomic>
@@ -68,6 +71,9 @@ private:
     std::shared_ptr<core::IPluginManager> m_plugin_manager;
     std::shared_ptr<hal::IAudioDevice> m_audio_driver;
     std::shared_ptr<hal::IComputeDevice> m_compute_driver;
+    std::shared_ptr<hal::INetworkAdapter> m_network_adapter;
+    std::shared_ptr<hal::IBlockDevice> m_block_device;
+    std::shared_ptr<hal::IHardwareClock> m_hardware_clock;
     std::shared_ptr<desktop::INotificationService> m_notification_service;
     
     std::atomic<bool> m_is_running{false};
