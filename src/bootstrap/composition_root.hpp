@@ -36,10 +36,23 @@ public:
     void request_stop();
 
 private:
+    // =========================================================================
+    // C++ OBJECT DESTRUCTION ORDER (RAII)
+    // =========================================================================
+    // The logical operational shutdown sequence is explicitly handled in `shutdown()`.
+    // Actual memory release relies on standard C++ RAII (reverse order of declaration).
+    // 
+    // Foundational Contract for RAII Teardown:
+    // 1. Consumers terminate first.
+    // 2. EventBus and IPC frameworks terminate before the scheduler.
+    // 3. The Task Scheduler terminates ONLY AFTER all components capable of 
+    //    enqueueing work have completed their shutdown.
+    // =========================================================================
+
     std::shared_ptr<core::ILogger> m_logger;
+    std::unique_ptr<core::ITaskScheduler> m_task_scheduler;
     std::shared_ptr<core::IEventBus> m_event_bus;
     std::shared_ptr<core::IConfigManager> m_config_manager;
-    std::unique_ptr<core::ITaskScheduler> m_task_scheduler;
     std::shared_ptr<core::IServiceManager> m_service_manager;
     std::shared_ptr<core::IIpcFramework> m_ipc_framework;
     std::shared_ptr<desktop::IDisplayAbstraction> m_display_backend;

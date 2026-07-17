@@ -11,12 +11,7 @@ using namespace vynexos::core;
 
 class DummyLogger : public ILogger {
 public:
-    void log(LogLevel, const std::string&) override {}
-    void debug(const std::string&) override {}
-    void info(const std::string&) override {}
-    void warning(const std::string&) override {}
-    void error(const std::string&) override {}
-    void fatal(const std::string&) override {}
+    void log_raw(LogLevel, std::string_view) override {}
 };
 
 void run_concurrency_tests() {
@@ -33,9 +28,11 @@ void run_concurrency_tests() {
         for (int i = 0; i < 4; ++i) {
             producers.emplace_back([&scheduler, &counter]() {
                 for (int j = 0; j < 10000; ++j) {
-                    scheduler.enqueue([&counter](const ExecutionContext&) {
+                    bool accepted = scheduler.enqueue([&counter](const ExecutionContext&) {
                         counter.fetch_add(1, std::memory_order_relaxed);
                     });
+                    assert(accepted && "Enqueue must not fail during active testing phase.");
+                    (void)accepted; // Explicitly discard after assertion to silence [[nodiscard]] warnings in Release mode
                 }
             });
         }

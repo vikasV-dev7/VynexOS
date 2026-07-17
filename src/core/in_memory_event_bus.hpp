@@ -1,30 +1,20 @@
 #pragma once
 #include "vynexos/core/event_bus.hpp"
+#include "vynexos/core/task_scheduler.hpp"
 #include <unordered_map>
 #include <vector>
 #include <mutex>
 #include <shared_mutex>
-#include <thread>
-#include <condition_variable>
-#include <queue>
-#include <atomic>
 #include <string>
 
 namespace vynexos::core {
 
 class InMemoryEventBus final : public IEventBus {
 public:
-    InMemoryEventBus() {
-        m_worker = std::thread([this]() { worker_loop(); });
-    }
+    explicit InMemoryEventBus(ITaskScheduler& scheduler) 
+        : m_scheduler(scheduler) {}
 
-    ~InMemoryEventBus() override {
-        m_stop = true;
-        m_cv.notify_all();
-        if (m_worker.joinable()) {
-            m_worker.join();
-        }
-    }
+    ~InMemoryEventBus() override = default;
 
     void subscribe(const std::string& topic, EventHandler handler) override {
         std::unique_lock lock(m_sub_mutex);
@@ -32,45 +22,25 @@ public:
     }
 
     void publish(std::shared_ptr<const Event> event) override {
-        std::unique_lock lock(m_queue_mutex);
-        m_queue.push({event->topic, event});
-        m_cv.notify_one();
-    }
-
-private:
-    void worker_loop() {
-        while (!m_stop) {
-            std::pair<std::string, std::shared_ptr<const Event>> task;
-            {
-                std::unique_lock lock(m_queue_mutex);
-                m_cv.wait(lock, [this]() { return m_stop || !m_queue.empty(); });
-                
-                if (m_stop && m_queue.empty()) break;
-                
-                task = std::move(m_queue.front());
-                m_queue.pop();
-            }
-
-            // Dispatch to subscribers
+        bool accepted = m_scheduler.enqueue([this, evt = std::move(event)](const ExecutionContext&) {
             std::shared_lock lock(m_sub_mutex);
-            auto it = m_subscribers.find(task.first);
+            auto it = m_subscribers.find(evt->topic);
             if (it != m_subscribers.end()) {
                 for (const auto& handler : it->second) {
-                    handler(task.second);
+                    handler(evt);
                 }
             }
+        });
+        
+        if (!accepted) {
+            // Task scheduler is shutting down. The event is intentionally discarded.
         }
     }
 
+private:
+    ITaskScheduler& m_scheduler;
     std::shared_mutex m_sub_mutex;
     std::unordered_map<std::string, std::vector<EventHandler>> m_subscribers;
-
-    std::mutex m_queue_mutex;
-    std::condition_variable m_cv;
-    std::queue<std::pair<std::string, std::shared_ptr<const Event>>> m_queue;
-    
-    std::thread m_worker;
-    std::atomic<bool> m_stop{false};
 };
 
 } // namespace vynexos::core
