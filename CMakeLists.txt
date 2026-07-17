@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.25)
-project(VynexOS VERSION 0.2.0 LANGUAGES CXX C)
+project(VynexOS VERSION 0.3.0 LANGUAGES CXX C)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
