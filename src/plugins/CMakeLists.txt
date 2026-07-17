@@ -1,2 +1,3 @@
-add_library(mock_ai_backend SHARED mock_ai_backend.cpp)
+add_library(mock_ai_backend MODULE mock_ai_backend.cpp)
+target_compile_definitions(mock_ai_backend PRIVATE VYNEX_BUILD_PLUGIN)
 target_include_directories(mock_ai_backend PRIVATE ${PROJECT_SOURCE_DIR}/include)

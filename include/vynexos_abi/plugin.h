@@ -7,6 +7,18 @@
 extern "C" {
 #endif
 
+#ifndef VYNEX_PLUGIN_API
+#if defined(_WIN32)
+  #if defined(VYNEX_BUILD_PLUGIN)
+    #define VYNEX_PLUGIN_API __declspec(dllexport)
+  #else
+    #define VYNEX_PLUGIN_API __declspec(dllimport)
+  #endif
+#else
+  #define VYNEX_PLUGIN_API __attribute__((visibility("default")))
+#endif
+#endif
+
 // ============================================================================
 // VynexOS Stable Plugin ABI - Version 1.0
 // ============================================================================
@@ -51,20 +63,20 @@ typedef struct {
 // ============================================================================
 // Plugin Lifecycle Operations
 // ============================================================================
-VynexPluginManifest vynex_plugin_get_manifest(void);
+VYNEX_PLUGIN_API VynexPluginManifest vynex_plugin_get_manifest(void);
 
-bool vynex_plugin_create(void);
-bool vynex_plugin_initialize(const VynexPluginContext* ctx);
-bool vynex_plugin_register_services(void);
-bool vynex_plugin_start(void);
+VYNEX_PLUGIN_API bool vynex_plugin_create(void);
+VYNEX_PLUGIN_API bool vynex_plugin_initialize(const VynexPluginContext* ctx);
+VYNEX_PLUGIN_API bool vynex_plugin_register_services(void);
+VYNEX_PLUGIN_API bool vynex_plugin_start(void);
 
-void vynex_plugin_stop(void);
-void vynex_plugin_shutdown(void);
-void vynex_plugin_destroy(void);
+VYNEX_PLUGIN_API void vynex_plugin_stop(void);
+VYNEX_PLUGIN_API void vynex_plugin_shutdown(void);
+VYNEX_PLUGIN_API void vynex_plugin_destroy(void);
 
 // Memory lifecycle (called by OS when it is done with plugin-allocated memory)
-void vynex_plugin_free_string(char* str);
-void vynex_plugin_free_buffer(uint8_t* buffer);
+VYNEX_PLUGIN_API void vynex_plugin_free_string(char* str);
+VYNEX_PLUGIN_API void vynex_plugin_free_buffer(uint8_t* buffer);
 
 #ifdef __cplusplus
 }

@@ -3,19 +3,23 @@ set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 add_executable(vynex_test_scheduler test_task_scheduler.cpp)
 target_link_libraries(vynex_test_scheduler PRIVATE vynex_core)
 
-add_library(test_plugin SHARED test_plugin.c)
+add_library(test_plugin MODULE test_plugin.c)
+target_compile_definitions(test_plugin PRIVATE VYNEX_BUILD_PLUGIN)
 target_include_directories(test_plugin PRIVATE ${PROJECT_SOURCE_DIR}/include)
 set_target_properties(test_plugin PROPERTIES PREFIX "")
 
-add_library(test_plugin_invalid_abi SHARED test_plugin_invalid_abi.c)
+add_library(test_plugin_invalid_abi MODULE test_plugin_invalid_abi.c)
+target_compile_definitions(test_plugin_invalid_abi PRIVATE VYNEX_BUILD_PLUGIN)
 target_include_directories(test_plugin_invalid_abi PRIVATE ${PROJECT_SOURCE_DIR}/include)
 set_target_properties(test_plugin_invalid_abi PROPERTIES PREFIX "")
 
-add_library(test_plugin_v2 SHARED test_plugin_v2.c)
+add_library(test_plugin_v2 MODULE test_plugin_v2.c)
+target_compile_definitions(test_plugin_v2 PRIVATE VYNEX_BUILD_PLUGIN)
 target_include_directories(test_plugin_v2 PRIVATE ${PROJECT_SOURCE_DIR}/include)
 set_target_properties(test_plugin_v2 PROPERTIES PREFIX "")
 
-add_library(test_plugin_init_fail SHARED test_plugin_init_fail.c)
+add_library(test_plugin_init_fail MODULE test_plugin_init_fail.c)
+target_compile_definitions(test_plugin_init_fail PRIVATE VYNEX_BUILD_PLUGIN)
 target_include_directories(test_plugin_init_fail PRIVATE ${PROJECT_SOURCE_DIR}/include)
 set_target_properties(test_plugin_init_fail PROPERTIES PREFIX "")
 
