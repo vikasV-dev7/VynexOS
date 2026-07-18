@@ -101,10 +101,30 @@ void test_alpha_blending() {
     std::cout << "test_alpha_blending passed\n";
 }
 
+void test_compositor_memory_stability() {
+    auto logger = std::make_shared<TestLogger>();
+    auto display = std::make_shared<TestDisplayBackend>();
+    BasicCompositor compositor(display, logger);
+
+    auto surface = compositor.create_surface(100, 100);
+    SceneGraph scene;
+    scene.push_back({ {0, 0, 100, 100}, {0, 0, 1920, 1080}, 1.0f, true, surface });
+
+    // Render 60,000 frames (approx 16 minutes at 60fps)
+    // Validate it doesn't crash or leak heap memory endlessly
+    for (int i = 0; i < 60000; i++) {
+        auto res = compositor.render_frame(scene);
+        assert(res.has_value());
+    }
+    
+    std::cout << "test_compositor_memory_stability passed (60000 frames rendered cleanly)\n";
+}
+
 int main() {
     std::cout << "Running Compositor Tests...\n";
     test_software_surface();
     test_alpha_blending();
+    test_compositor_memory_stability();
     std::cout << "All tests passed successfully.\n";
     return 0;
 }

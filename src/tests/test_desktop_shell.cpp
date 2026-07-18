@@ -63,6 +63,35 @@ void test_desktop_shell_rendering() {
     assert(task_map[3] == 240); // A
     scene[1].surface->unmap_pixels();
     
+    // Launcher is initially invisible
+    auto verify_launcher = [&]() -> bool {
+        auto current_scene = wm->build_scene();
+        return current_scene.size() == 3; // Wallpaper, Taskbar, Launcher (if visible)
+    };
+    
+    assert(!verify_launcher());
+    
+    // Simulate valid click on Launcher button bounding box
+    auto click_event = std::make_shared<core::Event>();
+    click_event->topic = "HAL_INPUT_MOUSE";
+    click_event->payload = hal::MouseEvent(50, 1060, 1);
+    event_bus->publish(click_event);
+    
+    // Yield to let TaskScheduler process it
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    
+    assert(verify_launcher()); // Should now be visible
+    
+    // Simulate another click
+    auto click2 = std::make_shared<core::Event>();
+    click2->topic = "HAL_INPUT_MOUSE";
+    click2->payload = hal::MouseEvent(50, 1060, 1);
+    event_bus->publish(click2);
+    
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    
+    assert(!verify_launcher()); // Should be hidden again
+    
     std::cout << "test_desktop_shell_rendering passed\n";
 }
 

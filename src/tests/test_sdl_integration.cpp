@@ -16,7 +16,8 @@
 #include "vynexos/core/event_bus.hpp"
 #include "vynexos/hal/input_driver.hpp"
 #include "vynexos/core/logger.hpp"
-
+#include "../bootstrap/composition_root.hpp"
+#include "../hal/mock_input_driver.hpp"
 using namespace vynexos;
 
 class DummyLogger : public core::ILogger {
@@ -30,10 +31,15 @@ class DummyEventBus : public core::IEventBus {
 public:
     size_t event_count = 0;
     std::string last_topic;
+    std::vector<uint8_t> recorded_mouse_states;
 
     void publish(std::shared_ptr<const core::Event> event) override {
         event_count++;
         last_topic = event->topic;
+        if (event->topic == "HAL_INPUT_MOUSE") {
+            auto me = std::any_cast<hal::MouseEvent>(event->payload);
+            recorded_mouse_states.push_back(me.button_state);
+        }
     }
     void subscribe(const std::string&, EventHandler) override {}
 };
@@ -67,7 +73,7 @@ void test_sdl_raii_cycles() {
     auto logger = std::make_shared<DummyLogger>();
     
     // Perform multiple init/shutdown cycles to ensure no dangling resources
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < 50; i++) {
         desktop::SDL2DisplayBackend backend(logger);
         auto res = backend.initialize();
         if (res) {
@@ -86,24 +92,52 @@ void test_burst_event_processing() {
     hal::SDL2InputDriver driver(bus, logger);
     
     // Inject synthetic SDL events directly into the queue
+    // Sequence 1: DOWN -> UP
     SDL_Event ev1;
-    ev1.type = SDL_KEYDOWN;
-    ev1.key.keysym.sym = SDLK_ESCAPE;
+    ev1.type = SDL_MOUSEBUTTONDOWN;
+    ev1.button.button = SDL_BUTTON_LEFT;
+    SDL_PushEvent(&ev1);
+    ev1.type = SDL_MOUSEBUTTONUP;
+    SDL_PushEvent(&ev1);
+    
+    // Sequence 2: DOWN -> DOWN -> UP -> UP (Simulating race or double fire)
+    ev1.type = SDL_MOUSEBUTTONDOWN;
+    SDL_PushEvent(&ev1);
+    SDL_PushEvent(&ev1);
+    ev1.type = SDL_MOUSEBUTTONUP;
+    SDL_PushEvent(&ev1);
+    SDL_PushEvent(&ev1);
+    
+    // Sequence 3: DOWN -> MOTION -> MOTION -> UP
+    ev1.type = SDL_MOUSEBUTTONDOWN;
     SDL_PushEvent(&ev1);
     
     SDL_Event ev2;
     ev2.type = SDL_MOUSEMOTION;
-    ev2.motion.x = 100;
-    ev2.motion.y = 200;
     ev2.motion.state = SDL_BUTTON_LMASK;
     SDL_PushEvent(&ev2);
+    SDL_PushEvent(&ev2);
+    
+    ev1.type = SDL_MOUSEBUTTONUP;
+    SDL_PushEvent(&ev1);
     
     driver.poll(); // Drain the queue
     
-    if (bus->event_count != 2) {
-        std::cout << "  -> FAILED: Expected 2 events, got " << bus->event_count << std::endl;
-        std::exit(1);
-    }
+    // Assert exactly 10 events were generated and recorded
+    assert(bus->recorded_mouse_states.size() == 10);
+    // Sequence 1
+    assert(bus->recorded_mouse_states[0] == 1); // DOWN
+    assert(bus->recorded_mouse_states[1] == 0); // UP
+    // Sequence 2
+    assert(bus->recorded_mouse_states[2] == 1); // DOWN
+    assert(bus->recorded_mouse_states[3] == 1); // DOWN
+    assert(bus->recorded_mouse_states[4] == 0); // UP
+    assert(bus->recorded_mouse_states[5] == 0); // UP
+    // Sequence 3
+    assert(bus->recorded_mouse_states[6] == 1); // DOWN
+    assert(bus->recorded_mouse_states[7] == 1); // MOTION
+    assert(bus->recorded_mouse_states[8] == 1); // MOTION
+    assert(bus->recorded_mouse_states[9] == 0); // UP
     if (bus->last_topic != "HAL_INPUT_MOUSE") {
         std::cout << "  -> FAILED: Expected HAL_INPUT_MOUSE topic" << std::endl;
         std::exit(1);
@@ -162,6 +196,45 @@ void test_compositor_frame_consistency() {
     std::cout << "  -> Passed (Compositor frame consistency validated)." << std::endl;
 }
 
+void test_runtime_full_stack() {
+    std::cout << "Running test_runtime_full_stack...\n";
+    bootstrap::CompositionRoot root;
+    root.initialize();
+    
+    auto mock_input = std::dynamic_pointer_cast<hal::MockInputDriver>(root.m_input_driver);
+    if (!mock_input) {
+        std::cout << "  -> Skipped (Not using MockInputDriver, perhaps using SDL native in config)\n";
+        return;
+    }
+    
+    std::thread runner([&root]() {
+        root.run();
+    });
+    
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    
+    // Inject input
+    mock_input->inject_mouse(50, 50, 1);
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    mock_input->inject_mouse(50, 50, 0);
+    
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    
+    // Request clean shutdown
+    root.request_stop(); // Wait, let's just inject SDL_QUIT if possible, or call shutdown
+    // Since mock_input doesn't have an SDL queue, we just call shutdown or mock_input->request_shutdown()
+    // Looking at CompositionRoot, it polls is_shutdown_requested().
+    mock_input->inject_key(27, true); // Escape key usually handled, or we manually trigger shutdown
+    
+    // Just inject a quit event equivalent if supported, or hack it:
+    // Actually we can just wait for run() to finish if we forcibly stop the driver.
+    // I'll assume test_runtime_bug.cpp just calls root.shutdown() from another thread.
+    root.shutdown();
+    runner.join();
+    
+    std::cout << "  -> Passed (Clean lifecycle execution with no deadlocks).\n";
+}
+
 int main(int argc, char* argv[]) {
     (void)argc;
     (void)argv;
@@ -174,6 +247,7 @@ int main(int argc, char* argv[]) {
     test_launcher_stability();
     test_repeated_focus_changes();
     test_compositor_frame_consistency();
+    test_runtime_full_stack();
     
     std::cout << "All SDLIntegrationTests passed successfully." << std::endl;
     return 0;

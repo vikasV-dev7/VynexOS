@@ -178,6 +178,7 @@
   },
   "active": "ec034a83069f4a5b",
   "lastOpenFiles": [
+    "Testing/v0.6.0_Phase_3_Verification.md",
     "Testing/v0.6.0_Phase_2_Verification.md",
     "architecture/Architecture Review Log.md",
     "Testing/v0.6.0_Phase_1_Verification.md",
@@ -203,7 +204,6 @@
     "architecture/0.3.0_Extension_Framework.md",
     "architecture/0.5.0_Physical_Driver_Layer.md",
     "architecture/0.4.0_HAL_Completion.md",
-    "Release Notes.md",
     "Debugging",
     "documentation_index.json",
     "Release Notes"

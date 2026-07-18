@@ -61,9 +61,49 @@ void test_scene_compilation() {
     std::cout << "test_scene_compilation passed\n";
 }
 
+void test_stress_focus_transitions() {
+    auto logger = std::make_shared<TestLogger>();
+    core::BasicTaskScheduler scheduler(*logger);
+    auto event_bus = std::make_shared<core::InMemoryEventBus>(scheduler);
+    
+    BasicWindowManager wm(event_bus, logger);
+    std::vector<uint32_t> window_ids;
+    
+    // Create 10 overlapping windows
+    for (int i = 0; i < 10; i++) {
+        uint32_t id = wm.create_window("Win" + std::to_string(i), {i*10, i*10, 100, 100});
+        auto surf = std::make_shared<vynexos::desktop::SoftwareSurface>(100, 100);
+        wm.set_window_surface(id, surf);
+        window_ids.push_back(id);
+    }
+    
+    assert(wm.get_windows_z_ordered().size() == 10);
+    
+    // Simulate rapid, random focus events
+    for (int i = 0; i < 10000; i++) {
+        uint32_t target = window_ids[i % 10];
+        wm.focus_window(target);
+    }
+    
+    auto final_z_order = wm.get_windows_z_ordered();
+    
+    // Validate exactly one of each window exists in the Z-order
+    assert(final_z_order.size() == 10);
+    for (uint32_t id : window_ids) {
+        assert(std::count(final_z_order.begin(), final_z_order.end(), id) == 1);
+    }
+    
+    // Check missing windows
+    auto scene = wm.build_scene();
+    assert(scene.size() == 10);
+    
+    std::cout << "test_stress_focus_transitions passed\n";
+}
+
 int main() {
     std::cout << "Running Window Manager Orchestration Tests...\n";
     test_scene_compilation();
+    test_stress_focus_transitions();
     std::cout << "All tests passed successfully.\n";
     return 0;
 }
