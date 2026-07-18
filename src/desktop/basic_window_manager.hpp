@@ -23,7 +23,12 @@ public:
     void move_window(uint32_t window_id, int32_t x, int32_t y) override;
     void resize_window(uint32_t window_id, uint32_t width, uint32_t height) override;
     
+    void set_window_surface(uint32_t window_id, std::shared_ptr<ISurface> surface) override;
+    void set_window_visibility(uint32_t window_id, bool visible) override;
+    
     std::vector<uint32_t> get_windows_z_ordered() const override;
+
+    SceneGraph build_scene() const override;
 
 private:
     void handle_mouse_event(std::shared_ptr<const core::Event> event);
@@ -31,6 +36,9 @@ private:
     struct WindowState {
         std::string title;
         WindowGeometry geometry;
+        std::shared_ptr<ISurface> surface;
+        bool visible{true};
+        float opacity{1.0f};
     };
 
     std::shared_ptr<core::IEventBus> m_event_bus;
@@ -41,6 +49,7 @@ private:
     std::unordered_map<uint32_t, WindowState> m_windows;
     std::vector<uint32_t> m_z_order; // front is bottom, back is top
     uint32_t m_focused_window{0};
+    uint8_t m_last_mouse_state{0};
 };
 
 } // namespace vynexos::desktop

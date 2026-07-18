@@ -12,3 +12,6 @@ This cluster tracks the high-level roadmap, historical progress, and release art
 
 ## Releases
 - [[Release Notes]]
+
+## Version 0.6.0 Goals
+- Runtime lifecycle completion and system stabilization.

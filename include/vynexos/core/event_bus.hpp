@@ -21,6 +21,13 @@ struct Event {
  * - **Publisher Event Ordering:** NOT guaranteed. Sequential `publish(A)` followed by `publish(B)` from the same thread may result in B being processed before A due to underlying thread-pool scheduling.
  * - **Handler Concurrency:** Handlers for the *same* event instance are executed sequentially (in a single worker context). Handlers for *different* event instances will execute concurrently.
  * - **Delivery Guarantees:** "At-most-once" delivery per active subscriber. If an event is published while the system is shutting down, it may be discarded.
+ * @Purpose The central nervous system for decoupled inter-module communication.
+ * @Responsibilities Subscribes handlers, dispatches events synchronously/asynchronously, manages topic routing.
+ * @Ownership Shared ownership via Dependency Injection to all major system services.
+ * @Lifetime Lives for the entire duration of the `CompositionRoot::run()` loop.
+ * @ThreadSafety Subscribers must be added strictly on the main thread. Publish is thread-safe.
+ * @FailureHandling If an event handler throws, the EventBus catches and logs the exception but continues dispatching.
+ * @ExtensionPoints Custom event types can be derived from `SystemEvent`.
  */
 class IEventBus {
 public:

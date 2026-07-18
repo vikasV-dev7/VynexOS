@@ -30,12 +30,17 @@ private:
     
     uint32_t m_wallpaper_id{0};
     uint32_t m_taskbar_id{0};
+    uint32_t m_launcher_id{0};
     
-    desktop::WindowBuffer m_wallpaper_buffer;
-    desktop::WindowBuffer m_taskbar_buffer;
+    std::shared_ptr<desktop::ISurface> m_wallpaper_surface;
+    std::shared_ptr<desktop::ISurface> m_taskbar_surface;
+    std::shared_ptr<desktop::ISurface> m_launcher_surface;
+    
+    bool m_launcher_visible{false};
 
     std::mutex m_mutex;
     std::vector<desktop::Notification> m_notifications;
+    uint8_t m_last_mouse_state{0};
 };
 
 } // namespace vynexos::apps

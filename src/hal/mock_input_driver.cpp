@@ -26,4 +26,13 @@ void MockInputDriver::inject_mouse(int32_t x, int32_t y, uint8_t button_state) {
     m_event_bus->publish(ev);
 }
 
+void MockInputDriver::inject_shutdown() {
+    m_logger->trace("MockInputDriver: Hardware IRQ - Shutdown");
+    m_shutdown_requested = true;
+}
+
+bool MockInputDriver::is_shutdown_requested() const {
+    return m_shutdown_requested;
+}
+
 } // namespace vynexos::hal

@@ -23,38 +23,39 @@ void BasicFileExplorer::semantic_search_async(std::string_view query, std::funct
 }
 
 void BasicFileExplorer::launch() {
-    desktop::WindowGeometry geom{200, 150, 600, 450};
+    desktop::WindowGeometry geom{200, 200, 700, 500};
     m_window_id = m_wm->create_window("File Explorer", geom);
     
-    m_buffer.id = m_window_id;
-    m_buffer.x = geom.x;
-    m_buffer.y = geom.y;
-    m_buffer.width = geom.width;
-    m_buffer.height = geom.height;
-    m_buffer.pixels.resize(geom.width * geom.height * 4, static_cast<uint8_t>(255)); // White background
+    m_surface = m_compositor->create_surface(geom.width, geom.height);
+    m_wm->set_window_surface(m_window_id, m_surface);
 }
 
 void BasicFileExplorer::update_frame() {
     if (m_window_id == 0) return;
     
-    // Clear to white
-    std::fill(m_buffer.pixels.begin(), m_buffer.pixels.end(), static_cast<uint8_t>(255));
+    // Clear surface
+    {
+        auto map = m_surface->map_pixels();
+        std::fill(map.begin(), map.end(), static_cast<uint8_t>(0));
+        m_surface->unmap_pixels();
+    }
     
-    // Title bar
-    m_toolkit->draw_panel(m_buffer, 0, 0, m_buffer.width, 30);
-    m_toolkit->draw_text(m_buffer, 10, 8, "File Explorer - /", desktop::Color{255, 255, 255, 255});
+    // Draw background
+    m_toolkit->draw_panel(m_surface, 0, 0, 700, 500);
     
-    // Sidebar
-    m_toolkit->draw_panel(m_buffer, 0, 30, 150, m_buffer.height - 30);
-    m_toolkit->draw_text(m_buffer, 10, 40, "Home", desktop::Color{200, 200, 200, 255});
-    m_toolkit->draw_text(m_buffer, 10, 65, "System", desktop::Color{200, 200, 200, 255});
+    // Draw title bar
+    m_toolkit->draw_rect(m_surface, 0, 0, 700, 30, desktop::Color{60, 60, 80, 255});
+    m_toolkit->draw_text(m_surface, 10, 10, "File Explorer - /", desktop::Color{255, 255, 255, 255});
     
-    // Files mock
-    m_toolkit->draw_button(m_buffer, 170, 50, 80, 80, "sys");
-    m_toolkit->draw_button(m_buffer, 270, 50, 80, 80, "usr");
-    m_toolkit->draw_button(m_buffer, 370, 50, 80, 80, "home");
+    // Draw close button
+    m_toolkit->draw_button(m_surface, 660, 5, 30, 20, "X");
     
-    m_compositor->submit_buffer(m_buffer);
+    // Draw some mock folders
+    m_toolkit->draw_button(m_surface, 20, 50, 80, 80, "bin");
+    m_toolkit->draw_button(m_surface, 120, 50, 80, 80, "etc");
+    m_toolkit->draw_button(m_surface, 220, 50, 80, 80, "var");
+    m_toolkit->draw_button(m_surface, 320, 50, 80, 80, "usr");
+    m_toolkit->draw_button(m_surface, 420, 50, 80, 80, "home");
 }
 
 } // namespace vynexos::apps

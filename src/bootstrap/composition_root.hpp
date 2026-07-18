@@ -62,7 +62,9 @@ private:
     std::shared_ptr<desktop::ICompositor> m_compositor;
     std::shared_ptr<desktop::IWindowManager> m_window_manager;
     std::shared_ptr<desktop::IWidgetToolkit> m_widget_toolkit;
+public:
     std::shared_ptr<hal::IInputDriver> m_input_driver;
+private:
     std::shared_ptr<apps::DemoApp> m_demo_app;
     std::shared_ptr<apps::IDesktopShell> m_desktop_shell;
     std::shared_ptr<apps::BasicTerminal> m_terminal;

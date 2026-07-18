@@ -2,12 +2,12 @@ from .utils import write_preserved, ensure_dir
 import os
 
 def generate_misc(docs_dir: str):
-    # Root level files
-    write_preserved(os.path.join(docs_dir, "Home.md"), "# VynexOS Documentation Home\n\n## Quick Links\n- [[System Overview]]\n- [[Roadmap]]\n- [[Changelog]]\n- [[Development Diary]]\n- [[Glossary]]")
-    write_preserved(os.path.join(docs_dir, "Roadmap.md"), "# Roadmap\n\n## Future Milestones\n- [[Kernel]]\n- [[Memory Manager]]\n- [[Scheduler]]\n- [[Virtual File System]]\n- [[Drivers]]\n- [[Networking]]\n- [[AI Runtime]]")
-    write_preserved(os.path.join(docs_dir, "Changelog.md"), "# Changelog\n\n- **v1.0**: Runtime Architecture 1.0 Complete.")
-    write_preserved(os.path.join(docs_dir, "Development Diary.md"), "# Development Diary\n\nNotes and reflections.")
-    write_preserved(os.path.join(docs_dir, "Glossary.md"), "# Glossary\n\n- **HAL**: Hardware Abstraction Layer.")
+    # Root level files (MANUALLY MAINTAINED NOW)
+    # write_preserved(os.path.join(docs_dir, "Home.md"), "# VynexOS Documentation Home\n\n## Quick Links\n- [[System Overview]]\n- [[Roadmap]]\n- [[Changelog]]\n- [[Development Diary]]\n- [[Glossary]]")
+    # write_preserved(os.path.join(docs_dir, "Roadmap.md"), "# Roadmap\n\n## Future Milestones\n- [[Kernel]]\n- [[Memory Manager]]\n- [[Scheduler]]\n- [[Virtual File System]]\n- [[Drivers]]\n- [[Networking]]\n- [[AI Runtime]]")
+    # write_preserved(os.path.join(docs_dir, "Changelog.md"), "# Changelog\n\n- **v1.0**: Runtime Architecture 1.0 Complete.")
+    # write_preserved(os.path.join(docs_dir, "Development Diary.md"), "# Development Diary\n\nNotes and reflections.")
+    # write_preserved(os.path.join(docs_dir, "Glossary.md"), "# Glossary\n\n- **HAL**: Hardware Abstraction Layer.")
 
     # Build
     build_dir = os.path.join(docs_dir, "Build")

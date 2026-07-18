@@ -22,6 +22,7 @@ class IInputDriver {
 public:
     virtual ~IInputDriver() = default;
     virtual void poll() = 0;
+    virtual bool is_shutdown_requested() const = 0;
 };
 
 } // namespace vynexos::hal

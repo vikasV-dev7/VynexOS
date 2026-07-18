@@ -16,6 +16,16 @@ enum class LogLevel {
     Critical
 };
 
+    /**
+     * @Purpose Defines the standard logging interface for the VynexOS ecosystem.
+     * @Responsibilities Provides leveled logging, module prefixing, and sink abstraction.
+     * @Ownership The ILogger is owned globally by the ServiceManager.
+     * @Lifetime Initialized during bootstrap. Survives until final shutdown phase.
+     * @ThreadSafety Implementations MUST be thread-safe for concurrent cross-thread logging.
+     * @FailureHandling Sink failures should be silently swallowed to avoid crashing the runtime.
+     * @Performance Logging operations should not block the main EventBus. Use lock-free queues where possible.
+     * @ExtensionPoints Additional sinks can be attached dynamically via specific implementations.
+     */
 class ILogger {
 public:
     virtual ~ILogger() = default;

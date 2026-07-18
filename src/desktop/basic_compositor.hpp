@@ -13,15 +13,19 @@ public:
     BasicCompositor(std::shared_ptr<IDisplayAbstraction> display, std::shared_ptr<core::ILogger> logger);
     ~BasicCompositor() override = default;
 
-    void submit_buffer(const WindowBuffer& buffer) override;
-    std::expected<void, DisplayError> render_frame() override;
+    std::shared_ptr<ISurface> create_surface(uint32_t width, uint32_t height) override;
+    std::expected<void, DisplayError> render_frame(const SceneGraph& scene) override;
 
 private:
     std::shared_ptr<IDisplayAbstraction> m_display;
     std::shared_ptr<core::ILogger> m_logger;
     std::mutex m_mutex;
     
-    std::unordered_map<uint32_t, WindowBuffer> m_window_buffers;
+
+    
+    std::expected<void, DisplayError> render_scene_internal(const SceneGraph& scene);
+    void blend_surface(hal::FrameBuffer& target, int32_t dst_x, int32_t dst_y, uint32_t target_w, uint32_t target_h,
+                       const Rect& clip, float global_opacity, std::shared_ptr<ISurface> surface);
 };
 
 } // namespace vynexos::desktop

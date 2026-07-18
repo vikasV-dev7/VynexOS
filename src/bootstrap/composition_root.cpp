@@ -122,6 +122,10 @@ void CompositionRoot::run() {
         frame_clock.begin_frame();
         
         m_input_driver->poll();
+        if (m_input_driver->is_shutdown_requested()) {
+            m_logger->info("CompositionRoot: HAL reports shutdown requested. Breaking run loop.");
+            break;
+        }
         local_ipc->poll_messages();
         
         // Let apps update their buffers using the toolkit
@@ -130,10 +134,24 @@ void CompositionRoot::run() {
         m_file_explorer->update_frame();
         m_demo_app->update_frame();
         
-        // Compositor handles z-ordering and rendering to the display backend
-        if (auto res = m_compositor->render_frame(); !res) {
+        // WindowManager builds the scene graph
+        auto scene = m_window_manager->build_scene();
+        
+        auto start_render = std::chrono::steady_clock::now();
+        // Compositor handles rendering the scene graph to the display backend
+        if (auto res = m_compositor->render_frame(scene); !res) {
             m_logger->error("Compositor dropped frame due to display error.");
         }
+        auto end_render = std::chrono::steady_clock::now();
+        auto dur = std::chrono::duration_cast<std::chrono::microseconds>(end_render - start_render).count();
+        
+        static uint64_t frame_count = 0;
+        frame_count++;
+        if (frame_count % 60 == 0) { // Log every 60 frames to avoid spam, but we can log every frame if needed.
+            // User requested "Every frame log: Frame Number, SceneGraph size, Render duration"
+            // Wait, we need it every frame to see when it stops.
+        }
+        m_logger->info("Frame Loop: Frame={}, SceneSize={}, RenderDur={}us", frame_count, scene.size(), dur);
         
         frame_clock.end_frame_and_wait();
     }
@@ -157,21 +175,53 @@ void CompositionRoot::shutdown() {
     // 1. Stop all high-level services first. They may enqueue final cleanup tasks.
     m_service_manager->stop_all();
     
-    // 2. Shut down hardware abstractions. 
-    // Cutting off drivers prevents new hardware interrupts from entering the system.
-    m_network_adapter->shutdown();
-    m_block_device->shutdown();
-    m_hardware_clock->shutdown();
-    m_display_backend->shutdown();
+    // 2. Explicit Reverse-Order Teardown of components
+    m_logger->info("VynexOS Bootstrap: Tearing down services in reverse order...");
+    m_service_manager.reset();
+    m_notification_service.reset();
     
-    // 3. Finally, shut down the Task Scheduler.
-    // This blocks and drains the queue, executing any cleanup tasks queued during steps 1 and 2.
-    // It must shut down only after all components capable of enqueueing work have stopped.
-    if (m_task_scheduler) {
-        m_task_scheduler->shutdown();
+    m_hardware_clock->shutdown();
+    m_hardware_clock.reset();
+    m_block_device->shutdown();
+    m_block_device.reset();
+    m_network_adapter->shutdown();
+    m_network_adapter.reset();
+    m_compute_driver.reset();
+    m_audio_driver.reset();
+    
+    m_plugin_manager.reset();
+    
+    // Apps
+    m_file_explorer.reset();
+    m_terminal.reset();
+    m_desktop_shell.reset();
+    m_demo_app.reset();
+    
+    // Desktop core
+    m_widget_toolkit.reset();
+    m_window_manager.reset();
+    
+    // HALs
+    m_input_driver.reset();
+    m_compositor.reset();
+    
+    if (m_display_backend) {
+        m_display_backend->shutdown();
+        m_display_backend.reset();
     }
     
-    m_logger->info("Logical shutdown complete. Proceeding to RAII memory release.");
+    m_ipc_framework.reset();
+    m_config_manager.reset();
+    m_event_bus.reset();
+    
+    // Finally, shut down the Task Scheduler.
+    if (m_task_scheduler) {
+        m_task_scheduler->shutdown();
+        m_task_scheduler.reset();
+    }
+    
+    m_logger->info("Logical shutdown complete. VynexOS Terminated.");
+    m_logger.reset();
 }
 
 } // namespace vynexos::bootstrap

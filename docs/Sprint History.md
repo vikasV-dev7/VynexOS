@@ -19,3 +19,5 @@ Active tracking is maintained in the [[Development Diary]].
 - [[Sprint 13]]
 
 - Post-v0.5.0: Engineering Investigation & Documentation (IntelliSense False Positive).
+
+- Sprint 14: Version 0.6.0 Runtime Lifecycle Completion & Stabilization (Planning Phase). Focus on CompositionRoot lifecycle ownership and rigorous regression testing.

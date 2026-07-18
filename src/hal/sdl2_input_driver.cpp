@@ -47,9 +47,13 @@ void SDL2InputDriver::poll() {
             m_event_bus->publish(ev);
         } else if (event.type == SDL_QUIT) {
             m_logger->info("SDL_QUIT received (Window closed)");
-            // TODO: Route OS shutdown event
+            m_shutdown_requested = true;
         }
     }
+}
+
+bool SDL2InputDriver::is_shutdown_requested() const {
+    return m_shutdown_requested;
 }
 
 } // namespace vynexos::hal

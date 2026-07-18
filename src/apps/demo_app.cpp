@@ -8,35 +8,31 @@ DemoApp::DemoApp(std::shared_ptr<desktop::IWindowManager> wm,
     : m_wm(std::move(wm)), m_compositor(std::move(compositor)), m_toolkit(std::move(toolkit)) {}
 
 void DemoApp::launch() {
-    // 1. Ask Window Manager to create window logic
-    desktop::WindowGeometry geom{100, 100, 640, 480};
-    m_window_id = m_wm->create_window("VynexOS Demo App", geom);
-    m_wm->focus_window(m_window_id);
+    desktop::WindowGeometry geom{400, 300, 300, 200};
+    m_window_id = m_wm->create_window("Demo App", geom);
     
-    // 2. Initialize pixel buffer for Compositor
-    m_buffer.id = m_window_id;
-    m_buffer.x = geom.x;
-    m_buffer.y = geom.y;
-    m_buffer.width = geom.width;
-    m_buffer.height = geom.height;
-    m_buffer.z_index = 1; // In a full OS, WM would sync this to Compositor
-    m_buffer.pixels.resize(geom.width * geom.height * 4, static_cast<uint8_t>(255)); // White background
+    m_surface = m_compositor->create_surface(geom.width, geom.height);
+    m_wm->set_window_surface(m_window_id, m_surface);
 }
 
 void DemoApp::update_frame() {
     if (m_window_id == 0) return;
     
-    // Clear buffer to white (255)
-    std::fill(m_buffer.pixels.begin(), m_buffer.pixels.end(), static_cast<uint8_t>(255));
+    // Clear surface
+    {
+        auto map = m_surface->map_pixels();
+        std::fill(map.begin(), map.end(), static_cast<uint8_t>(0));
+        m_surface->unmap_pixels();
+    }
     
-    // Use toolkit to draw UI
-    m_toolkit->draw_panel(m_buffer, 0, 0, m_buffer.width, 30); // Title bar
-    m_toolkit->draw_text(m_buffer, 10, 10, "VynexOS Demo App", desktop::Color{255, 255, 255, 255});
+    // Draw background
+    m_toolkit->draw_panel(m_surface, 0, 0, 300, 200);
     
-    m_toolkit->draw_button(m_buffer, 20, 50, 120, 40, "Click Me");
+    // Draw title bar
+    m_toolkit->draw_rect(m_surface, 0, 0, 300, 25, desktop::Color{80, 80, 100, 255});
+    m_toolkit->draw_text(m_surface, 5, 5, "Demo App", desktop::Color{255, 255, 255, 255});
     
-    // Submit to Compositor
-    m_compositor->submit_buffer(m_buffer);
+    m_toolkit->draw_button(m_surface, 20, 50, 120, 40, "Click Me");
 }
 
 } // namespace vynexos::apps

@@ -21,7 +21,7 @@ private:
     std::shared_ptr<desktop::IWidgetToolkit> m_toolkit;
     
     uint32_t m_window_id{0};
-    desktop::WindowBuffer m_buffer;
+    std::shared_ptr<desktop::ISurface> m_surface;
 };
 
 } // namespace vynexos::apps

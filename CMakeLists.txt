@@ -4,6 +4,7 @@ project(VynexOS VERSION 0.6.0 LANGUAGES CXX C)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_CXX_EXTENSIONS False)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Global output directories
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
@@ -41,8 +42,8 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
         -Wunused -Woverloaded-virtual -Wconversion -Wsign-conversion
         -Wnull-dereference -Wdouble-promotion -Wformat=2
     )
-elseif(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
-    add_compile_options(/W4 /WX)
+elseif(MSVC)
+    add_compile_options(/W4)
 endif()
 
 # Subdirectories

@@ -4,6 +4,7 @@ set(DESKTOP_SOURCES
     basic_window_manager.cpp
     basic_widget_toolkit.cpp
     basic_notification_service.cpp
+    software_surface.cpp
 )
 
 if(VYNEX_ENABLE_SDL2)

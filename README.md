@@ -17,8 +17,8 @@ The system is divided into highly cohesive, loosely coupled sub-modules:
 - **Bootstrap (`vynex_bootstrap`)**: The Composition Root that wires all dependencies via dependency injection and launches the main event loop.
 
 ## Current Status
-**Architecture Version 0.3.0 (Stable)**
-The core subsystem architectures have been defined, implemented with mock interfaces, and verified to compile and execute flawlessly under MSVC C++23. The Runtime Extension Framework (v0.3.0) introduces an ABI-stable plugin architecture capable of dynamically loading libraries across Windows and POSIX environments safely.
+**Architecture Version 0.5.0 (Stable)**
+The core subsystem architectures have been defined, implemented with mock interfaces, and verified to compile and execute flawlessly under MSVC C++23. The Physical Driver Layer (v0.5.0) introduces hardware-accelerated rendering and physical input translation via SDL2, replacing previously mocked subsystems.
 
 ## Features Implemented
 ✓ Runtime Framework  
@@ -34,10 +34,11 @@ The core subsystem architectures have been defined, implemented with mock interf
 ✓ Terminal  
 ✓ File Explorer  
 ✓ Notification Service  
-✓ Mock Audio Driver  
-✓ Mock Compute Driver  
+✓ SDL2 Display Backend (Hardware Accelerated)  
+✓ SDL2 Input Driver (Physical Keyboard & Mouse)  
+✓ FrameClock (60 FPS Timing Synchronization)  
 
-*(Note: The current runtime uses mock hardware abstractions. The underlying interfaces are stable, but the implementations simulate real hardware behavior for isolated architecture testing.)*
+*(Note: The current runtime leverages physical hardware bindings for display and input via SDL2. Audio and compute implementations remain mocked simulating physical execution until future sprints.)*
 
 ## Build Instructions
 1. Clone the repository.
@@ -69,26 +70,22 @@ The core subsystem architectures have been defined, implemented with mock interf
 ```
 
 ## Roadmap
-1. **Architecture Version 0.2.0**: Foundational services, EventBus, Mock HAL, Window Manager.
-2. **Architecture Version 0.3.0 (Current)**: Runtime Extension Framework (Dynamic Plugin ABI).
-3. **Architecture Version 0.4.0**: Hardware Abstraction Layer completion.
-4. **Architecture Version 0.5.0**: Physical Graphical Compositor (SDL2/OpenGL).
+1. **v0.3.0**: Runtime Extension Framework (Dynamic Plugin ABI).
+2. **v0.4.0**: Hardware Abstraction Layer completion.
+3. **v0.5.0 (Current)**: Physical Graphical Compositor (SDL2/OpenGL).
+4. **v0.6.0**: Hardware-Accelerated UI Compositing and Event Routing.
 
 ## Current Limitations
-- Mock Display Backend (No physical rendering to screen)
 - Mock Audio Backend (No actual sound playback)
 - Mock Compute Backend (Simulated GPU workloads)
 - Mock File System (No physical disk mapping)
-- No bootloader
-- No scheduler
-- No memory manager
-- No process manager
+- No memory manager or bare-metal scheduler
 - Runs as a hosted runtime rather than a standalone operating system
 
 ## Future Work
-- Implementation of a real software rasterizer or OpenGL rendering backend.
-- Physical integration of keyboard/mouse inputs via Win32 or SDL2.
-- Expanding `WidgetToolkit` with standard UI components (buttons, sliders, text inputs).
+- Implementation of a Vynex UI layer.
+- Hardware-accelerated UI compositing logic.
+- Advancing the `WidgetToolkit` with standard UI components (buttons, sliders, text inputs).
 
 ## License
 This project is licensed under the MIT License. See the `LICENSE` file for more details.

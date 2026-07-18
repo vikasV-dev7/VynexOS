@@ -12,14 +12,17 @@ public:
     ~MockInputDriver() override = default;
 
     void poll() override;
+    bool is_shutdown_requested() const override;
     
     // Test API to manually trigger synthetic hardware interrupts
     void inject_key(uint32_t key_code, bool pressed);
     void inject_mouse(int32_t x, int32_t y, uint8_t button_state);
+    void inject_shutdown();
 
 private:
     std::shared_ptr<core::IEventBus> m_event_bus;
     std::shared_ptr<core::ILogger> m_logger;
+    bool m_shutdown_requested{false};
 };
 
 } // namespace vynexos::hal

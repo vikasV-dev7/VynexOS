@@ -29,40 +29,39 @@ void BasicTerminal::request_ai_suggestion(std::string_view intent) {
 }
 
 void BasicTerminal::launch() {
-    desktop::WindowGeometry geom{400, 200, 700, 400};
+    desktop::WindowGeometry geom{100, 100, 600, 400};
     m_window_id = m_wm->create_window("Terminal", geom);
     
-    m_buffer.id = m_window_id;
-    m_buffer.x = geom.x;
-    m_buffer.y = geom.y;
-    m_buffer.width = geom.width;
-    m_buffer.height = geom.height;
-    m_buffer.pixels.resize(geom.width * geom.height * 4, static_cast<uint8_t>(0)); // Black background
+    m_surface = m_compositor->create_surface(geom.width, geom.height);
+    m_wm->set_window_surface(m_window_id, m_surface);
 }
 
 void BasicTerminal::update_frame() {
     if (m_window_id == 0) return;
     
-    // Clear to black
-    for (size_t i = 0; i < m_buffer.pixels.size(); i += 4) {
-        m_buffer.pixels[i] = 20;
-        m_buffer.pixels[i+1] = 20;
-        m_buffer.pixels[i+2] = 20;
-        m_buffer.pixels[i+3] = 255;
+    // Clear surface
+    {
+        auto map = m_surface->map_pixels();
+        std::fill(map.begin(), map.end(), static_cast<uint8_t>(0));
+        m_surface->unmap_pixels();
     }
     
-    // Title bar
-    m_toolkit->draw_panel(m_buffer, 0, 0, m_buffer.width, 25);
-    m_toolkit->draw_text(m_buffer, 5, 5, "Terminal", desktop::Color{255, 255, 255, 255});
+    // Draw background
+    m_toolkit->draw_panel(m_surface, 0, 0, 600, 400);
+    
+    // Draw title bar
+    m_toolkit->draw_rect(m_surface, 0, 0, 600, 30, desktop::Color{50, 50, 50, 255});
+    m_toolkit->draw_text(m_surface, 10, 10, "Terminal", desktop::Color{255, 255, 255, 255});
+    
+    // Draw close button
+    m_toolkit->draw_button(m_surface, 560, 5, 30, 20, "X");
     
     // Draw text history
-    int32_t y_offset = 35;
+    int32_t y_offset = 40;
     for (const auto& line : m_history) {
-        m_toolkit->draw_text(m_buffer, 10, y_offset, line, desktop::Color{0, 255, 0, 255});
+        m_toolkit->draw_text(m_surface, 10, y_offset, line, desktop::Color{200, 200, 200, 255});
         y_offset += 20;
     }
-    
-    m_compositor->submit_buffer(m_buffer);
 }
 
 } // namespace vynexos::apps

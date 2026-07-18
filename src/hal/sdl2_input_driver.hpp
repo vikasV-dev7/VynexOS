@@ -12,10 +12,12 @@ public:
     ~SDL2InputDriver() override;
 
     void poll() override;
+    bool is_shutdown_requested() const override;
 
 private:
     std::shared_ptr<core::IEventBus> m_event_bus;
     std::shared_ptr<core::ILogger> m_logger;
+    bool m_shutdown_requested{false};
 };
 
 } // namespace vynexos::hal
