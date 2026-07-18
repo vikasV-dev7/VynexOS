@@ -10,8 +10,12 @@
 #include "../desktop/basic_window_manager.hpp"
 #include "../desktop/basic_widget_toolkit.hpp"
 #include "../hal/mock_input_driver.hpp"
+#ifdef VYNEX_ENABLE_SDL2
+#include "../desktop/sdl2_display_backend.hpp"
+#include "../hal/sdl2_input_driver.hpp"
+#endif
+#include "vynexos/core/frame_clock.hpp"
 #include <thread>
-#include <chrono>
 #include <vynexos/hal/library_loader.hpp>
 #include <vynexos/core/plugin_context_factory.hpp>
 
@@ -25,9 +29,15 @@ CompositionRoot::CompositionRoot() {
     m_config_manager = std::make_shared<core::InMemoryConfigManager>();
     m_ipc_framework = std::make_shared<core::LocalIpcFramework>();
     
+#ifdef VYNEX_ENABLE_SDL2
+    m_display_backend = std::make_shared<desktop::SDL2DisplayBackend>(m_logger);
+    m_compositor = std::make_shared<desktop::BasicCompositor>(m_display_backend, m_logger);
+    m_input_driver = std::make_shared<hal::SDL2InputDriver>(m_event_bus, m_logger);
+#else
     m_display_backend = std::make_shared<desktop::MockDisplayBackend>(m_logger);
     m_compositor = std::make_shared<desktop::BasicCompositor>(m_display_backend, m_logger);
     m_input_driver = std::make_shared<hal::MockInputDriver>(m_event_bus, m_logger);
+#endif
     
     m_window_manager = std::make_shared<desktop::BasicWindowManager>(m_event_bus, m_logger);
     m_widget_toolkit = std::make_shared<desktop::BasicWidgetToolkit>();
@@ -105,8 +115,12 @@ void CompositionRoot::run() {
     // Dynamic cast to access internal polling method
     auto local_ipc = std::static_pointer_cast<core::LocalIpcFramework>(m_ipc_framework);
     
+    core::FrameClock frame_clock(60);
+    
     // Main Event Loop
     while (m_is_running) {
+        frame_clock.begin_frame();
+        
         m_input_driver->poll();
         local_ipc->poll_messages();
         
@@ -121,7 +135,7 @@ void CompositionRoot::run() {
             m_logger->error("Compositor dropped frame due to display error.");
         }
         
-        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        frame_clock.end_frame_and_wait();
     }
 }
 

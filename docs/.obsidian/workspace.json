@@ -4,11 +4,11 @@
     "type": "split",
     "children": [
       {
-        "id": "8df0a0545c3e34e6",
+        "id": "4032a09903d4a232",
         "type": "tabs",
         "children": [
           {
-            "id": "20431777e7e41e29",
+            "id": "ec034a83069f4a5b",
             "type": "leaf",
             "state": {
               "type": "graph",
@@ -74,8 +74,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 300,
-    "collapsed": true
+    "width": 300
   },
   "right": {
     "id": "f55aa1b366362866",
@@ -177,8 +176,19 @@
       "bases:Create new base": false
     }
   },
-  "active": "20431777e7e41e29",
+  "active": "ec034a83069f4a5b",
   "lastOpenFiles": [
+    "Release Notes/v0.5.0.md",
+    "Technical Debt.md",
+    "architecture/0.5.0_Physical_Driver_Layer.md",
+    "Developer Guide/Testing Workflow.md",
+    "Developer Guide/Review Checklist.md",
+    "Developer Guide/Naming Convention.md",
+    "Developer Guide/How to Add a Service.md",
+    "Developer Guide/How to Add a Driver.md",
+    "Developer Guide/Dependency Rules.md",
+    "Developer Guide/Coding Standards.md",
+    "Developer Guide/Architecture Rules.md",
     "Release Notes/v0.4.1.md",
     "Release Notes",
     "architecture/Logging.md",
@@ -193,12 +203,7 @@
     "Decisions/ADR-002 Dependency Injection.md",
     "Decisions/ADR-001 Runtime Architecture.md",
     "Decisions/ADR-000 Index.md",
-    "Developer Guide/How to Add a Driver.md",
-    "Developer Guide/Dependency Rules.md",
-    "Developer Guide/Coding Standards.md",
-    "Developer Guide/Architecture Rules.md",
     "Build/Linux.md",
-    "Build/CMake.md",
-    "Build/Build Instructions.md"
+    "Build/CMake.md"
   ]
 }

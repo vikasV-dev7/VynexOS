@@ -6,5 +6,6 @@ add_library(vynex_core STATIC
     loaded_plugin.cpp
     local_ipc_framework.cpp
     basic_task_scheduler.cpp
+    frame_clock.cpp
 )
 target_include_directories(vynex_core PUBLIC ${PROJECT_SOURCE_DIR}/include)

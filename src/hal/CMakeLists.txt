@@ -8,6 +8,10 @@ set(HAL_SOURCES
     library_loader_factory.cpp
 )
 
+if(VYNEX_ENABLE_SDL2)
+    list(APPEND HAL_SOURCES sdl2_input_driver.cpp)
+endif()
+
 if(WIN32)
     list(APPEND HAL_SOURCES windows_library_loader.cpp)
 else()
@@ -22,3 +26,7 @@ if(EXTRA_LIBS)
 endif()
 target_include_directories(vynex_hal PUBLIC ${PROJECT_SOURCE_DIR}/include)
 target_link_libraries(vynex_hal PUBLIC vynex_core)
+
+if(VYNEX_ENABLE_SDL2)
+    target_link_libraries(vynex_hal PRIVATE SDL2-static)
+endif()
