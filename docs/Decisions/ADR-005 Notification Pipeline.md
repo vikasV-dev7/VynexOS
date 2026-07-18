@@ -5,6 +5,6 @@
 How to push notifications to [[DesktopShell]] without coupling.
 
 ## Chosen Solution
-Publish over [[EventBus]]; [[DesktopShell]] subscribes.
+Publish over EventBus; [[DesktopShell]] subscribes.
 
 <!-- AUTO-GENERATED END -->

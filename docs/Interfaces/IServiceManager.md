@@ -1,34 +1,43 @@
 <!-- AUTO-GENERATED START -->
 # [[IServiceManager]]
 
-## Purpose
-Interface for [[IServiceManager]].
+## Why the interface exists & Architectural role
+_Not explicitly documented._
 
-## Namespace
-`vynexos::core`
+## Lifetime & Ownership expectations
+**Lifetime**: _Unspecified_
+**Ownership**: _Unspecified_
 
-## Source Location
-`C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/core/service_manager.hpp`
+## Threading guarantees & Failure behaviour
+**Thread Safety**: _Unspecified_
+**Failure Handling**: _Unspecified_
 
-## Responsibilities
-To be documented.
+## Extension guidance
+_No explicit extension points defined._
 
-## Dependencies
-None (pure interface).
+## Public API
+- `virtual ~[[IServiceManager]]() = default;`
+- `virtual void register_service(std::shared_ptr<[[IService]]> service) = 0;`
+- `virtual std::expected<void, std::string> start_all() = 0;`
+- `virtual void stop_all() = 0;`
 
-## Methods
-- `virtual ~[[IServiceManager]]() = default`
-- `virtual void register_service(std::shared_ptr<[[IService]]> service) = 0`
-- `virtual std::expected<void, std::string> start_all() = 0`
-- `virtual void stop_all() = 0`
-
-## Thread Safety
-Implementations must ensure thread safety if accessed across multiple sub-systems via Dependency Injection.
-
-## Used By
-See [[Composition Root]]
-
-## Implemented By
-See Services directory.
+---
+### Generator Metadata
+- **Generation Timestamp**: 2026-07-18T08:05:14.244277+00:00
+- **Generator Version**: 2.1.0
+- **Documentation Schema**: 1.1
+- **IR Version**: 1.0
+- **Parser**: RegexParser
+- **Source File**: `C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/core/service_manager.hpp`
 
 <!-- AUTO-GENERATED END -->
+
+
+
+
+
+
+
+
+
+

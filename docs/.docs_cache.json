@@ -1,0 +1,259 @@
+{
+    "metadata": {
+        "ir_version": "1.0",
+        "schema_version": "1.1",
+        "generator_version": "2.1.0",
+        "parser_version": "1.1.0",
+        "timestamp": "2026-07-18T08:05:14.677112+00:00"
+    },
+    "entities": {
+        "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/ai/ai_runtime.hpp": {
+            "entity_hash": "08c5e054042d03d553c8a696f9f828d65c72584d02b7d51103213996378a7745",
+            "timestamp": "2026-07-18T08:05:14.407442+00:00"
+        },
+        "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/apps/desktop_shell.hpp": {
+            "entity_hash": "8c8c5c4ef96443e040d34f24fa58b1ade57ee5d76ed58efc24889b1f91fb3262",
+            "timestamp": "2026-07-18T06:24:39.554495+00:00"
+        },
+        "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/apps/file_explorer.hpp": {
+            "entity_hash": "fd2dd299b54e4d4eb3e9759b8fc1be68604164d247f5839738f9918abae648dc",
+            "timestamp": "2026-07-18T06:24:39.564144+00:00"
+        },
+        "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/apps/terminal.hpp": {
+            "entity_hash": "8d1a14e4517f7d2bdf076b57c4adac693161642f87e480f985e41205f79d7186",
+            "timestamp": "2026-07-18T06:24:39.576316+00:00"
+        },
+        "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/core/config_manager.hpp": {
+            "entity_hash": "de1b0d6d0d12cfefbd0610f7eeedef87af2874800cd9b7c2fe95406d0824a2c2",
+            "timestamp": "2026-07-18T08:05:14.418466+00:00"
+        },
+        "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/core/event_bus.hpp": {
+            "entity_hash": "2c991a15c559d6e8f17ee9d529cbc3843012fee9c1c53d53dd5743c4c873f370",
+            "timestamp": "2026-07-18T06:24:39.593892+00:00"
+        },
+        "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/core/ipc_framework.hpp": {
+            "entity_hash": "42992ea841eb219b5231e488f8b4539fc8f7c5a352f00d3b9663b754e05f293c",
+            "timestamp": "2026-07-18T08:05:14.429556+00:00"
+        },
+        "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/core/logger.hpp": {
+            "entity_hash": "fd24c1aa542f07239f9fc72d4314a608adfeabed5564a181412cda6bcb20b923",
+            "timestamp": "2026-07-18T08:05:14.460508+00:00"
+        },
+        "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/core/plugin_manager.hpp": {
+            "entity_hash": "d0e715112290b53ee1bdda7f0946bb0ce624d07cf1e35e281ac38f97f6f687f8",
+            "timestamp": "2026-07-18T08:05:14.471312+00:00"
+        },
+        "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/core/service_manager.hpp": {
+            "entity_hash": "ba00287291b8f248240dad86bd059f39f4b8fc9ba4d2eddadf250b8c97a4561c",
+            "timestamp": "2026-07-18T08:05:14.481238+00:00"
+        },
+        "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/core/task_scheduler.hpp": {
+            "entity_hash": "c52a27531bd501aa9b38abba6a4db8ed5be574d7d65d3af295f9a866870358b8",
+            "timestamp": "2026-07-18T06:24:39.667023+00:00"
+        },
+        "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/desktop/compositor.hpp": {
+            "entity_hash": "b0e99089dafe7780568a5d71bdf7a399ef07923a234a3996852bd6a212e9e217",
+            "timestamp": "2026-07-18T07:54:11.281231+00:00"
+        },
+        "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/desktop/desktop_shell.hpp": {
+            "entity_hash": "0b8883bc3732979d9b57852cbaa8f0fe65cfad85e8215a75e7aa1260fd2f1da0",
+            "timestamp": "2026-07-18T06:24:39.685375+00:00"
+        },
+        "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/desktop/desktop_types.hpp": {
+            "entity_hash": "cefe229dd711197c2396b4facbc63a68b3a0c49c69a32022013234b5f37879a9",
+            "timestamp": "2026-07-18T06:24:39.692742+00:00"
+        },
+        "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/desktop/display_abstraction.hpp": {
+            "entity_hash": "ac6ee87ebb9834039726e74dce5d28ce6abb695eb9b523371f81216306b873e4",
+            "timestamp": "2026-07-18T08:05:14.492622+00:00"
+        },
+        "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/desktop/notification_service.hpp": {
+            "entity_hash": "e1167d7a37bdb335e98d2ebdd88e94e21e683eef07b1f9c18bdf44d14258e666",
+            "timestamp": "2026-07-18T08:05:14.502166+00:00"
+        },
+        "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/desktop/widget_toolkit.hpp": {
+            "entity_hash": "813634f1442dd805f56e4af1afac7cab05b096459c76582e5f1a7670539f6d37",
+            "timestamp": "2026-07-18T07:54:11.319237+00:00"
+        },
+        "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/desktop/window_manager.hpp": {
+            "entity_hash": "c9b24eb0162eaaabc35a9ad5bb5a6ff4009166ff92716e339e965688bc20b7a6",
+            "timestamp": "2026-07-18T08:05:14.304308+00:00"
+        },
+        "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/hal/audio.hpp": {
+            "entity_hash": "1adc0d507cd39ceec0564e7aa234d2488b28ed7531812ef935d1193a5f39531d",
+            "timestamp": "2026-07-18T08:05:14.512214+00:00"
+        },
+        "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/hal/clock.hpp": {
+            "entity_hash": "30a29f8fb29668708cec14238b0a7a95d32dec5f133da20ac39354fd4c1c81c0",
+            "timestamp": "2026-07-18T08:05:14.521885+00:00"
+        },
+        "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/hal/compute.hpp": {
+            "entity_hash": "ea5a3f3b22bead395df9238a7f8b6964c818ae44ada46b403ff3958d92e7f94c",
+            "timestamp": "2026-07-18T08:05:14.530570+00:00"
+        },
+        "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/hal/display.hpp": {
+            "entity_hash": "a79ce42db04d8f023c4f80959954de10d3120c84f2c09206eb540490b006a745",
+            "timestamp": "2026-07-18T06:24:39.767698+00:00"
+        },
+        "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/hal/input_driver.hpp": {
+            "entity_hash": "018d3543dd65bd129a3ea5999111021070f4b424e465999d849c2a573f5362ca",
+            "timestamp": "2026-07-18T06:24:39.775545+00:00"
+        },
+        "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/hal/library_loader.hpp": {
+            "entity_hash": "156c1caee5179930933d1cc5b7d608a724bd92057e62a4b2d5295a1b1636ec84",
+            "timestamp": "2026-07-18T08:05:14.541369+00:00"
+        },
+        "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/hal/network.hpp": {
+            "entity_hash": "3ad5c026a1cdbc9cfacd060c69337589ebac7464a137acdee22983192a9c1326",
+            "timestamp": "2026-07-18T08:05:14.551311+00:00"
+        },
+        "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/hal/storage.hpp": {
+            "entity_hash": "2b7f91c06d788050501319de9fec2b1264b8dcff5cc73a33b29f39c536736435",
+            "timestamp": "2026-07-18T08:05:14.559411+00:00"
+        },
+        "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/sdk/debug_console.hpp": {
+            "entity_hash": "d88288480242a6e6293934a7fee12e6e94e3fcb5d7e5c145ea4e67dc33b2499b",
+            "timestamp": "2026-07-18T06:24:39.826492+00:00"
+        },
+        "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/sdk/system_monitor.hpp": {
+            "entity_hash": "819d3713c06f22fbb6d4a665042d5692b163835d5ee3e5a6ad74442e13f77bee",
+            "timestamp": "2026-07-18T06:24:39.836833+00:00"
+        },
+        "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/core/frame_clock.hpp": {
+            "entity_hash": "4d2fa9c827b16b48681eb08c5d955f9d0551c5adab5c568a21a516f0cc524c36",
+            "timestamp": "2026-07-18T06:24:39.859862+00:00"
+        },
+        "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/core/loaded_plugin.hpp": {
+            "entity_hash": "41d479f261afacf1fcc69b4852b6d226685d4056f35172c75e3ec81d72677868",
+            "timestamp": "2026-07-18T08:05:14.450212+00:00"
+        },
+        "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/core/plugin_context.hpp": {
+            "entity_hash": "6bb5b4d7567b99a430ee250e38fd842354f2c25b4b1e411f4bc74ccc321be3cf",
+            "timestamp": "2026-07-18T06:24:39.897033+00:00"
+        },
+        "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/core/plugin_context_factory.hpp": {
+            "entity_hash": "76006cb4d6335d4fd6d1e26cbf0a054eb1bfafd14206ea4caaf9f381c544fb0d",
+            "timestamp": "2026-07-18T06:24:39.905056+00:00"
+        },
+        "C:/Users/User/Desktop/Git Projects/VynexOS/src/apps/basic_file_explorer.hpp": {
+            "entity_hash": "697ef31eb43b915dd6d158ab97d62cd69e6a6413dc17db72065743513a630f14",
+            "timestamp": "2026-07-18T06:24:39.985134+00:00"
+        },
+        "C:/Users/User/Desktop/Git Projects/VynexOS/src/apps/basic_terminal.hpp": {
+            "entity_hash": "71cf64ed4fc25f66c649560b12f49d3527be2e712a206ba5964617876617de33",
+            "timestamp": "2026-07-18T06:24:39.993024+00:00"
+        },
+        "C:/Users/User/Desktop/Git Projects/VynexOS/src/apps/demo_app.hpp": {
+            "entity_hash": "d769cc19251ef2ff34595ad6ebce0f742759448b96d34550792dbfe403c2ffa0",
+            "timestamp": "2026-07-18T06:24:39.999819+00:00"
+        },
+        "C:/Users/User/Desktop/Git Projects/VynexOS/src/apps/desktop_shell.hpp": {
+            "entity_hash": "939db04a29b400c0f8dc70e27a021ae6ffbac86ad2de2caea0ac46abb496daa5",
+            "timestamp": "2026-07-18T06:24:40.007621+00:00"
+        },
+        "C:/Users/User/Desktop/Git Projects/VynexOS/src/core/basic_plugin_manager.hpp": {
+            "entity_hash": "e9484d0e45d04ad819d00b65a5d3f0229760dc843da8062d7ea0033b247acf6b",
+            "timestamp": "2026-07-18T06:24:40.015694+00:00"
+        },
+        "C:/Users/User/Desktop/Git Projects/VynexOS/src/core/basic_service_manager.hpp": {
+            "entity_hash": "c53dbb5ee35f10068974e05c401e994519dafbd2e6395f705da3a97b34cfe62d",
+            "timestamp": "2026-07-18T06:24:40.022638+00:00"
+        },
+        "C:/Users/User/Desktop/Git Projects/VynexOS/src/core/basic_task_scheduler.hpp": {
+            "entity_hash": "9353bf5229caeb78ca968e886b70fe1baf8ad0cb8c2664c71bf43609f55f9d88",
+            "timestamp": "2026-07-18T06:24:40.030990+00:00"
+        },
+        "C:/Users/User/Desktop/Git Projects/VynexOS/src/core/file_logger.hpp": {
+            "entity_hash": "b81f6fd63bc941075be7a36feda75fd6aedf63ee8c9faa1f7e2b35d387cf6816",
+            "timestamp": "2026-07-18T06:24:40.038497+00:00"
+        },
+        "C:/Users/User/Desktop/Git Projects/VynexOS/src/core/in_memory_config.hpp": {
+            "entity_hash": "73f19edc31df60bd5fee9f0152e190986254053726c82b7b899053aca04784b4",
+            "timestamp": "2026-07-18T06:24:40.046301+00:00"
+        },
+        "C:/Users/User/Desktop/Git Projects/VynexOS/src/core/in_memory_event_bus.hpp": {
+            "entity_hash": "fc123ef162ce623fbcfc27a4ded26265e766845ec713fc42e0218ed78e002523",
+            "timestamp": "2026-07-18T06:24:40.054526+00:00"
+        },
+        "C:/Users/User/Desktop/Git Projects/VynexOS/src/core/local_ipc_framework.hpp": {
+            "entity_hash": "7be699403d66de2bb4eedc2d2cc2641c2fdfaff9556bcb6dced5b1cbb5088fd7",
+            "timestamp": "2026-07-18T08:05:14.583238+00:00"
+        },
+        "C:/Users/User/Desktop/Git Projects/VynexOS/src/desktop/basic_compositor.hpp": {
+            "entity_hash": "1a79b766e223afb2dce7936b37b3dd7c3270bd0808994f1cfa524a0b4c2e6855",
+            "timestamp": "2026-07-18T07:54:11.606436+00:00"
+        },
+        "C:/Users/User/Desktop/Git Projects/VynexOS/src/desktop/basic_notification_service.hpp": {
+            "entity_hash": "e179243d540b4861e6f32945a9be1f61efa316b38a0310e01db87453a2108439",
+            "timestamp": "2026-07-18T06:24:40.088358+00:00"
+        },
+        "C:/Users/User/Desktop/Git Projects/VynexOS/src/desktop/basic_widget_toolkit.hpp": {
+            "entity_hash": "842f4f334f3ae28e492c0f0d2ab6b7f6f7b303133a6f97c101cd79e3a8d72e87",
+            "timestamp": "2026-07-18T07:54:11.619195+00:00"
+        },
+        "C:/Users/User/Desktop/Git Projects/VynexOS/src/desktop/basic_window_manager.hpp": {
+            "entity_hash": "756ef598a52577a846f28428711cff711366d9bb02acd402d66bba10dc533c62",
+            "timestamp": "2026-07-18T08:05:14.599891+00:00"
+        },
+        "C:/Users/User/Desktop/Git Projects/VynexOS/src/desktop/mock_display_backend.hpp": {
+            "entity_hash": "f4b8ce53aaf5e8dc1bb276e148b3170c15b1172c351a1830e553d89680957c45",
+            "timestamp": "2026-07-18T06:24:40.114311+00:00"
+        },
+        "C:/Users/User/Desktop/Git Projects/VynexOS/src/desktop/sdl2_display_backend.hpp": {
+            "entity_hash": "9ad5f964fb69610d302c218fa9d3812f60a04f49b9f6275d8452337a430d3f56",
+            "timestamp": "2026-07-18T06:24:40.122032+00:00"
+        },
+        "C:/Users/User/Desktop/Git Projects/VynexOS/src/desktop/software_surface.hpp": {
+            "entity_hash": "4bd133f80326bfcb9f09decbb3500e40de0940446b3c79f2c350afcd7302c4c3",
+            "timestamp": "2026-07-18T06:24:40.130101+00:00"
+        },
+        "C:/Users/User/Desktop/Git Projects/VynexOS/src/hal/mock_audio_driver.hpp": {
+            "entity_hash": "8388aa2d19816b456700d5ef411b09ec0ddfc1d84ca93813e6f33faabb004f6c",
+            "timestamp": "2026-07-18T06:24:40.138594+00:00"
+        },
+        "C:/Users/User/Desktop/Git Projects/VynexOS/src/hal/mock_block_device.hpp": {
+            "entity_hash": "e0703530326b2cdd41f6c8c2ff9a533fe750c027589882b1975ad0e78e9ce95f",
+            "timestamp": "2026-07-18T06:24:40.148976+00:00"
+        },
+        "C:/Users/User/Desktop/Git Projects/VynexOS/src/hal/mock_compute_driver.hpp": {
+            "entity_hash": "3c7b5d5902a4a8e723f3923aeed470d45bf879e41d0bb665f2b8fe6d77969d68",
+            "timestamp": "2026-07-18T06:24:40.157693+00:00"
+        },
+        "C:/Users/User/Desktop/Git Projects/VynexOS/src/hal/mock_hardware_clock.hpp": {
+            "entity_hash": "7f2a7304ae100fac9f61f4bc0de486f731d6edb29b86961b06a93e189dbcce22",
+            "timestamp": "2026-07-18T06:24:40.166045+00:00"
+        },
+        "C:/Users/User/Desktop/Git Projects/VynexOS/src/hal/mock_input_driver.hpp": {
+            "entity_hash": "7d52518d41c554664f62c5b54083db02aff487baba98e0abdf503fa19d6bc52e",
+            "timestamp": "2026-07-18T06:24:40.172641+00:00"
+        },
+        "C:/Users/User/Desktop/Git Projects/VynexOS/src/hal/mock_network_adapter.hpp": {
+            "entity_hash": "b695072625c51eb9fafd4f470cc93ac2a8427cfb14267b427f036c5afbc3b7c6",
+            "timestamp": "2026-07-18T06:24:40.181669+00:00"
+        },
+        "C:/Users/User/Desktop/Git Projects/VynexOS/src/hal/posix_library_loader.hpp": {
+            "entity_hash": "e0aa53f22e8921a27cc354d7af5ebefb67d296af9621e7ca519e3a0e71079dc7",
+            "timestamp": "2026-07-18T08:05:14.623255+00:00"
+        },
+        "C:/Users/User/Desktop/Git Projects/VynexOS/src/hal/sdl2_input_driver.hpp": {
+            "entity_hash": "c4b19214a123f28febca3b15c372a653e272b5596c7aa19d989870b8731246b3",
+            "timestamp": "2026-07-18T06:24:40.205275+00:00"
+        },
+        "C:/Users/User/Desktop/Git Projects/VynexOS/src/hal/windows_library_loader.hpp": {
+            "entity_hash": "466c3f5095cf0b3ebf50d12a6c7604f31a51ad90a5fc09f16e54efcf208b04c6",
+            "timestamp": "2026-07-18T08:05:14.643625+00:00"
+        },
+        "C:/Users/User/Desktop/Git Projects/VynexOS/src/tests/test_plugin_manager.cpp": {
+            "entity_hash": "f4464e1c14d8a6e6ddc9652f1c6f60b48241a8eb9b6c0bba720fb6bac9a47083",
+            "timestamp": "2026-07-18T06:24:40.228672+00:00"
+        },
+        "C:/Users/User/Desktop/Git Projects/VynexOS/src/tests/test_sdl_integration.cpp": {
+            "entity_hash": "3d8bfb584f94109a2bfc850ee2f34bbbf4fb6d26fffa0566d676ab98e809bfce",
+            "timestamp": "2026-07-18T06:24:40.238144+00:00"
+        },
+        "C:/Users/User/Desktop/Git Projects/VynexOS/src/tests/test_compositor.cpp": {
+            "entity_hash": "12b0c6965aa59cb9a46d1391abbe04694f434dfcb1e0f0c02f3bb38bd2b75ef3",
+            "timestamp": "2026-07-18T08:05:14.664174+00:00"
+        }
+    }
+}

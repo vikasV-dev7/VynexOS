@@ -1,33 +1,42 @@
 <!-- AUTO-GENERATED START -->
 # [[INotificationService]]
 
-## Purpose
-Interface for [[INotificationService]].
+## Why the interface exists & Architectural role
+_Not explicitly documented._
 
-## Namespace
-`vynexos::desktop`
+## Lifetime & Ownership expectations
+**Lifetime**: _Unspecified_
+**Ownership**: _Unspecified_
 
-## Source Location
-`C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/desktop/notification_service.hpp`
+## Threading guarantees & Failure behaviour
+**Thread Safety**: _Unspecified_
+**Failure Handling**: _Unspecified_
 
-## Responsibilities
-To be documented.
+## Extension guidance
+_No explicit extension points defined._
 
-## Dependencies
-None (pure interface).
+## Public API
+- `virtual ~[[INotificationService]]() = default;`
+- `virtual uint32_t notify(std::string_view title, std::string_view body, [[NotificationPriority]] priority = [[NotificationPriority]]::Normal) = 0;`
+- `virtual void dismiss(uint32_t id) = 0;`
 
-## Methods
-- `virtual ~[[INotificationService]]() = default`
-- `virtual uint32_t notify(std::string_view title, std::string_view body, [[NotificationPriority]] priority = [[NotificationPriority]]::Normal) = 0`
-- `virtual void dismiss(uint32_t id) = 0`
-
-## Thread Safety
-Implementations must ensure thread safety if accessed across multiple sub-systems via Dependency Injection.
-
-## Used By
-See [[Composition Root]]
-
-## Implemented By
-See Services directory.
+---
+### Generator Metadata
+- **Generation Timestamp**: 2026-07-18T08:05:14.271354+00:00
+- **Generator Version**: 2.1.0
+- **Documentation Schema**: 1.1
+- **IR Version**: 1.0
+- **Parser**: RegexParser
+- **Source File**: `C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/desktop/notification_service.hpp`
 
 <!-- AUTO-GENERATED END -->
+
+
+
+
+
+
+
+
+
+

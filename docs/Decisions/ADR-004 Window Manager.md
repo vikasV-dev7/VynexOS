@@ -5,6 +5,6 @@
 Window management vs rendering.
 
 ## Chosen Solution
-[[WindowManager]] is pure state; Compositor handles rendering.
+WindowManager is pure state; Compositor handles rendering.
 
 <!-- AUTO-GENERATED END -->

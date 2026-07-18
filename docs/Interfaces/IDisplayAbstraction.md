@@ -1,34 +1,43 @@
 <!-- AUTO-GENERATED START -->
 # [[IDisplayAbstraction]]
 
-## Purpose
-Interface for [[IDisplayAbstraction]].
+## Why the interface exists & Architectural role
+_Not explicitly documented._
 
-## Namespace
-`vynexos::desktop`
+## Lifetime & Ownership expectations
+**Lifetime**: _Unspecified_
+**Ownership**: _Unspecified_
 
-## Source Location
-`C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/desktop/display_abstraction.hpp`
+## Threading guarantees & Failure behaviour
+**Thread Safety**: _Unspecified_
+**Failure Handling**: _Unspecified_
 
-## Responsibilities
-To be documented.
+## Extension guidance
+_No explicit extension points defined._
 
-## Dependencies
-None (pure interface).
+## Public API
+- `virtual ~[[IDisplayAbstraction]]() = default;`
+- `virtual std::expected<void, [[DisplayError]]> initialize() = 0;`
+- `virtual std::expected<void, [[DisplayError]]> flush_buffer(const hal::FrameBuffer& buffer) = 0;`
+- `virtual void shutdown() = 0;`
 
-## Methods
-- `virtual ~[[IDisplayAbstraction]]() = default`
-- `virtual std::expected<void, [[DisplayError]]> initialize() = 0`
-- `virtual std::expected<void, [[DisplayError]]> flush_buffer(const hal::FrameBuffer& buffer) = 0`
-- `virtual void shutdown() = 0`
-
-## Thread Safety
-Implementations must ensure thread safety if accessed across multiple sub-systems via Dependency Injection.
-
-## Used By
-See [[Composition Root]]
-
-## Implemented By
-See Services directory.
+---
+### Generator Metadata
+- **Generation Timestamp**: 2026-07-18T08:05:14.258914+00:00
+- **Generator Version**: 2.1.0
+- **Documentation Schema**: 1.1
+- **IR Version**: 1.0
+- **Parser**: RegexParser
+- **Source File**: `C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/desktop/display_abstraction.hpp`
 
 <!-- AUTO-GENERATED END -->
+
+
+
+
+
+
+
+
+
+

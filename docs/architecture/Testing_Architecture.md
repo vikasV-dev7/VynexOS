@@ -8,7 +8,7 @@ The testing structure is divided into independently executing binaries to enforc
 
 - **CoreTests:** General OS fundamentals, standard library abstractions, data structures.
 - **HALTests:** Hardware Abstraction Layer compliance. Validates the Storage, Network, and Clock devices independent of the core runtime.
-- **PluginManagerTests:** Validates dynamic library loading, ABI enforcement, version mismatch rejection, and dependency injection via `PluginContext`.
+- **PluginManagerTests:** Validates dynamic library loading, ABI enforcement, version mismatch rejection, and dependency injection via `[[PluginContext]]`.
 - **SchedulerTests:** Exercises the asynchronous `TaskScheduler`, verifying thread pool semantics and task execution determinism.
 - **EventBusTests:** Validates IPC messaging and synchronous/asynchronous event dispatch.
 - **ConfigurationTests:** Verifies parsing, reading, and writing to the system configuration tree.
@@ -53,6 +53,6 @@ Before any Version release is considered complete, the codebase must pass the **
 
 ## 5. Adding New Tests
 1. **Identify the Target Suite:** Determine if the feature is a core component, a HAL driver, or a Plugin. If an appropriate suite does not exist, scaffold a new test executable in `src/tests`.
-2. **Implement Tests:** Use standard C++ alongside `vynexos::core::FileLogger` to record test execution. Maintain zero side-effects on disk unless testing `IBlockDevice`.
+2. **Implement Tests:** Use standard C++ alongside `vynexos::core::[[FileLogger]]` to record test execution. Maintain zero side-effects on disk unless testing `[[IBlockDevice]]`.
 3. **Register Target:** Add the executable to `src/tests/CMakeLists.txt` via `add_executable()` and `add_test()`. Link only the necessary VynexOS internal libraries (e.g., `vynex_core`, `vynex_hal`).
 4. **Enforce Determinism:** Verify that the test cleans up all allocated memory and instantiated tasks prior to termination.

@@ -1,33 +1,37 @@
 <!-- AUTO-GENERATED START -->
 # [[ICompositor]]
 
-## Purpose
-Interface for [[ICompositor]].
+## Why the interface exists & Architectural role
+_Not explicitly documented._
 
-## Namespace
-`vynexos::desktop`
+## Lifetime & Ownership expectations
+**Lifetime**: _Unspecified_
+**Ownership**: _Unspecified_
 
-## Source Location
-`C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/desktop/compositor.hpp`
+## Threading guarantees & Failure behaviour
+**Thread Safety**: _Unspecified_
+**Failure Handling**: _Unspecified_
 
-## Responsibilities
-To be documented.
+## Extension guidance
+_No explicit extension points defined._
 
-## Dependencies
-None (pure interface).
+## Public API
+- `virtual ~[[ICompositor]]() = default;`
+- `virtual std::shared_ptr<[[ISurface]]> create_surface(uint32_t width, uint32_t height) = 0;`
+- `virtual std::expected<void, [[DisplayError]]> render_frame(const SceneGraph& scene) = 0;`
+- `virtual bool render_frame(const SceneGraph& scene) = 0;`
 
-## Methods
-- `virtual ~[[ICompositor]]() = default`
-- `virtual void submit_buffer(const WindowBuffer& buffer) = 0`
-- `virtual std::expected<void, [[DisplayError]]> render_frame() = 0`
-
-## Thread Safety
-Implementations must ensure thread safety if accessed across multiple sub-systems via Dependency Injection.
-
-## Used By
-See [[Composition Root]]
-
-## Implemented By
-See Services directory.
+---
+### Generator Metadata
+- **Generation Timestamp**: 2026-07-18T07:54:11.265989+00:00
+- **Generator Version**: 2.1.0
+- **Documentation Schema**: 1.1
+- **IR Version**: 1.0
+- **Parser**: RegexParser
+- **Source File**: `C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/desktop/compositor.hpp`
 
 <!-- AUTO-GENERATED END -->
+
+
+
+

@@ -1,28 +1,32 @@
 <!-- AUTO-GENERATED START -->
 # [[DesktopShell]]
 
-## Purpose
-Concrete implementation of [[IDesktopShell]].
+## Purpose & Responsibilities
+_Not explicitly documented._
 
-## Source Location
-`C:/Users/User/Desktop/Git Projects/VynexOS/src/apps/desktop_shell.hpp`
+## Dependencies & Interaction with CompositionRoot
+_Constructor injected dependencies (Refer to Source Code)._
 
-## Implemented Interfaces
-[[IDesktopShell]]
+## Failure recovery & Performance considerations
+**Failure Recovery**: _Unspecified_
+**Performance**: _Unspecified_
 
-## Dependencies
-Constructor injected.
+## Extension points
+_No explicit extension points defined._
 
-## Initialization
-Via [[Composition Root]].
+## Public API
+- `void launch() override;`
+- `void update_frame() override;`
 
-## Internal Design & State Machine
-To be documented.
-
-## Interactions
-To be documented.
-
-## Future Improvements
-To be documented.
+---
+### Generator Metadata
+- **Generation Timestamp**: 2026-07-18T06:24:40.000817+00:00
+- **Generator Version**: 2.1.0
+- **Documentation Schema**: 1.1
+- **IR Version**: 1.0
+- **Parser**: RegexParser
+- **Source File**: `C:/Users/User/Desktop/Git Projects/VynexOS/src/apps/desktop_shell.hpp`
 
 <!-- AUTO-GENERATED END -->
+
+

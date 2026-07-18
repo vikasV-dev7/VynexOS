@@ -1,0 +1,2097 @@
+[
+    {
+        "Identifier": "IAiSession",
+        "Display Name": "IAiSession",
+        "Category": "Interface",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/ai/ai_runtime.hpp",
+        "Namespace": "vynexos::ai",
+        "Parent": [],
+        "Public API": [
+            "virtual ~IAiSession() = default;",
+            "virtual void prompt_async(std::string_view prompt, AsyncCallback callback) = 0;"
+        ],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "IAiRuntime",
+        "Display Name": "IAiRuntime",
+        "Category": "Interface",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/ai/ai_runtime.hpp",
+        "Namespace": "vynexos::ai",
+        "Parent": [],
+        "Public API": [
+            "virtual ~IAiRuntime() = default;",
+            "virtual std::expected<void, AiError> load_model(std::string_view model_name) = 0;",
+            "virtual void unload_model(std::string_view model_name) = 0;",
+            "virtual std::expected<std::unique_ptr<IAiSession>, AiError> create_session(std::string_view model_name) = 0;"
+        ],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "IDesktopShell",
+        "Display Name": "IDesktopShell",
+        "Category": "Interface",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/apps/desktop_shell.hpp",
+        "Namespace": "vynexos::apps",
+        "Parent": [],
+        "Public API": [
+            "virtual ~IDesktopShell() = default;",
+            "virtual void launch() = 0;",
+            "virtual void update_frame() = 0;"
+        ],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "IFileExplorer",
+        "Display Name": "IFileExplorer",
+        "Category": "Interface",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/apps/file_explorer.hpp",
+        "Namespace": "vynexos::apps",
+        "Parent": [],
+        "Public API": [
+            "virtual ~IFileExplorer() = default;",
+            "virtual std::vector<FileNode> list_directory(std::string_view path) = 0;",
+            "virtual void semantic_search_async(std::string_view query, std::function<void(std::vector<FileNode>)> callback) = 0;"
+        ],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "ITerminal",
+        "Display Name": "ITerminal",
+        "Category": "Interface",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/apps/terminal.hpp",
+        "Namespace": "vynexos::apps",
+        "Parent": [],
+        "Public API": [
+            "virtual ~ITerminal() = default;",
+            "virtual void write_output(std::string_view text) = 0;",
+            "virtual void on_input(std::function<void(std::string_view)> callback) = 0;",
+            "virtual void request_ai_explanation(std::string_view command_context) = 0;",
+            "virtual void request_ai_suggestion(std::string_view intent) = 0;"
+        ],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "IConfigManager",
+        "Display Name": "IConfigManager",
+        "Category": "Interface",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/core/config_manager.hpp",
+        "Namespace": "vynexos::core",
+        "Parent": [],
+        "Public API": [
+            "virtual ~IConfigManager() = default;",
+            "virtual std::expected<std::any, ConfigError> get_value(std::string_view key) const = 0;",
+            "virtual std::expected<void, ConfigError> set_value(std::string_view key, std::any value) = 0;",
+            "virtual bool has_key(std::string_view key) const = 0;"
+        ],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "IEventBus",
+        "Display Name": "IEventBus",
+        "Category": "Interface",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/core/event_bus.hpp",
+        "Namespace": "vynexos::core",
+        "Parent": [],
+        "Public API": [
+            "virtual ~IEventBus() = default;",
+            "virtual void publish(std::shared_ptr<const Event> event) = 0;",
+            "virtual void subscribe(const std::string& topic, EventHandler handler) = 0;"
+        ],
+        "Metadata": {
+            "Purpose": "The central nervous system for decoupled inter-module communication.",
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": "Subscribers must be added strictly on the main thread. Publish is thread-safe.",
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "IIpcEndpoint",
+        "Display Name": "IIpcEndpoint",
+        "Category": "Interface",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/core/ipc_framework.hpp",
+        "Namespace": "vynexos::core",
+        "Parent": [],
+        "Public API": [
+            "virtual ~IIpcEndpoint() = default;",
+            "virtual std::expected<void, IpcError> send(std::span<const uint8_t> data) = 0;",
+            "virtual void register_handler(MessageHandler handler) = 0;",
+            "virtual std::string_view get_endpoint_name() const = 0;"
+        ],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "IIpcFramework",
+        "Display Name": "IIpcFramework",
+        "Category": "Interface",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/core/ipc_framework.hpp",
+        "Namespace": "vynexos::core",
+        "Parent": [],
+        "Public API": [
+            "virtual ~IIpcFramework() = default;",
+            "virtual std::expected<std::shared_ptr<IIpcEndpoint>, IpcError> create_server(std::string_view name) = 0;",
+            "virtual std::expected<std::shared_ptr<IIpcEndpoint>, IpcError> connect_client(std::string_view name) = 0;"
+        ],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "ILogger",
+        "Display Name": "ILogger",
+        "Category": "Interface",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/core/logger.hpp",
+        "Namespace": "vynexos::core",
+        "Parent": [],
+        "Public API": [
+            "virtual ~ILogger() = default;",
+            "virtual void set_log_level(LogLevel level) = 0;",
+            "[[nodiscard]] virtual LogLevel get_log_level() const = 0;",
+            "virtual void log_raw(LogLevel level, std::string_view message) = 0;"
+        ],
+        "Metadata": {
+            "Purpose": "Defines the standard logging interface for the VynexOS ecosystem.",
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": "Implementations MUST be thread-safe for concurrent cross-thread logging.",
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "IPlugin",
+        "Display Name": "IPlugin",
+        "Category": "Interface",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/core/plugin_manager.hpp",
+        "Namespace": "vynexos::core",
+        "Parent": [],
+        "Public API": [
+            "virtual ~IPlugin() = default;",
+            "virtual std::string_view get_name() const = 0;",
+            "virtual std::string_view get_description() const = 0;"
+        ],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "IPluginManager",
+        "Display Name": "IPluginManager",
+        "Category": "Interface",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/core/plugin_manager.hpp",
+        "Namespace": "vynexos::core",
+        "Parent": [],
+        "Public API": [
+            "virtual ~IPluginManager() = default;",
+            "virtual std::expected<std::shared_ptr<IPlugin>, PluginError> load_plugin(std::string_view path) = 0;",
+            "virtual void unload_plugin(std::string_view name) = 0;",
+            "virtual std::vector<std::shared_ptr<IPlugin>> get_active_plugins() const = 0;"
+        ],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "IService",
+        "Display Name": "IService",
+        "Category": "Interface",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/core/service_manager.hpp",
+        "Namespace": "vynexos::core",
+        "Parent": [],
+        "Public API": [
+            "virtual ~IService() = default;",
+            "virtual std::string_view get_name() const = 0;",
+            "virtual std::expected<void, std::string> start() = 0;",
+            "virtual void stop() = 0;",
+            "virtual ServiceState get_state() const = 0;"
+        ],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "IServiceManager",
+        "Display Name": "IServiceManager",
+        "Category": "Interface",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/core/service_manager.hpp",
+        "Namespace": "vynexos::core",
+        "Parent": [],
+        "Public API": [
+            "virtual ~IServiceManager() = default;",
+            "virtual void register_service(std::shared_ptr<IService> service) = 0;",
+            "virtual std::expected<void, std::string> start_all() = 0;",
+            "virtual void stop_all() = 0;"
+        ],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "ITaskScheduler",
+        "Display Name": "ITaskScheduler",
+        "Category": "Interface",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/core/task_scheduler.hpp",
+        "Namespace": "vynexos::core",
+        "Parent": [],
+        "Public API": [
+            "virtual ~ITaskScheduler() = default;",
+            "[[nodiscard]] virtual bool enqueue(std::move_only_function<void(const ExecutionContext&)> task) = 0;",
+            "virtual void shutdown() = 0;"
+        ],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "ICompositor",
+        "Display Name": "ICompositor",
+        "Category": "Interface",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/desktop/compositor.hpp",
+        "Namespace": "vynexos::desktop",
+        "Parent": [],
+        "Public API": [
+            "virtual ~ICompositor() = default;",
+            "virtual std::shared_ptr<ISurface> create_surface(uint32_t width, uint32_t height) = 0;",
+            "virtual std::expected<void, DisplayError> render_frame(const SceneGraph& scene) = 0;",
+            "virtual bool render_frame(const SceneGraph& scene) = 0;"
+        ],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "IDesktopShell",
+        "Display Name": "IDesktopShell",
+        "Category": "Interface",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/desktop/desktop_shell.hpp",
+        "Namespace": "vynexos::desktop",
+        "Parent": [],
+        "Public API": [
+            "virtual ~IDesktopShell() = default;",
+            "virtual void toggle_application_launcher() = 0;",
+            "virtual void update_taskbar() = 0;",
+            "virtual void lock_screen() = 0;",
+            "virtual std::vector<uint32_t> get_overlay_window_ids() const = 0;"
+        ],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "ISurface",
+        "Display Name": "ISurface",
+        "Category": "Interface",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/desktop/desktop_types.hpp",
+        "Namespace": "vynexos::desktop",
+        "Parent": [],
+        "Public API": [
+            "virtual ~ISurface() = default;",
+            "virtual uint32_t width() const = 0;",
+            "virtual uint32_t height() const = 0;",
+            "virtual std::span<uint8_t> map_pixels() = 0;",
+            "virtual void unmap_pixels() = 0;"
+        ],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "IDisplayAbstraction",
+        "Display Name": "IDisplayAbstraction",
+        "Category": "Interface",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/desktop/display_abstraction.hpp",
+        "Namespace": "vynexos::desktop",
+        "Parent": [],
+        "Public API": [
+            "virtual ~IDisplayAbstraction() = default;",
+            "virtual std::expected<void, DisplayError> initialize() = 0;",
+            "virtual std::expected<void, DisplayError> flush_buffer(const hal::FrameBuffer& buffer) = 0;",
+            "virtual void shutdown() = 0;"
+        ],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "INotificationService",
+        "Display Name": "INotificationService",
+        "Category": "Interface",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/desktop/notification_service.hpp",
+        "Namespace": "vynexos::desktop",
+        "Parent": [],
+        "Public API": [
+            "virtual ~INotificationService() = default;",
+            "virtual uint32_t notify(std::string_view title, std::string_view body, NotificationPriority priority = NotificationPriority::Normal) = 0;",
+            "virtual void dismiss(uint32_t id) = 0;"
+        ],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "IWidgetToolkit",
+        "Display Name": "IWidgetToolkit",
+        "Category": "Interface",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/desktop/widget_toolkit.hpp",
+        "Namespace": "vynexos::desktop",
+        "Parent": [],
+        "Public API": [
+            "virtual ~IWidgetToolkit() = default;",
+            "virtual void draw_rect(std::shared_ptr<ISurface> surface, int32_t x, int32_t y, uint32_t width, uint32_t height, Color color) = 0;",
+            "virtual void draw_text(std::shared_ptr<ISurface> surface, int32_t x, int32_t y, std::string_view text, Color color) = 0;",
+            "virtual void draw_button(std::shared_ptr<ISurface> surface, int32_t x, int32_t y, uint32_t width, uint32_t height, std::string_view label) = 0;",
+            "virtual void draw_panel(std::shared_ptr<ISurface> surface, int32_t x, int32_t y, uint32_t width, uint32_t height) = 0;"
+        ],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "IWindowManager",
+        "Display Name": "IWindowManager",
+        "Category": "Interface",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/desktop/window_manager.hpp",
+        "Namespace": "vynexos::desktop",
+        "Parent": [],
+        "Public API": [
+            "virtual ~IWindowManager() = default;",
+            "virtual uint32_t create_window(std::string_view title, WindowGeometry geometry) = 0;",
+            "virtual void destroy_window(uint32_t window_id) = 0;",
+            "virtual void focus_window(uint32_t window_id) = 0;",
+            "virtual void move_window(uint32_t window_id, int32_t x, int32_t y) = 0;",
+            "virtual void resize_window(uint32_t window_id, uint32_t width, uint32_t height) = 0;",
+            "virtual void set_window_surface(uint32_t window_id, std::shared_ptr<ISurface> surface) = 0;",
+            "virtual void set_window_visibility(uint32_t window_id, bool visible) = 0;",
+            "virtual std::vector<uint32_t> get_windows_z_ordered() const = 0;",
+            "virtual SceneGraph build_scene() const = 0;"
+        ],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "IAudioDevice",
+        "Display Name": "IAudioDevice",
+        "Category": "Interface",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/hal/audio.hpp",
+        "Namespace": "vynexos::hal",
+        "Parent": [],
+        "Public API": [
+            "virtual ~IAudioDevice() = default;",
+            "[[nodiscard]] virtual std::expected<void, AudioError> initialize() = 0;",
+            "[[nodiscard]] virtual std::expected<void, AudioError> play(std::span<const int16_t> pcm_data) = 0;",
+            "virtual void shutdown() = 0;"
+        ],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "IHardwareClock",
+        "Display Name": "IHardwareClock",
+        "Category": "Interface",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/hal/clock.hpp",
+        "Namespace": "vynexos::hal",
+        "Parent": [],
+        "Public API": [
+            "virtual ~IHardwareClock() = default;",
+            "[[nodiscard]] virtual std::expected<void, ClockError> initialize() = 0;",
+            "[[nodiscard]] virtual uint64_t get_monotonic_time_ns() const = 0;",
+            "virtual void shutdown() = 0;"
+        ],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "IComputeDevice",
+        "Display Name": "IComputeDevice",
+        "Category": "Interface",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/hal/compute.hpp",
+        "Namespace": "vynexos::hal",
+        "Parent": [],
+        "Public API": [
+            "virtual ~IComputeDevice() = default;",
+            "[[nodiscard]] virtual std::expected<void, ComputeError> initialize() = 0;",
+            "[[nodiscard]] virtual std::expected<void, ComputeError> execute_kernel(std::span<const uint8_t> shader_code) = 0;",
+            "virtual void shutdown() = 0;"
+        ],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "IDisplay",
+        "Display Name": "IDisplay",
+        "Category": "Interface",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/hal/display.hpp",
+        "Namespace": "vynexos::hal",
+        "Parent": [],
+        "Public API": [
+            "virtual ~IDisplay() = default;",
+            "[[nodiscard]] virtual std::expected<void, DisplayError> initialize() = 0;",
+            "[[nodiscard]] virtual std::expected<void, DisplayError> present(const FrameBuffer& buffer) = 0;",
+            "virtual void shutdown() = 0;"
+        ],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "IInputDriver",
+        "Display Name": "IInputDriver",
+        "Category": "Interface",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/hal/input_driver.hpp",
+        "Namespace": "vynexos::hal",
+        "Parent": [],
+        "Public API": [
+            "virtual ~IInputDriver() = default;",
+            "virtual void poll() = 0;"
+        ],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "ISharedLibrary",
+        "Display Name": "ISharedLibrary",
+        "Category": "Interface",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/hal/library_loader.hpp",
+        "Namespace": "vynexos::hal",
+        "Parent": [],
+        "Public API": [
+            "virtual ~ISharedLibrary() = default;",
+            "virtual void* get_symbol(std::string_view name) const = 0;"
+        ],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "ILibraryLoader",
+        "Display Name": "ILibraryLoader",
+        "Category": "Interface",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/hal/library_loader.hpp",
+        "Namespace": "vynexos::hal",
+        "Parent": [],
+        "Public API": [
+            "virtual ~ILibraryLoader() = default;",
+            "virtual std::expected<std::shared_ptr<ISharedLibrary>, LibraryLoadError> load_library(std::string_view path) = 0;"
+        ],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "INetworkAdapter",
+        "Display Name": "INetworkAdapter",
+        "Category": "Interface",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/hal/network.hpp",
+        "Namespace": "vynexos::hal",
+        "Parent": [],
+        "Public API": [
+            "virtual ~INetworkAdapter() = default;",
+            "[[nodiscard]] virtual std::expected<void, NetworkError> initialize() = 0;",
+            "virtual void set_receive_callback(NetworkReceiveCallback callback) = 0;",
+            "[[nodiscard]] virtual std::expected<void, NetworkError> send_packet(std::span<const uint8_t> data) = 0;",
+            "virtual void shutdown() = 0;"
+        ],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "IBlockDevice",
+        "Display Name": "IBlockDevice",
+        "Category": "Interface",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/hal/storage.hpp",
+        "Namespace": "vynexos::hal",
+        "Parent": [],
+        "Public API": [
+            "virtual ~IBlockDevice() = default;",
+            "[[nodiscard]] virtual std::expected<void, StorageError> initialize() = 0;",
+            "[[nodiscard]] virtual std::expected<void, StorageError> read_blocks(uint64_t start_block, size_t block_count, std::span<uint8_t> buffer) = 0;",
+            "[[nodiscard]] virtual std::expected<void, StorageError> write_blocks(uint64_t start_block, std::span<const uint8_t> buffer) = 0;",
+            "[[nodiscard]] virtual uint64_t get_capacity_blocks() const = 0;",
+            "[[nodiscard]] virtual size_t get_block_size() const = 0;",
+            "virtual void shutdown() = 0;"
+        ],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "IDebugConsole",
+        "Display Name": "IDebugConsole",
+        "Category": "Interface",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/sdk/debug_console.hpp",
+        "Namespace": "vynexos::sdk",
+        "Parent": [],
+        "Public API": [
+            "virtual ~IDebugConsole() = default;",
+            "virtual std::expected<std::string, std::string> execute_command(std::string_view cmd) = 0;"
+        ],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "ISystemMonitor",
+        "Display Name": "ISystemMonitor",
+        "Category": "Interface",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/sdk/system_monitor.hpp",
+        "Namespace": "vynexos::sdk",
+        "Parent": [],
+        "Public API": [
+            "virtual ~ISystemMonitor() = default;",
+            "virtual SystemStats get_current_stats() const = 0;"
+        ],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "AiError",
+        "Display Name": "AiError",
+        "Category": "Service",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/ai/ai_runtime.hpp",
+        "Namespace": "vynexos::ai",
+        "Parent": [],
+        "Public API": [],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "ConfigError",
+        "Display Name": "ConfigError",
+        "Category": "Service",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/core/config_manager.hpp",
+        "Namespace": "vynexos::core",
+        "Parent": [],
+        "Public API": [],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "FrameClock",
+        "Display Name": "FrameClock",
+        "Category": "Service",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/core/frame_clock.hpp",
+        "Namespace": "vynexos::core",
+        "Parent": [],
+        "Public API": [],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "IpcError",
+        "Display Name": "IpcError",
+        "Category": "Service",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/core/ipc_framework.hpp",
+        "Namespace": "vynexos::core",
+        "Parent": [],
+        "Public API": [],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "PluginState",
+        "Display Name": "PluginState",
+        "Category": "Service",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/core/loaded_plugin.hpp",
+        "Namespace": "vynexos::core",
+        "Parent": [],
+        "Public API": [],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "LoadedPlugin",
+        "Display Name": "LoadedPlugin",
+        "Category": "Service",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/core/loaded_plugin.hpp",
+        "Namespace": "vynexos::core",
+        "Parent": [
+            "IPlugin"
+        ],
+        "Public API": [
+            "~LoadedPlugin() override;",
+            "std::string_view get_name() const override;",
+            "std::string_view get_description() const override;"
+        ],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "LogLevel",
+        "Display Name": "LogLevel",
+        "Category": "Service",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/core/logger.hpp",
+        "Namespace": "vynexos::core",
+        "Parent": [],
+        "Public API": [],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "PluginContext",
+        "Display Name": "PluginContext",
+        "Category": "Service",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/core/plugin_context.hpp",
+        "Namespace": "vynexos::core",
+        "Parent": [],
+        "Public API": [],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "PluginContextFactory",
+        "Display Name": "PluginContextFactory",
+        "Category": "Service",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/core/plugin_context_factory.hpp",
+        "Namespace": "vynexos::core",
+        "Parent": [],
+        "Public API": [],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "PluginError",
+        "Display Name": "PluginError",
+        "Category": "Service",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/core/plugin_manager.hpp",
+        "Namespace": "vynexos::core",
+        "Parent": [],
+        "Public API": [],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "ServiceState",
+        "Display Name": "ServiceState",
+        "Category": "Service",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/core/service_manager.hpp",
+        "Namespace": "vynexos::core",
+        "Parent": [],
+        "Public API": [],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "DisplayError",
+        "Display Name": "DisplayError",
+        "Category": "Service",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/desktop/display_abstraction.hpp",
+        "Namespace": "vynexos::desktop",
+        "Parent": [],
+        "Public API": [],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "NotificationPriority",
+        "Display Name": "NotificationPriority",
+        "Category": "Service",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/desktop/notification_service.hpp",
+        "Namespace": "vynexos::desktop",
+        "Parent": [],
+        "Public API": [],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "AudioError",
+        "Display Name": "AudioError",
+        "Category": "Service",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/hal/audio.hpp",
+        "Namespace": "vynexos::hal",
+        "Parent": [],
+        "Public API": [],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "ClockError",
+        "Display Name": "ClockError",
+        "Category": "Service",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/hal/clock.hpp",
+        "Namespace": "vynexos::hal",
+        "Parent": [],
+        "Public API": [],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "ComputeError",
+        "Display Name": "ComputeError",
+        "Category": "Service",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/hal/compute.hpp",
+        "Namespace": "vynexos::hal",
+        "Parent": [],
+        "Public API": [],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "LibraryLoadError",
+        "Display Name": "LibraryLoadError",
+        "Category": "Service",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/hal/library_loader.hpp",
+        "Namespace": "vynexos::hal",
+        "Parent": [],
+        "Public API": [],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "NetworkError",
+        "Display Name": "NetworkError",
+        "Category": "Service",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/hal/network.hpp",
+        "Namespace": "vynexos::hal",
+        "Parent": [],
+        "Public API": [],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "StorageError",
+        "Display Name": "StorageError",
+        "Category": "Service",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/hal/storage.hpp",
+        "Namespace": "vynexos::hal",
+        "Parent": [],
+        "Public API": [],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "BasicFileExplorer",
+        "Display Name": "BasicFileExplorer",
+        "Category": "Service",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/src/apps/basic_file_explorer.hpp",
+        "Namespace": "vynexos::apps",
+        "Parent": [
+            "IFileExplorer"
+        ],
+        "Public API": [
+            "std::vector<FileNode> list_directory(std::string_view path) override;",
+            "void semantic_search_async(std::string_view query, std::function<void(std::vector<FileNode>)> callback) override;"
+        ],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "BasicTerminal",
+        "Display Name": "BasicTerminal",
+        "Category": "Service",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/src/apps/basic_terminal.hpp",
+        "Namespace": "vynexos::apps",
+        "Parent": [
+            "ITerminal"
+        ],
+        "Public API": [
+            "void write_output(std::string_view text) override;",
+            "void on_input(std::function<void(std::string_view)> callback) override;",
+            "void request_ai_explanation(std::string_view command_context) override;",
+            "void request_ai_suggestion(std::string_view intent) override;"
+        ],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "DemoApp",
+        "Display Name": "DemoApp",
+        "Category": "Service",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/src/apps/demo_app.hpp",
+        "Namespace": "vynexos::apps",
+        "Parent": [],
+        "Public API": [],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "DesktopShell",
+        "Display Name": "DesktopShell",
+        "Category": "Service",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/src/apps/desktop_shell.hpp",
+        "Namespace": "vynexos::apps",
+        "Parent": [
+            "IDesktopShell"
+        ],
+        "Public API": [
+            "void launch() override;",
+            "void update_frame() override;"
+        ],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "BasicPluginManager",
+        "Display Name": "BasicPluginManager",
+        "Category": "Service",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/src/core/basic_plugin_manager.hpp",
+        "Namespace": "vynexos::core",
+        "Parent": [
+            "IPluginManager"
+        ],
+        "Public API": [
+            "~BasicPluginManager() override;",
+            "std::expected<std::shared_ptr<IPlugin>, PluginError> load_plugin(std::string_view path) override;",
+            "void unload_plugin(std::string_view name) override;",
+            "std::vector<std::shared_ptr<IPlugin>> get_active_plugins() const override;"
+        ],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "BasicServiceManager",
+        "Display Name": "BasicServiceManager",
+        "Category": "Service",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/src/core/basic_service_manager.hpp",
+        "Namespace": "vynexos::core",
+        "Parent": [
+            "IServiceManager"
+        ],
+        "Public API": [
+            "void register_service(std::shared_ptr<IService> service) override {",
+            "std::expected<void, std::string> start_all() override {"
+        ],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "BasicTaskScheduler",
+        "Display Name": "BasicTaskScheduler",
+        "Category": "Service",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/src/core/basic_task_scheduler.hpp",
+        "Namespace": "vynexos::core",
+        "Parent": [
+            "ITaskScheduler"
+        ],
+        "Public API": [
+            "~BasicTaskScheduler() override;",
+            "[[nodiscard]] bool enqueue(std::move_only_function<void(const ExecutionContext&)> task) override;",
+            "void shutdown() override;"
+        ],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "FileLogger",
+        "Display Name": "FileLogger",
+        "Category": "Service",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/src/core/file_logger.hpp",
+        "Namespace": "vynexos::core",
+        "Parent": [
+            "ILogger"
+        ],
+        "Public API": [
+            "~FileLogger() override;",
+            "void set_log_level(LogLevel level) override;",
+            "[[nodiscard]] LogLevel get_log_level() const override;",
+            "void log_raw(LogLevel level, std::string_view message) override;"
+        ],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "InMemoryConfigManager",
+        "Display Name": "InMemoryConfigManager",
+        "Category": "Service",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/src/core/in_memory_config.hpp",
+        "Namespace": "vynexos::core",
+        "Parent": [
+            "IConfigManager"
+        ],
+        "Public API": [
+            "std::expected<std::any, ConfigError> get_value(std::string_view key) const override {",
+            "std::expected<void, ConfigError> set_value(std::string_view key, std::any value) override {"
+        ],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "InMemoryEventBus",
+        "Display Name": "InMemoryEventBus",
+        "Category": "Service",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/src/core/in_memory_event_bus.hpp",
+        "Namespace": "vynexos::core",
+        "Parent": [
+            "IEventBus"
+        ],
+        "Public API": [
+            "~InMemoryEventBus() override = default;",
+            "void subscribe(const std::string& topic, EventHandler handler) override {",
+            "void publish(std::shared_ptr<const Event> event) override {"
+        ],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "LocalIpcEndpoint",
+        "Display Name": "LocalIpcEndpoint",
+        "Category": "Service",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/src/core/local_ipc_framework.hpp",
+        "Namespace": "vynexos::core",
+        "Parent": [
+            "IIpcEndpoint"
+        ],
+        "Public API": [
+            "~LocalIpcEndpoint() override = default;",
+            "std::expected<void, IpcError> send(std::span<const uint8_t> payload) override;",
+            "void register_handler(MessageHandler handler) override;",
+            "std::string_view get_endpoint_name() const override;"
+        ],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "LocalIpcFramework",
+        "Display Name": "LocalIpcFramework",
+        "Category": "Service",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/src/core/local_ipc_framework.hpp",
+        "Namespace": "vynexos::core",
+        "Parent": [
+            "IIpcFramework"
+        ],
+        "Public API": [
+            "std::expected<std::shared_ptr<IIpcEndpoint>, IpcError> create_server(std::string_view name) override;",
+            "std::expected<std::shared_ptr<IIpcEndpoint>, IpcError> connect_client(std::string_view name) override;"
+        ],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "BasicCompositor",
+        "Display Name": "BasicCompositor",
+        "Category": "Service",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/src/desktop/basic_compositor.hpp",
+        "Namespace": "vynexos::desktop",
+        "Parent": [
+            "ICompositor"
+        ],
+        "Public API": [
+            "~BasicCompositor() override = default;",
+            "std::shared_ptr<ISurface> create_surface(uint32_t width, uint32_t height) override;",
+            "std::expected<void, DisplayError> render_frame(const SceneGraph& scene) override;"
+        ],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "BasicNotificationService",
+        "Display Name": "BasicNotificationService",
+        "Category": "Service",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/src/desktop/basic_notification_service.hpp",
+        "Namespace": "vynexos::desktop",
+        "Parent": [
+            "INotificationService"
+        ],
+        "Public API": [
+            "~BasicNotificationService() override = default;",
+            "uint32_t notify(std::string_view title, std::string_view body, NotificationPriority priority = NotificationPriority::Normal) override;",
+            "void dismiss(uint32_t id) override;"
+        ],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "BasicWidgetToolkit",
+        "Display Name": "BasicWidgetToolkit",
+        "Category": "Service",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/src/desktop/basic_widget_toolkit.hpp",
+        "Namespace": "vynexos::desktop",
+        "Parent": [
+            "IWidgetToolkit"
+        ],
+        "Public API": [
+            "void draw_rect(std::shared_ptr<ISurface> surface, int32_t x, int32_t y, uint32_t width, uint32_t height, Color color) override;",
+            "void draw_text(std::shared_ptr<ISurface> surface, int32_t x, int32_t y, std::string_view text, Color color) override;",
+            "void draw_button(std::shared_ptr<ISurface> surface, int32_t x, int32_t y, uint32_t width, uint32_t height, std::string_view label) override;",
+            "void draw_panel(std::shared_ptr<ISurface> surface, int32_t x, int32_t y, uint32_t width, uint32_t height) override;"
+        ],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "BasicWindowManager",
+        "Display Name": "BasicWindowManager",
+        "Category": "Service",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/src/desktop/basic_window_manager.hpp",
+        "Namespace": "vynexos::desktop",
+        "Parent": [
+            "IWindowManager"
+        ],
+        "Public API": [
+            "~BasicWindowManager() override = default;",
+            "uint32_t create_window(std::string_view title, WindowGeometry geometry) override;",
+            "void destroy_window(uint32_t window_id) override;",
+            "void focus_window(uint32_t window_id) override;",
+            "void move_window(uint32_t window_id, int32_t x, int32_t y) override;",
+            "void resize_window(uint32_t window_id, uint32_t width, uint32_t height) override;",
+            "void set_window_surface(uint32_t window_id, std::shared_ptr<ISurface> surface) override;",
+            "void set_window_visibility(uint32_t window_id, bool visible) override;",
+            "std::vector<uint32_t> get_windows_z_ordered() const override;",
+            "SceneGraph build_scene() const override;"
+        ],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "MockDisplayBackend",
+        "Display Name": "MockDisplayBackend",
+        "Category": "Service",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/src/desktop/mock_display_backend.hpp",
+        "Namespace": "vynexos::desktop",
+        "Parent": [
+            "IDisplayAbstraction"
+        ],
+        "Public API": [
+            "~MockDisplayBackend() override;",
+            "std::expected<void, DisplayError> initialize() override;",
+            "std::expected<void, DisplayError> flush_buffer(const hal::FrameBuffer& buffer) override;",
+            "void shutdown() override;"
+        ],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "SDL2DisplayBackend",
+        "Display Name": "SDL2DisplayBackend",
+        "Category": "Service",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/src/desktop/sdl2_display_backend.hpp",
+        "Namespace": "vynexos::desktop",
+        "Parent": [
+            "IDisplayAbstraction"
+        ],
+        "Public API": [
+            "~SDL2DisplayBackend() override;",
+            "std::expected<void, DisplayError> initialize() override;",
+            "std::expected<void, DisplayError> flush_buffer(const hal::FrameBuffer& buffer) override;",
+            "void shutdown() override;"
+        ],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "SoftwareSurface",
+        "Display Name": "SoftwareSurface",
+        "Category": "Service",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/src/desktop/software_surface.hpp",
+        "Namespace": "vynexos::desktop",
+        "Parent": [
+            "ISurface"
+        ],
+        "Public API": [
+            "~SoftwareSurface() override = default;",
+            "uint32_t width() const override;",
+            "uint32_t height() const override;",
+            "std::span<uint8_t> map_pixels() override;",
+            "void unmap_pixels() override;"
+        ],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "MockAudioDriver",
+        "Display Name": "MockAudioDriver",
+        "Category": "Service",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/src/hal/mock_audio_driver.hpp",
+        "Namespace": "vynexos::hal",
+        "Parent": [
+            "IAudioDevice"
+        ],
+        "Public API": [
+            "~MockAudioDriver() override = default;",
+            "[[nodiscard]] std::expected<void, AudioError> initialize() override;",
+            "[[nodiscard]] std::expected<void, AudioError> play(std::span<const int16_t> pcm_data) override;",
+            "void shutdown() override;"
+        ],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "MockBlockDevice",
+        "Display Name": "MockBlockDevice",
+        "Category": "Service",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/src/hal/mock_block_device.hpp",
+        "Namespace": "vynexos::hal",
+        "Parent": [
+            "IBlockDevice"
+        ],
+        "Public API": [
+            "~MockBlockDevice() override;",
+            "[[nodiscard]] std::expected<void, StorageError> initialize() override;",
+            "[[nodiscard]] std::expected<void, StorageError> read_blocks(uint64_t start_block, size_t block_count, std::span<uint8_t> buffer) override;",
+            "[[nodiscard]] std::expected<void, StorageError> write_blocks(uint64_t start_block, std::span<const uint8_t> buffer) override;",
+            "[[nodiscard]] uint64_t get_capacity_blocks() const override;",
+            "[[nodiscard]] size_t get_block_size() const override;",
+            "void shutdown() override;"
+        ],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "MockComputeDriver",
+        "Display Name": "MockComputeDriver",
+        "Category": "Service",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/src/hal/mock_compute_driver.hpp",
+        "Namespace": "vynexos::hal",
+        "Parent": [
+            "IComputeDevice"
+        ],
+        "Public API": [
+            "~MockComputeDriver() override = default;",
+            "[[nodiscard]] std::expected<void, ComputeError> initialize() override;",
+            "[[nodiscard]] std::expected<void, ComputeError> execute_kernel(std::span<const uint8_t> shader_code) override;",
+            "void shutdown() override;"
+        ],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "MockHardwareClock",
+        "Display Name": "MockHardwareClock",
+        "Category": "Service",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/src/hal/mock_hardware_clock.hpp",
+        "Namespace": "vynexos::hal",
+        "Parent": [
+            "IHardwareClock"
+        ],
+        "Public API": [
+            "~MockHardwareClock() override;",
+            "[[nodiscard]] std::expected<void, ClockError> initialize() override;",
+            "[[nodiscard]] uint64_t get_monotonic_time_ns() const override;",
+            "void shutdown() override;"
+        ],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "MockInputDriver",
+        "Display Name": "MockInputDriver",
+        "Category": "Service",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/src/hal/mock_input_driver.hpp",
+        "Namespace": "vynexos::hal",
+        "Parent": [
+            "IInputDriver"
+        ],
+        "Public API": [
+            "~MockInputDriver() override = default;",
+            "void poll() override;"
+        ],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "MockNetworkAdapter",
+        "Display Name": "MockNetworkAdapter",
+        "Category": "Service",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/src/hal/mock_network_adapter.hpp",
+        "Namespace": "vynexos::hal",
+        "Parent": [
+            "INetworkAdapter"
+        ],
+        "Public API": [
+            "~MockNetworkAdapter() override;",
+            "[[nodiscard]] std::expected<void, NetworkError> initialize() override;",
+            "void set_receive_callback(NetworkReceiveCallback callback) override;",
+            "[[nodiscard]] std::expected<void, NetworkError> send_packet(std::span<const uint8_t> data) override;",
+            "void shutdown() override;"
+        ],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "PosixSharedLibrary",
+        "Display Name": "PosixSharedLibrary",
+        "Category": "Service",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/src/hal/posix_library_loader.hpp",
+        "Namespace": "vynexos::hal",
+        "Parent": [
+            "ISharedLibrary"
+        ],
+        "Public API": [
+            "~PosixSharedLibrary() override;",
+            "void* get_symbol(std::string_view name) const override;"
+        ],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "PosixLibraryLoader",
+        "Display Name": "PosixLibraryLoader",
+        "Category": "Service",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/src/hal/posix_library_loader.hpp",
+        "Namespace": "vynexos::hal",
+        "Parent": [
+            "ILibraryLoader"
+        ],
+        "Public API": [
+            "~PosixLibraryLoader() override = default;",
+            "std::expected<std::shared_ptr<ISharedLibrary>, LibraryLoadError> load_library(std::string_view path) override;"
+        ],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "SDL2InputDriver",
+        "Display Name": "SDL2InputDriver",
+        "Category": "Service",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/src/hal/sdl2_input_driver.hpp",
+        "Namespace": "vynexos::hal",
+        "Parent": [
+            "IInputDriver"
+        ],
+        "Public API": [
+            "~SDL2InputDriver() override;",
+            "void poll() override;"
+        ],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "WindowsSharedLibrary",
+        "Display Name": "WindowsSharedLibrary",
+        "Category": "Service",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/src/hal/windows_library_loader.hpp",
+        "Namespace": "vynexos::hal",
+        "Parent": [
+            "ISharedLibrary"
+        ],
+        "Public API": [
+            "~WindowsSharedLibrary() override;",
+            "void* get_symbol(std::string_view name) const override;"
+        ],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "WindowsLibraryLoader",
+        "Display Name": "WindowsLibraryLoader",
+        "Category": "Service",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/src/hal/windows_library_loader.hpp",
+        "Namespace": "vynexos::hal",
+        "Parent": [
+            "ILibraryLoader"
+        ],
+        "Public API": [
+            "~WindowsLibraryLoader() override = default;",
+            "std::expected<std::shared_ptr<ISharedLibrary>, LibraryLoadError> load_library(std::string_view path) override;"
+        ],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "TestLogger",
+        "Display Name": "TestLogger",
+        "Category": "Service",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/src/tests/test_compositor.cpp",
+        "Namespace": "vynexos::desktop",
+        "Parent": [
+            "core::ILogger"
+        ],
+        "Public API": [
+            "void log(core::LogLevel level, const std::string& message) override {}",
+            "void log(core::LogLevel level, const char* component, const char* message) override {}"
+        ],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "TestDisplayBackend",
+        "Display Name": "TestDisplayBackend",
+        "Category": "Service",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/src/tests/test_compositor.cpp",
+        "Namespace": "vynexos::desktop",
+        "Parent": [
+            "IDisplayAbstraction"
+        ],
+        "Public API": [
+            "std::expected<void, DisplayError> initialize() override { return {"
+        ],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "DummyLogger",
+        "Display Name": "DummyLogger",
+        "Category": "Service",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/src/tests/test_plugin_manager.cpp",
+        "Namespace": "vynexos::core",
+        "Parent": [
+            "ILogger"
+        ],
+        "Public API": [
+            "void set_log_level(LogLevel level) override { m_level = level; }",
+            "[[nodiscard]] LogLevel get_log_level() const override { return m_level; }",
+            "void log_raw(LogLevel level, std::string_view message) override {"
+        ],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    },
+    {
+        "Identifier": "DummyEventBus",
+        "Display Name": "DummyEventBus",
+        "Category": "Service",
+        "Source File": "C:/Users/User/Desktop/Git Projects/VynexOS/src/tests/test_sdl_integration.cpp",
+        "Namespace": "vynexos",
+        "Parent": [
+            "core::IEventBus"
+        ],
+        "Public API": [
+            "void publish(std::shared_ptr<const core::Event> event) override {",
+            "void subscribe(const std::string&, EventHandler) override {}"
+        ],
+        "Metadata": {
+            "Purpose": null,
+            "Responsibilities": null,
+            "Ownership": null,
+            "Lifetime": null,
+            "Thread Safety": null,
+            "Failure Handling": null,
+            "Performance": null,
+            "Extension Points": null
+        },
+        "Related Documents": []
+    }
+]

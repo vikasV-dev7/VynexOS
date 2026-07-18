@@ -2,5 +2,5 @@
 # Notification System
 
 ## Notification System
-[[EventBus]] driven notifications.
+EventBus driven notifications.
 <!-- AUTO-GENERATED END -->

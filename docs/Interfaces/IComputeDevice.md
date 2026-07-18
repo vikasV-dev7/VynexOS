@@ -1,34 +1,43 @@
 <!-- AUTO-GENERATED START -->
 # [[IComputeDevice]]
 
-## Purpose
-Interface for [[IComputeDevice]].
+## Why the interface exists & Architectural role
+_Not explicitly documented._
 
-## Namespace
-`vynexos::hal`
+## Lifetime & Ownership expectations
+**Lifetime**: _Unspecified_
+**Ownership**: _Unspecified_
 
-## Source Location
-`C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/hal/compute.hpp`
+## Threading guarantees & Failure behaviour
+**Thread Safety**: _Unspecified_
+**Failure Handling**: _Unspecified_
 
-## Responsibilities
-To be documented.
+## Extension guidance
+_No explicit extension points defined._
 
-## Dependencies
-None (pure interface).
+## Public API
+- `virtual ~[[IComputeDevice]]() = default;`
+- `[[nodiscard]] virtual std::expected<void, [[ComputeError]]> initialize() = 0;`
+- `[[nodiscard]] virtual std::expected<void, [[ComputeError]]> execute_kernel(std::span<const uint8_t> shader_code) = 0;`
+- `virtual void shutdown() = 0;`
 
-## Methods
-- `virtual ~[[IComputeDevice]]() = default`
-- `[[nodiscard]] virtual std::expected<void, [[ComputeError]]> initialize() = 0`
-- `[[nodiscard]] virtual std::expected<void, [[ComputeError]]> execute_kernel(std::span<const uint8_t> shader_code) = 0`
-- `virtual void shutdown() = 0`
-
-## Thread Safety
-Implementations must ensure thread safety if accessed across multiple sub-systems via Dependency Injection.
-
-## Used By
-See [[Composition Root]]
-
-## Implemented By
-See Services directory.
+---
+### Generator Metadata
+- **Generation Timestamp**: 2026-07-18T08:05:14.330271+00:00
+- **Generator Version**: 2.1.0
+- **Documentation Schema**: 1.1
+- **IR Version**: 1.0
+- **Parser**: RegexParser
+- **Source File**: `C:/Users/User/Desktop/Git Projects/VynexOS/include/vynexos/hal/compute.hpp`
 
 <!-- AUTO-GENERATED END -->
+
+
+
+
+
+
+
+
+
+

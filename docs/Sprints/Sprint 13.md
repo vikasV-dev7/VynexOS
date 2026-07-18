@@ -7,7 +7,7 @@ Complete Architecture Version 1.0.
 - Implemented `[[BasicPluginManager]]`
 - Implemented `[[MockAudioDriver]]` and `[[MockComputeDriver]]`
 - Integrated `[[BasicNotificationService]]` via `[[IEventBus]]`
-- Wired via `[[CompositionRoot]]`
+- Wired via `CompositionRoot`
 
 ## Verification
 Clean `/WX` MSVC C++23 build.
