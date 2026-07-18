@@ -29,8 +29,8 @@ target_link_libraries(test_plugin_manager PRIVATE vynex_core vynex_hal)
 
 # SDL Integration test
 if(TARGET SDL2-static)
-    add_executable(test_sdl_integration test_sdl_integration.cpp)
-    target_link_libraries(test_sdl_integration PRIVATE vynex_core vynex_desktop vynex_hal SDL2-static)
+    add_executable(test_sdl_integration test_sdl_integration.cpp ${PROJECT_SOURCE_DIR}/src/bootstrap/composition_root.cpp)
+    target_link_libraries(test_sdl_integration PRIVATE vynex_core vynex_desktop vynex_hal vynex_apps SDL2-static)
     add_test(NAME SDLIntegrationTests COMMAND test_sdl_integration)
 endif()
 

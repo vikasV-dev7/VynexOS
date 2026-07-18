@@ -191,7 +191,7 @@ void test_compositor_frame_consistency() {
     desktop::SceneGraph scene;
     // We just verify it does not crash or leak
     for (int i = 0; i < 50; i++) {
-        compositor.render_frame(scene);
+        (void)compositor.render_frame(scene);
     }
     std::cout << "  -> Passed (Compositor frame consistency validated)." << std::endl;
 }

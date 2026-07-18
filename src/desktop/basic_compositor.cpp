@@ -21,9 +21,9 @@ std::expected<void, DisplayError> BasicCompositor::render_scene_internal(const S
     if (m_master_fb.pixels.empty()) {
         m_master_fb.width = 1920;
         m_master_fb.height = 1080;
-        m_master_fb.pixels.resize(m_master_fb.width * m_master_fb.height * 4, 0); // Clear to black
+        m_master_fb.pixels.resize(m_master_fb.width * m_master_fb.height * 4, static_cast<uint8_t>(0));
     } else {
-        std::fill(m_master_fb.pixels.begin(), m_master_fb.pixels.end(), 0);
+        std::fill(m_master_fb.pixels.begin(), m_master_fb.pixels.end(), static_cast<uint8_t>(0));
     }
     
     for (const auto& layer : scene) {
