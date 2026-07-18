@@ -1,6 +1,8 @@
 #include <iostream>
 #include <cassert>
 #include <memory>
+#include <algorithm>
+#include <vector>
 #include "vynexos/desktop/window_manager.hpp"
 #include "../desktop/basic_window_manager.hpp"
 #include "../core/in_memory_event_bus.hpp"

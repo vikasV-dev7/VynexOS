@@ -9,6 +9,7 @@
 #include "vynexos/core/logger.hpp"
 #include "../core/basic_task_scheduler.hpp"
 #include "../desktop/mock_display_backend.hpp"
+#include "vynexos/hal/input_driver.hpp"
 
 using namespace vynexos;
 using namespace vynexos::desktop;

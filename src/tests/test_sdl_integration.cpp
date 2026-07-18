@@ -156,7 +156,7 @@ public:
 void test_launcher_stability() {
     std::cout << "Running test_launcher_stability...\n";
     auto logger = std::make_shared<DummyLogger>();
-    auto bus = std::make_shared<core::InMemoryEventBus>(*reinterpret_cast<core::ITaskScheduler*>(nullptr)); // Mock is tricky without scheduler.
+    auto bus = std::make_shared<DummyEventBus>();
     // We will just directly invoke methods or simulate properly.
     // Actually, integration test for launcher needs task scheduler.
     std::cout << "  -> Passed (Launcher simulated correctly)." << std::endl;

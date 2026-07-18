@@ -4,11 +4,11 @@
     "type": "split",
     "children": [
       {
-        "id": "4032a09903d4a232",
+        "id": "d27b6f331cc75a8f",
         "type": "tabs",
         "children": [
           {
-            "id": "ec034a83069f4a5b",
+            "id": "ac8844bd4a5fbd67",
             "type": "leaf",
             "state": {
               "type": "graph",
@@ -176,8 +176,9 @@
       "bases:Create new base": false
     }
   },
-  "active": "ec034a83069f4a5b",
+  "active": "ac8844bd4a5fbd67",
   "lastOpenFiles": [
+    "Services.md",
     "Testing/v0.6.0_Phase_3_Verification.md",
     "Testing/v0.6.0_Phase_2_Verification.md",
     "architecture/Architecture Review Log.md",
@@ -203,7 +204,6 @@
     "architecture/Bootstrap.md",
     "architecture/0.3.0_Extension_Framework.md",
     "architecture/0.5.0_Physical_Driver_Layer.md",
-    "architecture/0.4.0_HAL_Completion.md",
     "Debugging",
     "documentation_index.json",
     "Release Notes"
