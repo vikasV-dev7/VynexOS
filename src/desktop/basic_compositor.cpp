@@ -54,39 +54,57 @@ void BasicCompositor::blend_surface(hal::FrameBuffer& target, int32_t dst_x, int
     int32_t end_x = std::min(dst_x + static_cast<int32_t>(surf_w), std::min(clip.x + static_cast<int32_t>(clip.width), static_cast<int32_t>(target_w)));
     int32_t end_y = std::min(dst_y + static_cast<int32_t>(surf_h), std::min(clip.y + static_cast<int32_t>(clip.height), static_cast<int32_t>(target_h)));
 
+    uint8_t* dst_ptr = target.pixels.data();
+    const uint8_t* src_ptr = mapped.data();
+
     for (int32_t y = start_y; y < end_y; ++y) {
-        for (int32_t x = start_x; x < end_x; ++x) {
-            int32_t src_x = x - dst_x;
-            int32_t src_y = y - dst_y;
-            
-            size_t src_idx = (static_cast<size_t>(src_y) * static_cast<size_t>(surf_w) + static_cast<size_t>(src_x)) * 4;
-            size_t dst_idx = (static_cast<size_t>(y) * static_cast<size_t>(target_w) + static_cast<size_t>(x)) * 4;
-
-            if (src_idx + 3 < mapped.size() && dst_idx + 3 < target.pixels.size()) {
-                uint8_t sr = mapped[src_idx];
-                uint8_t sg = mapped[src_idx + 1];
-                uint8_t sb = mapped[src_idx + 2];
-                uint8_t sa = static_cast<uint8_t>(mapped[src_idx + 3] * global_opacity);
-
-                if (sa == 255) {
-                    target.pixels[dst_idx] = sr;
-                    target.pixels[dst_idx + 1] = sg;
-                    target.pixels[dst_idx + 2] = sb;
-                    target.pixels[dst_idx + 3] = 255;
-                } else if (sa > 0) {
-                    float alpha = sa / 255.0f;
-                    float inv_alpha = 1.0f - alpha;
-                    
-                    uint8_t dr = target.pixels[dst_idx];
-                    uint8_t dg = target.pixels[dst_idx + 1];
-                    uint8_t db = target.pixels[dst_idx + 2];
-
-                    target.pixels[dst_idx] = static_cast<uint8_t>(sr + (dr * inv_alpha));
-                    target.pixels[dst_idx + 1] = static_cast<uint8_t>(sg + (dg * inv_alpha));
-                    target.pixels[dst_idx + 2] = static_cast<uint8_t>(sb + (db * inv_alpha));
-                    target.pixels[dst_idx + 3] = std::max(target.pixels[dst_idx + 3], sa);
+        int32_t src_y = y - dst_y;
+        size_t dst_idx = (static_cast<size_t>(y) * target_w + start_x) * 4;
+        size_t src_idx = (static_cast<size_t>(src_y) * surf_w + (start_x - dst_x)) * 4;
+        
+        // Fast path for fully opaque row
+        if (global_opacity == 1.0f) {
+            bool row_opaque = true;
+            size_t temp_src = src_idx;
+            for (int32_t x = start_x; x < end_x; ++x) {
+                if (src_ptr[temp_src + 3] != 255) {
+                    row_opaque = false;
+                    break;
                 }
+                temp_src += 4;
             }
+            if (row_opaque) {
+                std::memcpy(&dst_ptr[dst_idx], &src_ptr[src_idx], (end_x - start_x) * 4);
+                continue;
+            }
+        }
+
+        for (int32_t x = start_x; x < end_x; ++x) {
+            uint8_t sr = src_ptr[src_idx];
+            uint8_t sg = src_ptr[src_idx + 1];
+            uint8_t sb = src_ptr[src_idx + 2];
+            uint8_t sa = static_cast<uint8_t>(src_ptr[src_idx + 3] * global_opacity);
+
+            if (sa == 255) {
+                dst_ptr[dst_idx] = sr;
+                dst_ptr[dst_idx + 1] = sg;
+                dst_ptr[dst_idx + 2] = sb;
+                dst_ptr[dst_idx + 3] = 255;
+            } else if (sa > 0) {
+                float alpha = sa / 255.0f;
+                float inv_alpha = 1.0f - alpha;
+                
+                uint8_t dr = dst_ptr[dst_idx];
+                uint8_t dg = dst_ptr[dst_idx + 1];
+                uint8_t db = dst_ptr[dst_idx + 2];
+
+                dst_ptr[dst_idx] = static_cast<uint8_t>(sr + (dr * inv_alpha));
+                dst_ptr[dst_idx + 1] = static_cast<uint8_t>(sg + (dg * inv_alpha));
+                dst_ptr[dst_idx + 2] = static_cast<uint8_t>(sb + (db * inv_alpha));
+                dst_ptr[dst_idx + 3] = std::max(dst_ptr[dst_idx + 3], sa);
+            }
+            src_idx += 4;
+            dst_idx += 4;
         }
     }
 }

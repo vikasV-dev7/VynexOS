@@ -147,11 +147,9 @@ void CompositionRoot::run() {
         
         static uint64_t frame_count = 0;
         frame_count++;
-        if (frame_count % 60 == 0) { // Log every 60 frames to avoid spam, but we can log every frame if needed.
-            // User requested "Every frame log: Frame Number, SceneGraph size, Render duration"
-            // Wait, we need it every frame to see when it stops.
+        if (frame_count % 60 == 0) { 
+            m_logger->info("Frame Loop: Frame={}, SceneSize={}, RenderDur={}us", frame_count, scene.size(), dur);
         }
-        m_logger->info("Frame Loop: Frame={}, SceneSize={}, RenderDur={}us", frame_count, scene.size(), dur);
         
         frame_clock.end_frame_and_wait();
     }
