@@ -178,6 +178,8 @@
   },
   "active": "ec034a83069f4a5b",
   "lastOpenFiles": [
+    "architecture/Architecture Review Log.md",
+    "Testing/v0.6.0_Phase_1_Verification.md",
     "architecture/Version_0.6.0_Architecture_Principles.md",
     "architecture/Testing_Architecture.md",
     "Testing.md",
@@ -202,8 +204,6 @@
     "architecture/0.4.0_HAL_Completion.md",
     "Release Notes.md",
     "Project.md",
-    "Known Issues.md",
-    "Lessons Learned.md",
     "Debugging",
     "documentation_index.json",
     "Release Notes"

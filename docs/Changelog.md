@@ -46,3 +46,6 @@
 - Documented Visual Studio IntelliSense False Positive Investigation.
 - Established engineering philosophy regarding compiler authority.
 - Began planning for v0.6.0.
+
+## [v0.6.0 - Ongoing]
+- **Phase 1 Complete:** Runtime Lifecycle Completion. `CompositionRoot` orchestrates graceful termination via `IInputDriver` polling and performs strict reverse-order destruction. Passed full engineering verification gate.
