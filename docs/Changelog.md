@@ -49,3 +49,4 @@
 
 ## [v0.6.0 - Ongoing]
 - **Phase 1 Complete:** Runtime Lifecycle Completion. `CompositionRoot` orchestrates graceful termination via `IInputDriver` polling and performs strict reverse-order destruction. Passed full engineering verification gate.
+- **Phase 2 Complete:** Runtime Stabilization. Refactored SDL2 Input queue state tracking for deterministic mouse clicks (fixing launcher/focus thrashing). Optimized compositor to eliminate 8.29MB per-frame allocation overhead. Passed full engineering verification gate.

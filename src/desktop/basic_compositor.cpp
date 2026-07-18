@@ -18,23 +18,26 @@ std::expected<void, DisplayError> BasicCompositor::render_frame(const SceneGraph
 }
 
 std::expected<void, DisplayError> BasicCompositor::render_scene_internal(const SceneGraph& scene) {
-    hal::FrameBuffer master_fb;
-    master_fb.width = 1920;
-    master_fb.height = 1080;
-    master_fb.pixels.resize(master_fb.width * master_fb.height * 4, 0); // Clear to black
+    if (m_master_fb.pixels.empty()) {
+        m_master_fb.width = 1920;
+        m_master_fb.height = 1080;
+        m_master_fb.pixels.resize(m_master_fb.width * m_master_fb.height * 4, 0); // Clear to black
+    } else {
+        std::fill(m_master_fb.pixels.begin(), m_master_fb.pixels.end(), 0);
+    }
     
     for (const auto& layer : scene) {
         if (!layer.visible || layer.opacity <= 0.0f) continue;
         
         Rect clip = layer.clip;
         if (clip.width == 0 || clip.height == 0) {
-            clip = {0, 0, master_fb.width, master_fb.height};
+            clip = {0, 0, m_master_fb.width, m_master_fb.height};
         }
         
-        blend_surface(master_fb, layer.bounds.x, layer.bounds.y, master_fb.width, master_fb.height, clip, layer.opacity, layer.surface);
+        blend_surface(m_master_fb, layer.bounds.x, layer.bounds.y, m_master_fb.width, m_master_fb.height, clip, layer.opacity, layer.surface);
     }
     
-    return m_display->flush_buffer(master_fb);
+    return m_display->flush_buffer(m_master_fb);
 }
 
 void BasicCompositor::blend_surface(hal::FrameBuffer& target, int32_t dst_x, int32_t dst_y, uint32_t target_w, uint32_t target_h,

@@ -18,6 +18,7 @@ private:
     std::shared_ptr<core::IEventBus> m_event_bus;
     std::shared_ptr<core::ILogger> m_logger;
     bool m_shutdown_requested{false};
+    uint8_t m_mouse_button_state{0};
 };
 
 } // namespace vynexos::hal

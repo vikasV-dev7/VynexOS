@@ -20,8 +20,7 @@ private:
     std::shared_ptr<IDisplayAbstraction> m_display;
     std::shared_ptr<core::ILogger> m_logger;
     std::mutex m_mutex;
-    
-
+    hal::FrameBuffer m_master_fb;
     
     std::expected<void, DisplayError> render_scene_internal(const SceneGraph& scene);
     void blend_surface(hal::FrameBuffer& target, int32_t dst_x, int32_t dst_y, uint32_t target_w, uint32_t target_h,

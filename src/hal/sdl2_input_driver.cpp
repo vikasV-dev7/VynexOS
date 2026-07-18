@@ -37,13 +37,16 @@ void SDL2InputDriver::poll() {
             ev->payload = MouseEvent(event.motion.x, event.motion.y, state);
             m_event_bus->publish(ev);
         } else if (event.type == SDL_MOUSEBUTTONDOWN || event.type == SDL_MOUSEBUTTONUP) {
-            uint8_t state = 0;
-            uint32_t ms = SDL_GetMouseState(nullptr, nullptr);
-            if (ms & SDL_BUTTON(SDL_BUTTON_LEFT)) state |= 1;
-            if (ms & SDL_BUTTON(SDL_BUTTON_RIGHT)) state |= 2;
+            if (event.button.button == SDL_BUTTON_LEFT) {
+                if (event.type == SDL_MOUSEBUTTONDOWN) m_mouse_button_state |= 1;
+                else m_mouse_button_state &= ~1;
+            } else if (event.button.button == SDL_BUTTON_RIGHT) {
+                if (event.type == SDL_MOUSEBUTTONDOWN) m_mouse_button_state |= 2;
+                else m_mouse_button_state &= ~2;
+            }
             auto ev = std::make_shared<core::Event>();
             ev->topic = "HAL_INPUT_MOUSE";
-            ev->payload = MouseEvent(event.button.x, event.button.y, state);
+            ev->payload = MouseEvent(event.button.x, event.button.y, m_mouse_button_state);
             m_event_bus->publish(ev);
         } else if (event.type == SDL_QUIT) {
             m_logger->info("SDL_QUIT received (Window closed)");
