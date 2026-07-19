@@ -1,19 +1,24 @@
 # Changelog
 
-## [Unreleased] - Version 0.6.0
+## [v0.6.0] - 2026-07-19
 ### Added
 - Native `[[ISurface]]` rendering pathway in `[[DesktopShell]]` eliminating all legacy WindowBuffer abstractions.
-- `[[BasicWidgetToolkit]]` now supports true intra-window alpha blending formulas.
+- `[[BasicWidgetToolkit]]` now supports true intra-window alpha blending formulas and actual 8x8 bitmap text rendering.
 - Unit Test Stabilization documentation: `[[Version_0.6.0_Test_Stabilization]]`.
+- Debugging history for MSVC optimizations, input determinism, and rendering defects.
 
 ### Changed
 - Refactored all tests to strictly validate `SoftwareSurface` alpha blending mathematically.
 - Purged all proxy interfaces referencing the legacy `submit_buffer` architecture.
+- Refactored SDL2 Input queue state tracking for deterministic mouse clicks (fixing launcher/focus thrashing).
+- Optimized compositor inner loop using raw pointer arithmetic and memory banding `std::memcpy`, resolving severe MSVC bounds-checking overhead and increasing FPS by 338%.
 
 ### Fixed
 - **Compositor Bug**: Addressed ghosting issue by mathematically fixing compositor `BlendPixel` logic, removing double pre-multiplication.
 - **Architectural Violation (INC-0004)**: Fixed an encapsulation violation in `test_runtime_bug.cpp` that attempted to access private internals of `CompositionRoot`. Test now gracefully consumes public interface via `m_input_driver` casting.
 - **Renderer Link Error**: Avoided `std::min` with initializer lists in `basic_compositor.cpp` to prevent MSVC `__std_min_element_4i` unresolved symbol errors.
+- **Runtime Lifecycle**: `CompositionRoot` now orchestrates graceful termination via `IInputDriver` polling and performs strict reverse-order destruction.
+- **Compositor Allocation Bug**: Eliminated massive 8.29MB per-frame dynamic allocation overhead in `BasicCompositor`.
 
 ## [v0.5.0] - 2026-07-18
 ### Added
@@ -47,7 +52,4 @@
 - Established engineering philosophy regarding compiler authority.
 - Began planning for v0.6.0.
 
-## [v0.6.0 - Ongoing]
-- **Phase 1 Complete:** Runtime Lifecycle Completion. `CompositionRoot` orchestrates graceful termination via `IInputDriver` polling and performs strict reverse-order destruction. Passed full engineering verification gate.
-- **Phase 2 Complete:** Runtime Stabilization. Refactored SDL2 Input queue state tracking for deterministic mouse clicks (fixing launcher/focus thrashing). Optimized compositor to eliminate 8.29MB per-frame allocation overhead. Passed full engineering verification gate.
-- **Phase 3 Complete:** Regression Testing. Formalized testing suite with 60k frame composition loops, 10k focus thrashes, deterministic input burst simulation, and full stack initialization cycles. Baseline metrics recorded.
+

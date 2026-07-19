@@ -20,8 +20,8 @@ Active tracking is maintained in the [[Development Diary]].
 
 - Post-v0.5.0: Engineering Investigation & Documentation (IntelliSense False Positive).
 
-- Sprint 14: Version 0.6.0 Runtime Lifecycle Completion & Stabilization. 
-  - Planning Phase Complete.
+- [[Sprint 14]] (Version 0.6.0 Runtime Lifecycle Completion & Stabilization)
   - Phase 1 (Runtime Lifecycle Completion) implemented, passed verification gate, and certified.
   - Phase 2 (Runtime Stabilization) implemented, passed verification gate, and certified.
-  - Phase 3 (Regression Testing) implemented, passed verification gate, and certified.
+  - Phase 3 (Regression Testing & Performance Validation) implemented, passed verification gate, and certified.
+  - Version 0.6.0 Officially Released.
