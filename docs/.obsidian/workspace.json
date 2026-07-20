@@ -4,11 +4,11 @@
     "type": "split",
     "children": [
       {
-        "id": "d27b6f331cc75a8f",
+        "id": "eae9000a7024f549",
         "type": "tabs",
         "children": [
           {
-            "id": "ac8844bd4a5fbd67",
+            "id": "4e764963fea98ab3",
             "type": "leaf",
             "state": {
               "type": "graph",
@@ -176,34 +176,34 @@
       "bases:Create new base": false
     }
   },
-  "active": "ac8844bd4a5fbd67",
+  "active": "4e764963fea98ab3",
   "lastOpenFiles": [
+    "Debugging/INC-0004_CompositionRoot_Encapsulation_Violation.md",
+    "Home.md",
+    "Debugging/INC-0002_SceneGraph_Window_Disappears.md",
+    "Debugging/INC-0003_Runtime_Rendering_Defect.md",
+    "Developer Guide/Folder Structure.md",
+    "architecture/v0_7_0_technical_design_specification.md",
+    "Build.md",
+    "Debugging/Version_0.6.0_Test_Stabilization.md",
+    "Debugging/Version_0.6.0_Debugging_History.md",
     "Version_0.6.0_Final_Engineering_Report.md",
     "Release_Checklist_v0.6.0.md",
-    "Debugging/Version_0.6.0_Debugging_History.md",
     "Testing/Version_0.6.0_Performance_Report.md",
     "Release Notes/v0.6.0.md",
     "Sprints/Sprint 14.md",
-    "Home.md",
-    "Debugging/INC-0004_CompositionRoot_Encapsulation_Violation.md",
-    "Debugging/Version_0.6.0_Test_Stabilization.md",
     "Debugging/INC-0001_Runtime_Window_Disappears_On_Click.md",
     "Build/CMake.md",
     "Build/Build Instructions.md",
     "Documentation Contribution Guide.md",
     "Development Diary.md",
     "Changelog.md",
-    "Build.md",
     "Services/BasicNotificationService.md",
     "Services/BasicFileExplorer.md",
     "Services/BasicCompositor.md",
     "Services/AiError.md",
     "Future/Kernel.md",
     "Future/Drivers.md",
-    "Services.md",
-    "Testing/v0.6.0_Phase_3_Verification.md",
-    "Testing/v0.6.0_Phase_2_Verification.md",
-    "architecture/Architecture Review Log.md",
     "Debugging",
     "documentation_index.json",
     "Release Notes"

@@ -58,6 +58,34 @@ add_executable(test_desktop_shell test_desktop_shell.cpp ${PROJECT_SOURCE_DIR}/s
 target_include_directories(test_desktop_shell PRIVATE ${PROJECT_SOURCE_DIR}/include)
 target_link_libraries(test_desktop_shell PRIVATE vynex_core vynex_desktop vynex_hal)
 
+add_executable(test_virtual_path test_virtual_path.cpp)
+target_include_directories(test_virtual_path PRIVATE ${PROJECT_SOURCE_DIR}/include)
+target_link_libraries(test_virtual_path PRIVATE vynex_core)
+
+add_executable(test_vnode test_vnode.cpp)
+target_include_directories(test_vnode PRIVATE ${PROJECT_SOURCE_DIR}/include)
+target_link_libraries(test_vnode PRIVATE vynex_core)
+
+add_executable(test_memory_file_handle test_memory_file_handle.cpp)
+target_include_directories(test_memory_file_handle PRIVATE ${PROJECT_SOURCE_DIR}/include)
+target_link_libraries(test_memory_file_handle PRIVATE vynex_core)
+
+add_executable(test_memory_file_system test_memory_file_system.cpp)
+target_include_directories(test_memory_file_system PRIVATE ${PROJECT_SOURCE_DIR}/include)
+target_link_libraries(test_memory_file_system PRIVATE vynex_core)
+
+add_executable(test_application_registry test_application_registry.cpp)
+target_include_directories(test_application_registry PRIVATE ${PROJECT_SOURCE_DIR}/include)
+target_link_libraries(test_application_registry PRIVATE vynex_apps vynex_core)
+
+add_executable(test_application_integration test_application_integration.cpp)
+target_include_directories(test_application_integration PRIVATE ${PROJECT_SOURCE_DIR}/include)
+target_link_libraries(test_application_integration PRIVATE vynex_apps vynex_core vynex_desktop vynex_hal)
+
+add_executable(test_basic_file_explorer test_basic_file_explorer.cpp ${PROJECT_SOURCE_DIR}/src/apps/basic_file_explorer.cpp)
+target_include_directories(test_basic_file_explorer PRIVATE ${PROJECT_SOURCE_DIR}/include)
+target_link_libraries(test_basic_file_explorer PRIVATE vynex_apps vynex_core vynex_desktop vynex_hal)
+
 # Copy the libraries to the executable directory so it can find them
 add_custom_command(TARGET test_plugin_manager POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
@@ -76,3 +104,10 @@ add_test(NAME CompositorTests COMMAND test_compositor)
 add_test(NAME WidgetToolkitTests COMMAND test_widget_toolkit)
 add_test(NAME WindowManagerTests COMMAND test_window_manager)
 add_test(NAME DesktopShellTests COMMAND test_desktop_shell)
+add_test(NAME VirtualPathTests COMMAND test_virtual_path)
+add_test(NAME VNodeTests COMMAND test_vnode)
+add_test(NAME MemoryFileHandleTests COMMAND test_memory_file_handle)
+add_test(NAME MemoryFileSystemTests COMMAND test_memory_file_system)
+add_test(NAME ApplicationRegistryTests COMMAND test_application_registry)
+add_test(NAME ApplicationIntegrationTests COMMAND test_application_integration)
+add_test(NAME BasicFileExplorerTests COMMAND test_basic_file_explorer)

@@ -21,8 +21,12 @@
 #include "../hal/mock_block_device.hpp"
 #include "../hal/mock_hardware_clock.hpp"
 #include "../desktop/basic_notification_service.hpp"
+#include "vynexos/core/virtual_file_system.hpp"
+#include "vynexos/apps/application_manager.hpp"
+#include "vynexos/desktop/running_application.hpp"
 #include <memory>
 #include <atomic>
+#include <vector>
 
 namespace vynexos::bootstrap {
 
@@ -68,8 +72,8 @@ private:
     std::shared_ptr<apps::DemoApp> m_demo_app;
     std::shared_ptr<apps::IDesktopShell> m_desktop_shell;
     std::shared_ptr<apps::BasicTerminal> m_terminal;
-    std::shared_ptr<apps::BasicFileExplorer> m_file_explorer;
     
+
     std::shared_ptr<core::IPluginManager> m_plugin_manager;
     std::shared_ptr<hal::IAudioDevice> m_audio_driver;
     std::shared_ptr<hal::IComputeDevice> m_compute_driver;
@@ -77,6 +81,11 @@ private:
     std::shared_ptr<hal::IBlockDevice> m_block_device;
     std::shared_ptr<hal::IHardwareClock> m_hardware_clock;
     std::shared_ptr<desktop::INotificationService> m_notification_service;
+    
+    std::shared_ptr<core::IVirtualFileSystem> m_vfs;
+    std::shared_ptr<apps::IApplicationManager> m_app_registry;
+    
+    std::vector<desktop::RunningApplication> m_running_apps;
     
     std::atomic<bool> m_is_running{false};
 };

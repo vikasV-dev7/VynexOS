@@ -65,11 +65,11 @@ void test_panel_drawing() {
     
     auto mapped = surface->map_pixels();
     size_t idx = (10 * 100 + 10) * 4;
-    // {45, 45, 45, 240} over {0,0,0,0} = {42, 42, 42, 240}
-    assert(mapped[idx] == 42);
-    assert(mapped[idx+1] == 42);
-    assert(mapped[idx+2] == 42);
-    assert(mapped[idx+3] == 240);
+    // {45, 45, 45, 255} over {0,0,0,0} = {45, 45, 45, 255}
+    assert(mapped[idx] == 45);
+    assert(mapped[idx+1] == 45);
+    assert(mapped[idx+2] == 45);
+    assert(mapped[idx+3] == 255);
     surface->unmap_pixels();
     
     std::cout << "test_panel_drawing passed\n";

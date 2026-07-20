@@ -98,9 +98,9 @@ void BasicCompositor::blend_surface(hal::FrameBuffer& target, int32_t dst_x, int
                 uint8_t dg = dst_ptr[dst_idx + 1];
                 uint8_t db = dst_ptr[dst_idx + 2];
 
-                dst_ptr[dst_idx] = static_cast<uint8_t>(sr + (dr * inv_alpha));
-                dst_ptr[dst_idx + 1] = static_cast<uint8_t>(sg + (dg * inv_alpha));
-                dst_ptr[dst_idx + 2] = static_cast<uint8_t>(sb + (db * inv_alpha));
+                dst_ptr[dst_idx] = static_cast<uint8_t>((sr * alpha) + (dr * inv_alpha));
+                dst_ptr[dst_idx + 1] = static_cast<uint8_t>((sg * alpha) + (dg * inv_alpha));
+                dst_ptr[dst_idx + 2] = static_cast<uint8_t>((sb * alpha) + (db * inv_alpha));
                 dst_ptr[dst_idx + 3] = std::max(dst_ptr[dst_idx + 3], sa);
             }
             src_idx += 4;

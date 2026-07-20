@@ -18,6 +18,8 @@
 #include <thread>
 #include <vynexos/hal/library_loader.hpp>
 #include <vynexos/core/plugin_context_factory.hpp>
+#include <vynexos/core/memory_file_system.hpp>
+#include <vynexos/apps/application_registry.hpp>
 
 namespace vynexos::bootstrap {
 
@@ -44,7 +46,6 @@ CompositionRoot::CompositionRoot() {
     m_demo_app = std::make_shared<apps::DemoApp>(m_window_manager, m_compositor, m_widget_toolkit);
     m_desktop_shell = std::make_shared<apps::DesktopShell>(m_window_manager, m_compositor, m_widget_toolkit, m_event_bus);
     m_terminal = std::make_shared<apps::BasicTerminal>(m_window_manager, m_compositor, m_widget_toolkit);
-    m_file_explorer = std::make_shared<apps::BasicFileExplorer>(m_window_manager, m_compositor, m_widget_toolkit);
     
     // New V1.0 Architecture Components
     auto lib_loader = hal::create_library_loader();
@@ -61,6 +62,10 @@ CompositionRoot::CompositionRoot() {
     
     // Inject logger into Service Manager
     m_service_manager = std::make_shared<core::BasicServiceManager>(m_logger);
+    
+    // Phase 3 components
+    m_vfs = std::make_shared<core::MemoryFileSystem>();
+    m_app_registry = std::make_shared<apps::ApplicationRegistry>();
 }
 
 CompositionRoot::~CompositionRoot() = default;
@@ -96,7 +101,31 @@ void CompositionRoot::initialize() {
     
     m_logger->info("VynexOS Bootstrap: Launching System Apps...");
     m_terminal->launch();
-    m_file_explorer->launch();
+    
+    // Register BasicFileExplorer
+    m_app_registry->register_application("BasicFileExplorer", [vfs = m_vfs, toolkit = m_widget_toolkit]() {
+        return std::make_unique<apps::BasicFileExplorer>(vfs, toolkit);
+    });
+    
+    // Launch BasicFileExplorer via Registry
+    if (m_app_registry->launch("BasicFileExplorer")) {
+        // Transitional Window Setup for IApplications
+        // In the future, this migrates to DesktopShell.
+        desktop::WindowGeometry geom{200, 200, 700, 500};
+        uint32_t win_id = m_window_manager->create_window("File Explorer", geom);
+        auto surface = m_compositor->create_surface(geom.width, geom.height);
+        m_window_manager->set_window_surface(win_id, surface);
+        
+        auto apps = m_app_registry->get_running_applications();
+        if (!apps.empty()) {
+            desktop::RunningApplication app_desc;
+            app_desc.app = apps.back();
+            app_desc.window_id = win_id;
+            app_desc.surface = surface;
+            app_desc.visible = true;
+            m_running_apps.push_back(std::move(app_desc));
+        }
+    }
     
     m_logger->info("VynexOS Bootstrap: Launching Demo App...");
     m_demo_app->launch();
@@ -131,8 +160,17 @@ void CompositionRoot::run() {
         // Let apps update their buffers using the toolkit
         m_desktop_shell->update_frame();
         m_terminal->update_frame();
-        m_file_explorer->update_frame();
         m_demo_app->update_frame();
+        
+        // Update and Render modern IApplications
+        for (auto& running_app : m_running_apps) {
+            if (running_app.app) {
+                running_app.app->update(16.6); // Transitional constant delta time
+                if (running_app.visible && running_app.surface) {
+                    running_app.app->render(*(running_app.surface));
+                }
+            }
+        }
         
         // WindowManager builds the scene graph
         auto scene = m_window_manager->build_scene();
@@ -189,11 +227,24 @@ void CompositionRoot::shutdown() {
     
     m_plugin_manager.reset();
     
+    // Terminate any registered applications before tearing down core components
+    m_logger->info("VynexOS Bootstrap: Terminating registered applications...");
+    
+    // Explicit Desktop Runtime Shutdown Sequence
+    m_running_apps.clear();
+    
+    if (m_app_registry) {
+        m_app_registry->terminate_all();
+        m_app_registry.reset();
+    }
+    
     // Apps
-    m_file_explorer.reset();
     m_terminal.reset();
     m_desktop_shell.reset();
     m_demo_app.reset();
+    
+    // VFS can be safely torn down once no apps are holding file handles
+    m_vfs.reset();
     
     // Desktop core
     m_widget_toolkit.reset();
