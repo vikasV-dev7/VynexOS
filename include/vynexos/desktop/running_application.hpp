@@ -1,6 +1,6 @@
 #pragma once
 #include "vynexos/apps/application.hpp"
-#include "vynexos/desktop/surface.hpp"
+#include "vynexos/desktop/desktop_types.hpp"
 #include <memory>
 
 namespace vynexos::desktop {
