@@ -3,6 +3,8 @@
 
 namespace vynexos::apps {
 
+constexpr int kDragThreshold = 3;
+
 DesktopShell::DesktopShell(std::shared_ptr<desktop::IWindowManager> wm,
                            std::shared_ptr<desktop::ICompositor> compositor,
                            std::shared_ptr<desktop::IWidgetToolkit> toolkit,
@@ -30,9 +32,12 @@ DesktopShell::DesktopShell(std::shared_ptr<desktop::IWindowManager> wm,
         if (ev->payload.type() == typeid(hal::MouseEvent)) {
             auto mouse_ev = std::any_cast<hal::MouseEvent>(ev->payload);
             bool clicked = (mouse_ev.button_state != 0 && m_last_mouse_state == 0);
+            bool released = (mouse_ev.button_state == 0 && m_last_mouse_state != 0);
+            bool dragging = (mouse_ev.button_state != 0 && m_last_mouse_state != 0);
+            
             m_last_mouse_state = mouse_ev.button_state;
             
-            if (clicked) { // Click
+            if (clicked) { // Click / Drag Candidate Creation
                 // Check if Vynex button bounds clicked: x in [10, 90], y in [1045, 1075]
                 if (mouse_ev.x >= 10 && mouse_ev.x <= 90 && mouse_ev.y >= 1045 && mouse_ev.y <= 1075) {
                     std::lock_guard lock(m_mutex);
@@ -41,25 +46,75 @@ DesktopShell::DesktopShell(std::shared_ptr<desktop::IWindowManager> wm,
                     return; // Consumed by DesktopShell
                 }
                 
-                // Focus Management on Click
+                // Focus Management & Drag Start
                 auto target_window = m_wm->get_window_at(mouse_ev.x, mouse_ev.y);
                 if (target_window.has_value()) {
-                    // Do not steal focus for background wallpaper/taskbar if they were clicked
-                    // Actually, let's keep it simple: focus whatever is returned. BasicWindowManager
-                    // shouldn't return Wallpaper for hit tests if we don't want it focused.
                     if (target_window.value() != m_wallpaper_id && target_window.value() != m_taskbar_id) {
                         this->focus_window(target_window.value());
+                        
+                        // Prepare Drag Candidate
+                        auto geom = m_wm->get_window_geometry(target_window.value());
+                        if (geom.has_value()) {
+                            std::lock_guard lock(m_mutex);
+                            m_drag_state.window_id = target_window.value();
+                            m_drag_state.initial_mouse_x = mouse_ev.x;
+                            m_drag_state.initial_mouse_y = mouse_ev.y;
+                            m_drag_state.initial_window_x = geom->x;
+                            m_drag_state.initial_window_y = geom->y;
+                            m_drag_state.pointer_captured = false;
+                        }
                     } else {
-                        // Clicking wallpaper clears focus
                         this->clear_focus();
+                        std::lock_guard lock(m_mutex);
+                        m_drag_state.window_id = std::nullopt;
                     }
                 } else {
                     this->clear_focus();
+                    std::lock_guard lock(m_mutex);
+                    m_drag_state.window_id = std::nullopt;
+                }
+            } else if (dragging) { // Drag Update
+                std::lock_guard lock(m_mutex);
+                if (m_drag_state.window_id.has_value()) {
+                    if (!m_drag_state.pointer_captured) {
+                        // Check Drag Threshold
+                        if (std::abs(mouse_ev.x - m_drag_state.initial_mouse_x) > kDragThreshold ||
+                            std::abs(mouse_ev.y - m_drag_state.initial_mouse_y) > kDragThreshold) {
+                            m_drag_state.pointer_captured = true;
+                        }
+                    }
+                    
+                    if (m_drag_state.pointer_captured) {
+                        // Calculate Drag Delta
+                        int32_t delta_x = mouse_ev.x - m_drag_state.initial_mouse_x;
+                        int32_t delta_y = mouse_ev.y - m_drag_state.initial_mouse_y;
+                        
+                        int32_t new_x = m_drag_state.initial_window_x + delta_x;
+                        int32_t new_y = m_drag_state.initial_window_y + delta_y;
+                        
+                        // Dispatch to IWindowManager
+                        m_wm->move_window(m_drag_state.window_id.value(), new_x, new_y);
+                    }
+                }
+            } else if (released) { // Drag Completion / Release Pointer Capture
+                std::lock_guard lock(m_mutex);
+                m_drag_state.window_id = std::nullopt;
+                m_drag_state.pointer_captured = false;
+            }
+            
+            // Route mouse event exclusively to the window under cursor OR captured window
+            std::optional<uint32_t> target_window;
+            {
+                std::lock_guard lock(m_mutex);
+                if (m_drag_state.pointer_captured && m_drag_state.window_id.has_value()) {
+                    target_window = m_drag_state.window_id; // Pointer Capture
                 }
             }
             
-            // Route mouse event exclusively to the window under cursor
-            auto target_window = m_wm->get_window_at(mouse_ev.x, mouse_ev.y);
+            if (!target_window.has_value()) {
+                target_window = m_wm->get_window_at(mouse_ev.x, mouse_ev.y);
+            }
+            
             if (target_window.has_value()) {
                 std::lock_guard lock(m_mutex);
                 for (auto& running_app : m_running_apps) {

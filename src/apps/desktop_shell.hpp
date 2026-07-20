@@ -53,6 +53,17 @@ private:
     std::vector<desktop::Notification> m_notifications;
     std::vector<desktop::RunningApplication> m_running_apps;
     std::optional<uint32_t> m_focused_window;
+    
+    struct DragState {
+        std::optional<uint32_t> window_id;
+        int32_t initial_mouse_x{0};
+        int32_t initial_mouse_y{0};
+        int32_t initial_window_x{0};
+        int32_t initial_window_y{0};
+        bool pointer_captured{false};
+    };
+    DragState m_drag_state;
+    
     uint8_t m_last_mouse_state{0};
 };
 

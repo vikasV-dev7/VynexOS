@@ -39,6 +39,14 @@ bool BasicWindowManager::is_window_visible(uint32_t window_id) const {
     return false;
 }
 
+std::optional<WindowGeometry> BasicWindowManager::get_window_geometry(uint32_t window_id) const {
+    std::lock_guard lock(m_mutex);
+    if (auto it = m_windows.find(window_id); it != m_windows.end()) {
+        return it->second.geometry;
+    }
+    return std::nullopt;
+}
+
 uint32_t BasicWindowManager::create_window(std::string_view title, WindowGeometry geometry) {
     std::lock_guard lock(m_mutex);
     uint32_t id = m_next_id++;

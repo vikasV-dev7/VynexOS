@@ -7,8 +7,9 @@ The `DesktopShell` (implementing `IDesktopShell`) is the permanent runtime owner
 2. **Execution Pipeline:** Drives the `update()` and `render()` loops for all active applications.
 3. **Event Routing:** Receives global input events from the `EventBus` and routes them deterministically: mouse events to the hit-tested target window, and keyboard events exclusively to the focused application.
 4. **Focus Ownership:** Determines which `RunningApplication` currently owns runtime focus.
-5. **Visual Interface:** Renders the system UI elements (Taskbar, Launcher).
-6. **State Management:** Handles window visibility, minimization, and dirty rect optimization at the desktop level.
+5. **Drag Orchestration:** Owns transient interaction state (`DragState`) and coordinates pointer capture for interactive window movement.
+6. **Visual Interface:** Renders the system UI elements (Taskbar, Launcher).
+7. **State Management:** Handles window visibility, minimization, and dirty rect optimization at the desktop level.
 
 > [!IMPORTANT]
 > The DesktopShell handles *runtime* coordination, including exclusive focus tracking via `focus_window()` and `clear_focus()`. The instantiation, memory ownership, and factory registration of `IApplications` remains the explicit responsibility of the `ApplicationRegistry`.

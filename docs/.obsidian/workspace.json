@@ -74,7 +74,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 300
+    "width": 200
   },
   "right": {
     "id": "f55aa1b366362866",
@@ -178,6 +178,7 @@
   },
   "active": "4e764963fea98ab3",
   "lastOpenFiles": [
+    "architecture/Drag Architecture.md",
     "architecture/Event Routing.md",
     "Debugging/INC-0004_CompositionRoot_Encapsulation_Violation.md",
     "Home.md",
@@ -203,7 +204,6 @@
     "Services/BasicFileExplorer.md",
     "Services/BasicCompositor.md",
     "Services/AiError.md",
-    "Future/Kernel.md",
     "Debugging",
     "documentation_index.json",
     "Release Notes"

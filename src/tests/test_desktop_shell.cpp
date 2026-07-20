@@ -376,6 +376,93 @@ void test_focus_routing() {
     std::cout << "test_focus_routing passed\n";
 }
 
+void test_drag_routing() {
+    auto logger = std::make_shared<TestLogger>();
+    core::BasicTaskScheduler scheduler(*logger);
+    auto event_bus = std::make_shared<core::InMemoryEventBus>(scheduler);
+    auto display = std::make_shared<MockDisplayBackend>(logger);
+    auto compositor = std::make_shared<BasicCompositor>(display, logger);
+    auto wm = std::make_shared<BasicWindowManager>(event_bus, logger);
+    auto toolkit = std::make_shared<BasicWidgetToolkit>();
+    
+    DesktopShell shell(wm, compositor, toolkit, event_bus);
+    shell.launch();
+    
+    auto app = std::make_unique<MockRuntimeApp>();
+    auto* app_ptr = app.get();
+    
+    uint32_t win_id = wm->create_window("Mock App", desktop::WindowGeometry{100, 100, 400, 300});
+    
+    vynexos::desktop::RunningApplication running_app;
+    running_app.app = app_ptr;
+    running_app.window_id = win_id;
+    running_app.surface = compositor->create_surface(400, 300);
+    running_app.visible = true;
+    
+    wm->set_window_surface(win_id, running_app.surface);
+    shell.add_running_application(std::move(running_app));
+    
+    // 1. Mouse Button Press (Drag Start)
+    auto click_ev = std::make_shared<core::Event>();
+    click_ev->topic = "HAL_INPUT_MOUSE";
+    click_ev->payload = hal::MouseEvent(150, 150, 1);
+    event_bus->publish(click_ev);
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    
+    assert(shell.focused_window().has_value() && shell.focused_window().value() == win_id);
+    
+    // 2. Mouse Move (Below threshold, should not trigger move)
+    auto move_small = std::make_shared<core::Event>();
+    move_small->topic = "HAL_INPUT_MOUSE";
+    move_small->payload = hal::MouseEvent(151, 151, 1);
+    event_bus->publish(move_small);
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    
+    auto geom_before = wm->get_window_geometry(win_id).value();
+    assert(geom_before.x == 100 && geom_before.y == 100);
+    
+    // 3. Mouse Move (Above threshold, should trigger capture and move)
+    auto move_large = std::make_shared<core::Event>();
+    move_large->topic = "HAL_INPUT_MOUSE";
+    move_large->payload = hal::MouseEvent(200, 250, 1); // delta: 50, 100
+    event_bus->publish(move_large);
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    
+    auto geom_after = wm->get_window_geometry(win_id).value();
+    assert(geom_after.x == 150 && geom_after.y == 200); // 100+50, 100+100
+    
+    // 4. Mouse Move Outside Window (Pointer Capture test)
+    auto move_out = std::make_shared<core::Event>();
+    move_out->topic = "HAL_INPUT_MOUSE";
+    move_out->payload = hal::MouseEvent(800, 800, 1); // delta: 650, 650
+    app_ptr->event_handled = false;
+    event_bus->publish(move_out);
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    
+    auto geom_out = wm->get_window_geometry(win_id).value();
+    assert(geom_out.x == 750 && geom_out.y == 750); // 100+650, 100+650
+    assert(app_ptr->event_handled == true); // Pointer captured, event still routed!
+    
+    // 5. Mouse Release
+    auto release_ev = std::make_shared<core::Event>();
+    release_ev->topic = "HAL_INPUT_MOUSE";
+    release_ev->payload = hal::MouseEvent(800, 800, 0);
+    event_bus->publish(release_ev);
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    
+    // 6. Mouse Move after release (no drag)
+    auto move_after = std::make_shared<core::Event>();
+    move_after->topic = "HAL_INPUT_MOUSE";
+    move_after->payload = hal::MouseEvent(850, 850, 0);
+    event_bus->publish(move_after);
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    
+    auto geom_final = wm->get_window_geometry(win_id).value();
+    assert(geom_final.x == 750 && geom_final.y == 750); // Should not change
+    
+    std::cout << "test_drag_routing passed\n";
+}
+
 int main(int argc, char **argv) {
     (void)argc;
     (void)argv;
@@ -384,6 +471,7 @@ int main(int argc, char **argv) {
     test_runtime_ownership();
     test_hidden_applications_are_not_rendered();
     test_focus_routing();
+    test_drag_routing();
     std::cout << "All tests passed successfully.\n";
     return 0;
 }
