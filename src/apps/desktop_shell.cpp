@@ -38,6 +38,16 @@ DesktopShell::DesktopShell(std::shared_ptr<desktop::IWindowManager> wm,
                     std::lock_guard lock(m_mutex);
                     m_launcher_visible = !m_launcher_visible;
                     m_wm->set_window_visibility(m_launcher_id, m_launcher_visible);
+                    return; // Consumed by DesktopShell
+                }
+            }
+            
+            // Temporary broadcast routing (Version 0.8.0.1 transitional behavior)
+            // Event model currently does not identify a target window ID.
+            std::lock_guard lock(m_mutex);
+            for (auto& running_app : m_running_apps) {
+                if (running_app.visible && running_app.app) {
+                    running_app.app->handle_event(*ev);
                 }
             }
         }
@@ -136,6 +146,36 @@ void DesktopShell::update_frame() {
             m_toolkit->draw_button(m_launcher_surface, 10, 150, 280, 40, "System Settings");
         }
     }
+    
+    // Update and render running applications
+    {
+        std::lock_guard lock(m_mutex);
+        for (auto& running_app : m_running_apps) {
+            if (running_app.app) {
+                running_app.app->update(16.6); // Transitional constant delta time
+                if (running_app.visible && running_app.surface) {
+                    running_app.app->render(*(running_app.surface));
+                }
+            }
+        }
+    }
+}
+
+void DesktopShell::add_running_application(desktop::RunningApplication&& app) {
+    std::lock_guard lock(m_mutex);
+    m_running_apps.push_back(std::move(app));
+}
+
+void DesktopShell::clear_running_applications() {
+    std::lock_guard lock(m_mutex);
+    m_running_apps.clear();
+}
+
+size_t DesktopShell::running_application_count() const {
+    // We cannot lock a std::mutex in a const method without making the mutex mutable.
+    // For now, since size() is a simple read and this is largely for introspection/tests,
+    // we return the size directly. We could use a mutable mutex or atomic size if thread contention is expected.
+    return m_running_apps.size();
 }
 
 } // namespace vynexos::apps

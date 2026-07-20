@@ -85,8 +85,6 @@ private:
     std::shared_ptr<core::IVirtualFileSystem> m_vfs;
     std::shared_ptr<apps::IApplicationManager> m_app_registry;
     
-    std::vector<desktop::RunningApplication> m_running_apps;
-    
     std::atomic<bool> m_is_running{false};
 };
 

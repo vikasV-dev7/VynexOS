@@ -123,7 +123,7 @@ void CompositionRoot::initialize() {
             app_desc.window_id = win_id;
             app_desc.surface = surface;
             app_desc.visible = true;
-            m_running_apps.push_back(std::move(app_desc));
+            m_desktop_shell->add_running_application(std::move(app_desc));
         }
     }
     
@@ -161,16 +161,6 @@ void CompositionRoot::run() {
         m_desktop_shell->update_frame();
         m_terminal->update_frame();
         m_demo_app->update_frame();
-        
-        // Update and Render modern IApplications
-        for (auto& running_app : m_running_apps) {
-            if (running_app.app) {
-                running_app.app->update(16.6); // Transitional constant delta time
-                if (running_app.visible && running_app.surface) {
-                    running_app.app->render(*(running_app.surface));
-                }
-            }
-        }
         
         // WindowManager builds the scene graph
         auto scene = m_window_manager->build_scene();
@@ -231,7 +221,9 @@ void CompositionRoot::shutdown() {
     m_logger->info("VynexOS Bootstrap: Terminating registered applications...");
     
     // Explicit Desktop Runtime Shutdown Sequence
-    m_running_apps.clear();
+    if (m_desktop_shell) {
+        m_desktop_shell->clear_running_applications();
+    }
     
     if (m_app_registry) {
         m_app_registry->terminate_all();

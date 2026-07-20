@@ -20,21 +20,26 @@ graph LR title Composition Root Dependency Graph
 The `CompositionRoot` is the master bootstrapper for VynexOS. Its primary goal is to wire together all core services, drivers, and application shells into a coherent, functioning system. It implements the Dependency Injection principle known as the "Composition Root", ensuring that components (like the Event Bus, Display Backend, and Window Manager) remain decoupled and testable while still being properly instantiated and connected in a centralized location.
 
 ## Internal Implementation Overview
-The initialization and execution happen in three distinct phases:
-1. **Construction:** Dependencies are instantiated via `std::make_shared` and `std::make_unique`. Foundational dependencies like the `[[FileLogger]]` are constructed first and injected into consumers like the `TaskScheduler` and `[[BasicWindowManager]]`. 
-2. **Initialization (`initialize()`):** Invokes `.initialize()` on hardware abstractions (Display, Audio, Compute, Clock, Block, Network) and launches system applications (Desktop Shell, Terminal, File Explorer, Demo App).
-3. **Execution (`run()`):** Starts the `ServiceManager` and runs the main event loop. This loop polls the input drivers and IPC framework, triggers application frame updates, and finally pushes the z-ordered rendering commands to the `[[BasicCompositor]]`. A `[[FrameClock]]` regulates this loop to a steady 60 FPS.
+## Responsibilities
 
-## Ownership & Lifetime Management
-Memory management heavily leverages smart pointers. The `CompositionRoot` holds long-lived `std::shared_ptr` references to most system components. This shared ownership model is essential because many components hold references to each other (e.g., applications holding references to the `WindowManager` and `EventBus`). 
+1. **Service Instantiation:** Creates concrete instances of core services (TaskScheduler, EventBus, FileLogger).
+2. **Platform Abstraction (HAL):** Instantiates the correct Hardware Abstraction Layer implementations depending on the target platform (e.g., SDL2 vs Mock).
+3. **Dependency Injection:** Wires dependencies together (e.g., passing the EventBus to the WindowManager).
+4. **Application Registration:** Registers IApplication factories into the ApplicationRegistry.
+5. **Runtime Coordination (Delegated):** Launches the `DesktopShell` and delegates permanent runtime execution (update/render loops) to it.
 
-### Shutdown Lifecycle vs. Object Destruction
-The `CompositionRoot` explicitly separates the **logical shutdown sequence** from **C++ object destruction (RAII)**.
+> [!NOTE]
+> As of Version 0.8.0.1, the `CompositionRoot` no longer contains the application `update` or `render` loop. It acts strictly as a bootstrapper and delegates runtime execution entirely to the `DesktopShell`.
 
-#### 1. Logical Shutdown Sequence (`shutdown()`)
-This operational phase gracefully halts active processing in strict dependency order:
-1. **Consumers:** High-level managers (like `ServiceManager`) are signaled to stop.
-2. **Hardware Abstractions:** Drivers (like Display, Network, BlockDevice, HardwareClock) are halted to cut off hardware interrupts and events.
+## Logical Shutdown Sequence
+
+The `shutdown()` method enforces strict dependency-ordered teardown:
+
+1. High-level services are stopped via `ServiceManager`.
+2. Hardware drivers and Platform HALs are shut down.
+3. **Desktop Runtime Teardown:** The `DesktopShell` is instructed to clear all active `RunningApplication` descriptors to safely release their resources.
+4. Active `IApplications` are terminated via `ApplicationRegistry`.
+5. Core infrastructure (Event Bus, Task Scheduler) is terminated.
 3. **Task Scheduler:** The `[[ITaskScheduler]]` is explicitly shutdown **last**. It blocks, drains its queues, and executes residual cleanup logic enqueued by the dying subsystems.
 
 #### 2. Object Destruction Order (RAII)

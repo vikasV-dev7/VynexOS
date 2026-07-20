@@ -21,6 +21,10 @@ public:
     
     void launch() override;
     void update_frame() override;
+    
+    void add_running_application(desktop::RunningApplication&& app) override;
+    void clear_running_applications() override;
+    size_t running_application_count() const override;
 
 private:
     std::shared_ptr<desktop::IWindowManager> m_wm;
@@ -40,6 +44,7 @@ private:
 
     std::mutex m_mutex;
     std::vector<desktop::Notification> m_notifications;
+    std::vector<desktop::RunningApplication> m_running_apps;
     uint8_t m_last_mouse_state{0};
 };
 

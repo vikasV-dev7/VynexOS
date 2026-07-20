@@ -9,7 +9,7 @@ struct RunningApplication {
     apps::IApplication* app{nullptr};
     uint32_t window_id{0};
     std::shared_ptr<ISurface> surface;
-    bool visible{false};
+    bool visible{true};
 };
 
 } // namespace vynexos::desktop
