@@ -24,6 +24,7 @@ public:
     void move_window(uint32_t window_id, int32_t x, int32_t y) override;
     void resize_window(uint32_t window_id, uint32_t width, uint32_t height) override;
     std::optional<uint32_t> get_window_at(int32_t x, int32_t y) const override;
+    bool is_window_visible(uint32_t window_id) const override;
     
     void set_window_surface(uint32_t window_id, std::shared_ptr<ISurface> surface) override;
     void set_window_visibility(uint32_t window_id, bool visible) override;

@@ -331,6 +331,7 @@ void test_focus_routing() {
     event_bus->publish(click_empty);
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
     assert(!shell.focused_window().has_value()); // Should remain unfocused or clear focus
+    assert(!shell.has_focus());
     
     // Click on the app window (150, 150 is within 100,100 -> 500,400)
     auto click_app = std::make_shared<core::Event>();
@@ -340,11 +341,18 @@ void test_focus_routing() {
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
     
     assert(shell.focused_window().has_value());
+    assert(shell.has_focus());
     assert(shell.focused_window().value() == win_id);
     assert(shell.focused_application() != nullptr);
     assert(shell.focused_application()->focused == true);
     assert(app_ptr->event_handled);
     app_ptr->event_handled = false; // Reset
+    
+    // Click on already focused window should not change runtime state negatively
+    event_bus->publish(click_app);
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    assert(shell.has_focus());
+    assert(shell.focused_window().value() == win_id);
     
     // Keyboard event should be routed to focused app
     auto key_ev = std::make_shared<core::Event>();
@@ -354,9 +362,11 @@ void test_focus_routing() {
     assert(app_ptr->event_handled);
     app_ptr->event_handled = false; // Reset
     
-    // Clear focus explicitly
-    shell.clear_focus();
+    // Test that destroying focused application clears focus safely
+    shell.remove_running_application(win_id);
+    assert(!shell.has_focus());
     assert(!shell.focused_window().has_value());
+    assert(shell.running_application_count() == 0);
     
     // Keyboard event should NOT be routed if no focus
     event_bus->publish(key_ev);

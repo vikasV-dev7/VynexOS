@@ -26,6 +26,7 @@ public:
     virtual void move_window(uint32_t window_id, int32_t x, int32_t y) = 0;
     virtual void resize_window(uint32_t window_id, uint32_t width, uint32_t height) = 0;
     virtual std::optional<uint32_t> get_window_at(int32_t x, int32_t y) const = 0;
+    virtual bool is_window_visible(uint32_t window_id) const = 0;
     
     // Surface and visibility
     virtual void set_window_surface(uint32_t window_id, std::shared_ptr<ISurface> surface) = 0;

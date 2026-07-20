@@ -23,6 +23,7 @@ public:
     void update_frame() override;
     
     void add_running_application(desktop::RunningApplication&& app) override;
+    void remove_running_application(uint32_t window_id) override;
     void clear_running_applications() override;
     size_t running_application_count() const override;
 
@@ -30,6 +31,7 @@ public:
     void clear_focus() override;
     std::optional<uint32_t> focused_window() const override;
     desktop::RunningApplication* focused_application() override;
+    bool has_focus() const override;
 
 private:
     std::shared_ptr<desktop::IWindowManager> m_wm;

@@ -197,8 +197,17 @@ void DesktopShell::add_running_application(desktop::RunningApplication&& app) {
     m_running_apps.push_back(std::move(app));
 }
 
+void DesktopShell::remove_running_application(uint32_t window_id) {
+    std::lock_guard lock(m_mutex);
+    if (m_focused_window.has_value() && m_focused_window.value() == window_id) {
+        m_focused_window = std::nullopt; // safely clear focus
+    }
+    std::erase_if(m_running_apps, [window_id](const auto& app) { return app.window_id == window_id; });
+}
+
 void DesktopShell::clear_running_applications() {
     std::lock_guard lock(m_mutex);
+    m_focused_window = std::nullopt; // safely clear focus
     m_running_apps.clear();
 }
 
@@ -243,6 +252,10 @@ desktop::RunningApplication* DesktopShell::focused_application() {
         }
     }
     return nullptr;
+}
+
+bool DesktopShell::has_focus() const {
+    return m_focused_window.has_value();
 }
 
 } // namespace vynexos::apps

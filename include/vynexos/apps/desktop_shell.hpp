@@ -13,6 +13,7 @@ public:
     
     // Runtime Ownership
     virtual void add_running_application(desktop::RunningApplication&& app) = 0;
+    virtual void remove_running_application(uint32_t window_id) = 0;
     virtual void clear_running_applications() = 0;
     virtual size_t running_application_count() const = 0;
     
@@ -21,6 +22,7 @@ public:
     virtual void clear_focus() = 0;
     virtual std::optional<uint32_t> focused_window() const = 0;
     virtual desktop::RunningApplication* focused_application() = 0;
+    virtual bool has_focus() const = 0;
 };
 
 } // namespace vynexos::apps
