@@ -73,14 +73,14 @@ std::expected<void, DisplayError> SDL2DisplayBackend::flush_buffer(const hal::Fr
             m_ctx->renderer,
             SDL_PIXELFORMAT_ARGB8888,
             SDL_TEXTUREACCESS_STREAMING,
-            buffer.width, buffer.height
+            static_cast<int>(buffer.width), static_cast<int>(buffer.height)
         );
         if (!m_ctx->texture) return std::unexpected(DisplayError::BackendNotAvailable);
         m_ctx->current_width = buffer.width;
         m_ctx->current_height = buffer.height;
     }
 
-    SDL_UpdateTexture(m_ctx->texture, nullptr, buffer.pixels.data(), buffer.width * 4);
+    SDL_UpdateTexture(m_ctx->texture, nullptr, buffer.pixels.data(), static_cast<int>(buffer.width * 4));
     
     SDL_RenderClear(m_ctx->renderer);
     SDL_RenderCopy(m_ctx->renderer, m_ctx->texture, nullptr, nullptr);

@@ -83,7 +83,7 @@ void test_stress_focus_transitions() {
     
     // Simulate rapid, random focus events
     for (int i = 0; i < 10000; i++) {
-        uint32_t target = window_ids[i % 10];
+        uint32_t target = window_ids[static_cast<size_t>(i % 10)];
         wm.focus_window(target);
     }
     

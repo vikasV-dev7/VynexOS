@@ -38,7 +38,7 @@ void FileLogger::log_raw(LogLevel level, std::string_view message) {
     
     if (m_file.is_open()) {
         std::tm tm_struct{};
-#ifdef _MSC_VER
+#ifdef _WIN32
         localtime_s(&tm_struct, &time_t_now);
 #else
         localtime_r(&time_t_now, &tm_struct);

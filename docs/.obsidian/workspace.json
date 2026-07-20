@@ -178,6 +178,7 @@
   },
   "active": "4e764963fea98ab3",
   "lastOpenFiles": [
+    "Development Diary.md",
     "architecture/Drag Architecture.md",
     "architecture/Event Routing.md",
     "Debugging/INC-0004_CompositionRoot_Encapsulation_Violation.md",
@@ -198,7 +199,6 @@
     "Build/CMake.md",
     "Build/Build Instructions.md",
     "Documentation Contribution Guide.md",
-    "Development Diary.md",
     "Changelog.md",
     "Services/BasicNotificationService.md",
     "Services/BasicFileExplorer.md",

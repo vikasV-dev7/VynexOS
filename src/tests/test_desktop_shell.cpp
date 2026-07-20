@@ -56,12 +56,12 @@ void test_desktop_shell_rendering() {
     scene[0].surface->unmap_pixels();
     
     auto task_map = scene[1].surface->map_pixels();
-    // Verify panel background color {45, 45, 45, 240} over {0, 0, 0, 0}
-    // Result = 45 * 240 / 255 = 42
-    assert(task_map[0] == 42); // R
-    assert(task_map[1] == 42); // G
-    assert(task_map[2] == 42); // B
-    assert(task_map[3] == 240); // A
+    // Verify panel background color {45, 45, 45, 255} over {0, 0, 0, 0}
+    // Result = 45
+    assert(task_map[0] == 45); // R
+    assert(task_map[1] == 45); // G
+    assert(task_map[2] == 45); // B
+    assert(task_map[3] == 255); // A
     scene[1].surface->unmap_pixels();
     
     // Launcher is initially invisible
@@ -83,6 +83,13 @@ void test_desktop_shell_rendering() {
     
     assert(verify_launcher()); // Should now be visible
     
+    // Simulate release
+    auto release1 = std::make_shared<core::Event>();
+    release1->topic = "HAL_INPUT_MOUSE";
+    release1->payload = hal::MouseEvent(50, 1060, 0);
+    event_bus->publish(release1);
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+
     // Simulate another click
     auto click2 = std::make_shared<core::Event>();
     click2->topic = "HAL_INPUT_MOUSE";
@@ -106,10 +113,10 @@ public:
     
     bool initialize() override { initialized = true; return true; }
     void start() override {}
-    void update(double delta_time) override { updated = true; }
-    void render(vynexos::desktop::ISurface& surface) override { rendered = true; }
+    void update(double /*delta_time*/) override { updated = true; }
+    void render(vynexos::desktop::ISurface& /*surface*/) override { rendered = true; }
     void shutdown() override { shutdown_called = true; }
-    bool handle_event(const vynexos::core::Event& event) override { event_handled = true; return true; }
+    bool handle_event(const vynexos::core::Event& /*event*/) override { event_handled = true; return true; }
     [[nodiscard]] std::string get_name() const noexcept override { return "MockApp"; }
 };
 
@@ -123,6 +130,7 @@ void test_runtime_ownership() {
     auto toolkit = std::make_shared<BasicWidgetToolkit>();
     
     DesktopShell shell(wm, compositor, toolkit, event_bus);
+    shell.launch();
     
     auto app = std::make_unique<MockRuntimeApp>();
     auto* app_ptr = app.get();
@@ -159,6 +167,7 @@ void test_hidden_applications_are_not_rendered() {
     auto toolkit = std::make_shared<BasicWidgetToolkit>();
     
     DesktopShell shell(wm, compositor, toolkit, event_bus);
+    shell.launch();
     
     auto app = std::make_unique<MockRuntimeApp>();
     auto* app_ptr = app.get();
@@ -215,6 +224,14 @@ void test_focus_routing() {
     click_empty->payload = hal::MouseEvent(800, 800, 1);
     event_bus->publish(click_empty);
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    
+    // Release
+    auto release_empty = std::make_shared<core::Event>();
+    release_empty->topic = "HAL_INPUT_MOUSE";
+    release_empty->payload = hal::MouseEvent(800, 800, 0);
+    event_bus->publish(release_empty);
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    
     assert(!shell.focused_window().has_value()); // Should remain unfocused or clear focus
     assert(!shell.has_focus());
     
@@ -232,6 +249,13 @@ void test_focus_routing() {
     assert(shell.focused_application()->focused == true);
     assert(app_ptr->event_handled);
     app_ptr->event_handled = false; // Reset
+    
+    // Release before clicking again
+    auto release_app = std::make_shared<core::Event>();
+    release_app->topic = "HAL_INPUT_MOUSE";
+    release_app->payload = hal::MouseEvent(150, 150, 0);
+    event_bus->publish(release_app);
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
     
     // Click on already focused window should not change runtime state negatively
     event_bus->publish(click_app);

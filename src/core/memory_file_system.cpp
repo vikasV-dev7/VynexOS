@@ -2,6 +2,8 @@
 #include "vynexos/core/virtual_path.hpp"
 #include "vnode.hpp"
 #include "memory_file_handle.hpp"
+#include <mutex>
+#include <shared_mutex>
 
 namespace vynexos::core {
 

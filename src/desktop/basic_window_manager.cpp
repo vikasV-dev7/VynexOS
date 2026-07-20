@@ -51,7 +51,7 @@ uint32_t BasicWindowManager::create_window(std::string_view title, WindowGeometr
     std::lock_guard lock(m_mutex);
     uint32_t id = m_next_id++;
     
-    m_windows[id] = WindowState{std::string(title), geometry};
+    m_windows[id] = WindowState{std::string(title), geometry, nullptr, true, 1.0f};
     m_z_order.push_back(id);
     m_focused_window = id;
     
@@ -142,7 +142,7 @@ SceneGraph BasicWindowManager::build_scene() const {
             m_logger->info("Window ID: {}, Title: {}, Visible: {}, Focused: {}, Z-order: {}, Bounds: [{},{},{}x{}], Surface pointer: {}, Opacity: {}",
                 id, win.title, win.visible, (m_focused_window.has_value() && m_focused_window.value() == id), z_idx,
                 win.geometry.x, win.geometry.y, win.geometry.width, win.geometry.height,
-                (void*)win.surface.get(), win.opacity);
+                static_cast<void*>(win.surface.get()), win.opacity);
         }
         m_logger->info("----------------------------------");
         m_logger->info("Generated SceneGraph:");
@@ -181,7 +181,7 @@ SceneGraph BasicWindowManager::build_scene() const {
             m_logger->info("RenderLayer: Window ID: {}, Bounds: [{},{},{}x{}], Clip: [{},{},{}x{}], Opacity: {}, Visible: {}, Surface pointer: {}, Z-order: {}",
                 id, layer.bounds.x, layer.bounds.y, layer.bounds.width, layer.bounds.height,
                 layer.clip.x, layer.clip.y, layer.clip.width, layer.clip.height,
-                layer.opacity, layer.visible, (void*)layer.surface.get(), z_idx);
+                layer.opacity, layer.visible, static_cast<void*>(layer.surface.get()), z_idx);
         }
     }
     

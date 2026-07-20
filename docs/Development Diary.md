@@ -56,3 +56,12 @@ Spent 6 hours investigating a Visual Studio IntelliSense false positive (E0067).
 - Implemented safe raw-pointer arithmetic (`std::vector::data()`) and `std::memcpy` optimizations for fully opaque pixels.
 - **Result:** Decreased average frame time from 171.1ms to 23.3ms, increasing FPS by 338%.
 - Prepared full release documentation (Release Notes, Debugging History, Performance Reports) and declared Version 0.6.0 officially complete and tagged.
+
+## 2026-07-20 - Version 0.8.0.3 Verification (Window Movement & Drag Operations)
+**Context & Goal:** Finalize the interactive window dragging feature for Version 0.8.0.
+- Implemented and verified mouse-drag functionality natively in `DesktopShell`.
+- Designed a pointer-capture mechanism inside `DesktopShell::handle_event` with a `kDragThreshold` (3 pixels) to effectively differentiate clicks from drags without misfires.
+- Routed drag coordinate deltas dynamically into `IWindowManager::move_window` to safely update persistent geometry.
+- Addressed C++23 strict compiler requirements and MinGW/MSVC compatibility warnings (`localtime_s` vs `localtime_r`, `<mutex>` inclusion, and `-Werror=sign-conversion`).
+- Re-aligned build infrastructure procedures to exclusively compile and debug via Visual Studio.
+**Result:** Drag operations and window movement logic complete and functionally verified.

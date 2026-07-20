@@ -2,6 +2,7 @@
 #include "software_surface.hpp"
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 
 namespace vynexos::desktop {
 
@@ -59,8 +60,8 @@ void BasicCompositor::blend_surface(hal::FrameBuffer& target, int32_t dst_x, int
 
     for (int32_t y = start_y; y < end_y; ++y) {
         int32_t src_y = y - dst_y;
-        size_t dst_idx = (static_cast<size_t>(y) * target_w + start_x) * 4;
-        size_t src_idx = (static_cast<size_t>(src_y) * surf_w + (start_x - dst_x)) * 4;
+        size_t dst_idx = (static_cast<size_t>(y) * target_w + static_cast<size_t>(start_x)) * 4;
+        size_t src_idx = (static_cast<size_t>(src_y) * surf_w + static_cast<size_t>(start_x - dst_x)) * 4;
         
         // Fast path for fully opaque row
         if (global_opacity == 1.0f) {
@@ -74,7 +75,7 @@ void BasicCompositor::blend_surface(hal::FrameBuffer& target, int32_t dst_x, int
                 temp_src += 4;
             }
             if (row_opaque) {
-                std::memcpy(&dst_ptr[dst_idx], &src_ptr[src_idx], (end_x - start_x) * 4);
+                std::memcpy(&dst_ptr[dst_idx], &src_ptr[src_idx], static_cast<size_t>(end_x - start_x) * 4);
                 continue;
             }
         }

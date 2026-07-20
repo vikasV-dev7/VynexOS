@@ -1,5 +1,16 @@
 # Changelog
 
+## [v0.8.0] - 2026-07-20
+### Added
+- Interactive Window Movement and Drag Operations orchestrated via `DesktopShell`.
+- Threshold-based pointer capture to differentiate rapid clicks from window drags.
+- Exclusive Mouse Event routing to dragged windows during pointer capture.
+- MSVC-compliant strict warning configuration (C++23 compliant).
+
+### Changed
+- `DesktopShell` dynamically pushes layout updates via `IWindowManager::move_window` without recalculating internal geometries.
+- Re-architected `test_desktop_shell.cpp` regression testing to properly handle explicit `HAL_INPUT_MOUSE` release events.
+
 ## [v0.6.0] - 2026-07-19
 ### Added
 - Native `[[ISurface]]` rendering pathway in `[[DesktopShell]]` eliminating all legacy WindowBuffer abstractions.

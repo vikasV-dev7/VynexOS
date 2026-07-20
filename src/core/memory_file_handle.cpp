@@ -1,6 +1,8 @@
 #include "memory_file_handle.hpp"
 #include <algorithm>
 #include <cstring>
+#include <mutex>
+#include <shared_mutex>
 
 namespace vynexos::core::internal {
 

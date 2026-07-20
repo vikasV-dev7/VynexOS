@@ -39,10 +39,10 @@ void SDL2InputDriver::poll() {
         } else if (event.type == SDL_MOUSEBUTTONDOWN || event.type == SDL_MOUSEBUTTONUP) {
             if (event.button.button == SDL_BUTTON_LEFT) {
                 if (event.type == SDL_MOUSEBUTTONDOWN) m_mouse_button_state |= 1;
-                else m_mouse_button_state &= ~1;
+                else m_mouse_button_state &= static_cast<uint8_t>(~1);
             } else if (event.button.button == SDL_BUTTON_RIGHT) {
                 if (event.type == SDL_MOUSEBUTTONDOWN) m_mouse_button_state |= 2;
-                else m_mouse_button_state &= ~2;
+                else m_mouse_button_state &= static_cast<uint8_t>(~2);
             }
             auto ev = std::make_shared<core::Event>();
             ev->topic = "HAL_INPUT_MOUSE";

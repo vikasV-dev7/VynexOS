@@ -68,7 +68,7 @@ void BasicWidgetToolkit::draw_char(std::shared_ptr<ISurface> surface, int32_t x,
     for (int32_t row = 0; row < 8; ++row) {
         for (int32_t col = 0; col < 8; ++col) {
             bool pixel_on = false;
-            if (c >= 0 && c < 128) {
+            if (static_cast<uint8_t>(c) < 128) {
                 if (font8x8_basic[static_cast<uint8_t>(c)][row] & (1 << col)) {
                     pixel_on = true;
                 }
@@ -102,8 +102,8 @@ void BasicWidgetToolkit::draw_text(std::shared_ptr<ISurface> surface, int32_t x,
 void BasicWidgetToolkit::draw_button(std::shared_ptr<ISurface> surface, int32_t x, int32_t y, uint32_t width, uint32_t height, std::string_view label) {
     draw_rect(surface, x, y, width, height, Color{100, 100, 100, 255});
     draw_rect(surface, x, y, width, 2, Color{200, 200, 200, 255}); // top
-    draw_rect(surface, x, y + height - 2, width, 2, Color{50, 50, 50, 255}); // bottom
-    draw_text(surface, x + 10, y + (height / 2) - 4, label, Color{255, 255, 255, 255});
+    draw_rect(surface, x, y + static_cast<int32_t>(height) - 2, width, 2, Color{50, 50, 50, 255}); // bottom
+    draw_text(surface, x + 10, y + static_cast<int32_t>(height / 2) - 4, label, Color{255, 255, 255, 255});
 }
 
 void BasicWidgetToolkit::draw_panel(std::shared_ptr<ISurface> surface, int32_t x, int32_t y, uint32_t width, uint32_t height) {

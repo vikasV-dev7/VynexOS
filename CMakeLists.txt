@@ -38,9 +38,12 @@ endif()
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     add_compile_options(
         -Wall -Wextra -Wpedantic -Werror
-        -Wshadow -Wnon-virtual-dtor -Wold-style-cast -Wcast-align
-        -Wunused -Woverloaded-virtual -Wconversion -Wsign-conversion
+        -Wshadow -Wcast-align
+        -Wunused -Wconversion -Wsign-conversion
         -Wnull-dereference -Wdouble-promotion -Wformat=2
+        $<$<COMPILE_LANGUAGE:CXX>:-Wnon-virtual-dtor>
+        $<$<COMPILE_LANGUAGE:CXX>:-Wold-style-cast>
+        $<$<COMPILE_LANGUAGE:CXX>:-Woverloaded-virtual>
     )
 elseif(MSVC)
     add_compile_options(/W4)

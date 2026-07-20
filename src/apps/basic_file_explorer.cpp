@@ -45,8 +45,8 @@ bool BasicFileExplorer::handle_event(const vynexos::core::Event& event) {
             if (row >= 0 && row < static_cast<int>(m_entries.size())) {
                 if (m_selected_index.has_value() && m_selected_index.value() == static_cast<size_t>(row)) {
                     // Second click: Activation gesture
-                    if (m_entries[row].stat.is_directory) {
-                        navigate_to(m_entries[row].full_path);
+                    if (m_entries[static_cast<size_t>(row)].stat.is_directory) {
+                        navigate_to(m_entries[static_cast<size_t>(row)].full_path);
                     }
                 } else {
                     // First click: Select
@@ -100,8 +100,8 @@ void BasicFileExplorer::render(vynexos::desktop::ISurface& target_surface) {
     
     // Status bar
     std::string status = "Items: " + std::to_string(m_entries.size());
-    m_toolkit->draw_rect(surf_ptr, 0, height - 20, width, 20, desktop::Color{40, 40, 40, 255});
-    m_toolkit->draw_text(surf_ptr, 10, height - 15, status, desktop::Color{150, 150, 150, 255});
+    m_toolkit->draw_rect(surf_ptr, 0, static_cast<int32_t>(height) - 20, width, 20, desktop::Color{40, 40, 40, 255});
+    m_toolkit->draw_text(surf_ptr, 10, static_cast<int32_t>(height) - 15, status, desktop::Color{150, 150, 150, 255});
 }
 
 void BasicFileExplorer::shutdown() {}
