@@ -26,6 +26,11 @@ public:
     void clear_running_applications() override;
     size_t running_application_count() const override;
 
+    void focus_window(uint32_t window_id) override;
+    void clear_focus() override;
+    std::optional<uint32_t> focused_window() const override;
+    desktop::RunningApplication* focused_application() override;
+
 private:
     std::shared_ptr<desktop::IWindowManager> m_wm;
     std::shared_ptr<desktop::ICompositor> m_compositor;
@@ -45,6 +50,7 @@ private:
     std::mutex m_mutex;
     std::vector<desktop::Notification> m_notifications;
     std::vector<desktop::RunningApplication> m_running_apps;
+    std::optional<uint32_t> m_focused_window;
     uint8_t m_last_mouse_state{0};
 };
 

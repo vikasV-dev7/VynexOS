@@ -178,6 +178,7 @@
   },
   "active": "4e764963fea98ab3",
   "lastOpenFiles": [
+    "architecture/Event Routing.md",
     "Debugging/INC-0004_CompositionRoot_Encapsulation_Violation.md",
     "Home.md",
     "Debugging/INC-0002_SceneGraph_Window_Disappears.md",
@@ -203,7 +204,6 @@
     "Services/BasicCompositor.md",
     "Services/AiError.md",
     "Future/Kernel.md",
-    "Future/Drivers.md",
     "Debugging",
     "documentation_index.json",
     "Release Notes"

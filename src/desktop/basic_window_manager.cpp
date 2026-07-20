@@ -7,52 +7,28 @@ namespace vynexos::desktop {
 
 BasicWindowManager::BasicWindowManager(std::shared_ptr<core::IEventBus> event_bus, std::shared_ptr<core::ILogger> logger)
     : m_event_bus(std::move(event_bus)), m_logger(std::move(logger)) {
-    
-    // Subscribe to HAL input events
-    m_event_bus->subscribe("HAL_INPUT_MOUSE", [this](std::shared_ptr<const core::Event> event) {
-        this->handle_mouse_event(event);
-    });
 }
 
-void BasicWindowManager::handle_mouse_event(std::shared_ptr<const core::Event> event) {
-    if (event->payload.type() != typeid(hal::MouseEvent)) return;
-    auto mouse_ev = std::any_cast<hal::MouseEvent>(event->payload);
-    
-    bool clicked = (mouse_ev.button_state != 0 && m_last_mouse_state == 0);
-    m_last_mouse_state = mouse_ev.button_state;
-    
-    if (!clicked) return; // Only care about new clicks for focus routing
-    
+std::optional<uint32_t> BasicWindowManager::get_window_at(int32_t x, int32_t y) const {
     std::lock_guard lock(m_mutex);
+    
     // Iterate Z-order from top to bottom
     for (auto it = m_z_order.rbegin(); it != m_z_order.rend(); ++it) {
         uint32_t win_id = *it;
-        const auto& win = m_windows[win_id];
+        const auto& win = m_windows.at(win_id);
         
-        // Skip invisible windows and background windows that shouldn't steal focus
-        if (!win.visible || win.title == "Wallpaper") {
+        if (!win.visible) {
             continue;
         }
         
         const auto& geom = win.geometry;
-        if (mouse_ev.x >= geom.x && mouse_ev.x <= (geom.x + static_cast<int32_t>(geom.width)) &&
-            mouse_ev.y >= geom.y && mouse_ev.y <= (geom.y + static_cast<int32_t>(geom.height))) {
-            
-            if (m_focused_window != win_id) {
-                // Focus changed, update Z-order
-                m_logger->info("BasicWindowManager: Focus changed to Window ID: {}", win_id);
-                // Erase from current pos and push to back (top)
-                auto fwd_it = std::find(m_z_order.begin(), m_z_order.end(), win_id);
-                if (fwd_it != m_z_order.end()) {
-                    m_z_order.erase(fwd_it);
-                }
-                
-                m_z_order.push_back(win_id);
-                m_focused_window = win_id;
-            }
-            return; // Handled
+        if (x >= geom.x && x <= (geom.x + static_cast<int32_t>(geom.width)) &&
+            y >= geom.y && y <= (geom.y + static_cast<int32_t>(geom.height))) {
+            return win_id;
         }
     }
+    
+    return std::nullopt;
 }
 
 uint32_t BasicWindowManager::create_window(std::string_view title, WindowGeometry geometry) {
@@ -75,8 +51,8 @@ void BasicWindowManager::destroy_window(uint32_t window_id) {
         if (it != m_z_order.end()) {
             m_z_order.erase(it);
         }
-        if (m_focused_window == window_id) {
-            m_focused_window = m_z_order.empty() ? 0 : m_z_order.back();
+        if (m_focused_window.has_value() && m_focused_window.value() == window_id) {
+            m_focused_window = m_z_order.empty() ? std::nullopt : std::make_optional(m_z_order.back());
         }
         m_logger->info("BasicWindowManager: Destroyed window [ID: {}]", window_id);
     }
@@ -148,7 +124,7 @@ SceneGraph BasicWindowManager::build_scene() const {
             auto it = std::find(m_z_order.begin(), m_z_order.end(), id);
             int z_idx = (it != m_z_order.end()) ? static_cast<int>(std::distance(m_z_order.begin(), it)) : -1;
             m_logger->info("Window ID: {}, Title: {}, Visible: {}, Focused: {}, Z-order: {}, Bounds: [{},{},{}x{}], Surface pointer: {}, Opacity: {}",
-                id, win.title, win.visible, (m_focused_window == id), z_idx,
+                id, win.title, win.visible, (m_focused_window.has_value() && m_focused_window.value() == id), z_idx,
                 win.geometry.x, win.geometry.y, win.geometry.width, win.geometry.height,
                 (void*)win.surface.get(), win.opacity);
         }

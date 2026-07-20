@@ -294,6 +294,78 @@ void test_hidden_applications_are_not_rendered() {
     std::cout << "test_hidden_applications_are_not_rendered passed\n";
 }
 
+void test_focus_routing() {
+    auto logger = std::make_shared<TestLogger>();
+    core::BasicTaskScheduler scheduler(*logger);
+    auto event_bus = std::make_shared<core::InMemoryEventBus>(scheduler);
+    auto display = std::make_shared<MockDisplayBackend>(logger);
+    auto compositor = std::make_shared<BasicCompositor>(display, logger);
+    auto wm = std::make_shared<BasicWindowManager>(event_bus, logger);
+    auto toolkit = std::make_shared<BasicWidgetToolkit>();
+    
+    DesktopShell shell(wm, compositor, toolkit, event_bus);
+    shell.launch();
+    
+    // Create an app
+    auto app = std::make_unique<MockRuntimeApp>();
+    auto* app_ptr = app.get();
+    
+    uint32_t win_id = wm->create_window("Mock App", desktop::WindowGeometry{100, 100, 400, 300});
+    
+    vynexos::desktop::RunningApplication running_app;
+    running_app.app = app_ptr;
+    running_app.window_id = win_id;
+    running_app.surface = compositor->create_surface(400, 300);
+    running_app.visible = true;
+    
+    wm->set_window_surface(win_id, running_app.surface);
+    shell.add_running_application(std::move(running_app));
+    
+    assert(!shell.focused_window().has_value());
+    assert(shell.focused_application() == nullptr);
+    
+    // Click on empty space
+    auto click_empty = std::make_shared<core::Event>();
+    click_empty->topic = "HAL_INPUT_MOUSE";
+    click_empty->payload = hal::MouseEvent(800, 800, 1);
+    event_bus->publish(click_empty);
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    assert(!shell.focused_window().has_value()); // Should remain unfocused or clear focus
+    
+    // Click on the app window (150, 150 is within 100,100 -> 500,400)
+    auto click_app = std::make_shared<core::Event>();
+    click_app->topic = "HAL_INPUT_MOUSE";
+    click_app->payload = hal::MouseEvent(150, 150, 1);
+    event_bus->publish(click_app);
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    
+    assert(shell.focused_window().has_value());
+    assert(shell.focused_window().value() == win_id);
+    assert(shell.focused_application() != nullptr);
+    assert(shell.focused_application()->focused == true);
+    assert(app_ptr->event_handled);
+    app_ptr->event_handled = false; // Reset
+    
+    // Keyboard event should be routed to focused app
+    auto key_ev = std::make_shared<core::Event>();
+    key_ev->topic = "HAL_INPUT_KEYBOARD";
+    event_bus->publish(key_ev);
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    assert(app_ptr->event_handled);
+    app_ptr->event_handled = false; // Reset
+    
+    // Clear focus explicitly
+    shell.clear_focus();
+    assert(!shell.focused_window().has_value());
+    
+    // Keyboard event should NOT be routed if no focus
+    event_bus->publish(key_ev);
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    assert(!app_ptr->event_handled);
+    
+    std::cout << "test_focus_routing passed\n";
+}
+
 int main(int argc, char **argv) {
     (void)argc;
     (void)argv;
@@ -301,6 +373,7 @@ int main(int argc, char **argv) {
     test_desktop_shell_rendering();
     test_runtime_ownership();
     test_hidden_applications_are_not_rendered();
+    test_focus_routing();
     std::cout << "All tests passed successfully.\n";
     return 0;
 }

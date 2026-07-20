@@ -40,14 +40,45 @@ DesktopShell::DesktopShell(std::shared_ptr<desktop::IWindowManager> wm,
                     m_wm->set_window_visibility(m_launcher_id, m_launcher_visible);
                     return; // Consumed by DesktopShell
                 }
+                
+                // Focus Management on Click
+                auto target_window = m_wm->get_window_at(mouse_ev.x, mouse_ev.y);
+                if (target_window.has_value()) {
+                    // Do not steal focus for background wallpaper/taskbar if they were clicked
+                    // Actually, let's keep it simple: focus whatever is returned. BasicWindowManager
+                    // shouldn't return Wallpaper for hit tests if we don't want it focused.
+                    if (target_window.value() != m_wallpaper_id && target_window.value() != m_taskbar_id) {
+                        this->focus_window(target_window.value());
+                    } else {
+                        // Clicking wallpaper clears focus
+                        this->clear_focus();
+                    }
+                } else {
+                    this->clear_focus();
+                }
             }
             
-            // Temporary broadcast routing (Version 0.8.0.1 transitional behavior)
-            // Event model currently does not identify a target window ID.
-            std::lock_guard lock(m_mutex);
+            // Route mouse event exclusively to the window under cursor
+            auto target_window = m_wm->get_window_at(mouse_ev.x, mouse_ev.y);
+            if (target_window.has_value()) {
+                std::lock_guard lock(m_mutex);
+                for (auto& running_app : m_running_apps) {
+                    if (running_app.window_id == target_window.value() && running_app.visible && running_app.app) {
+                        running_app.app->handle_event(*ev);
+                        break;
+                    }
+                }
+            }
+        }
+    });
+    
+    m_event_bus->subscribe("HAL_INPUT_KEYBOARD", [this](std::shared_ptr<const core::Event> ev) {
+        std::lock_guard lock(m_mutex);
+        if (m_focused_window.has_value()) {
             for (auto& running_app : m_running_apps) {
-                if (running_app.visible && running_app.app) {
+                if (running_app.window_id == m_focused_window.value() && running_app.visible && running_app.app) {
                     running_app.app->handle_event(*ev);
+                    break;
                 }
             }
         }
@@ -176,6 +207,42 @@ size_t DesktopShell::running_application_count() const {
     // For now, since size() is a simple read and this is largely for introspection/tests,
     // we return the size directly. We could use a mutable mutex or atomic size if thread contention is expected.
     return m_running_apps.size();
+}
+
+void DesktopShell::focus_window(uint32_t window_id) {
+    std::lock_guard lock(m_mutex);
+    m_focused_window = window_id;
+    for (auto& app : m_running_apps) {
+        app.focused = (app.window_id == window_id);
+    }
+    m_wm->focus_window(window_id);
+}
+
+void DesktopShell::clear_focus() {
+    std::lock_guard lock(m_mutex);
+    m_focused_window = std::nullopt;
+    for (auto& app : m_running_apps) {
+        app.focused = false;
+    }
+}
+
+std::optional<uint32_t> DesktopShell::focused_window() const {
+    // Note: m_mutex cannot be locked here as it's not mutable and the method is const.
+    // Assuming single-threaded access or safe reading.
+    return m_focused_window;
+}
+
+desktop::RunningApplication* DesktopShell::focused_application() {
+    std::lock_guard lock(m_mutex);
+    if (!m_focused_window.has_value()) {
+        return nullptr;
+    }
+    for (auto& app : m_running_apps) {
+        if (app.window_id == m_focused_window.value()) {
+            return &app;
+        }
+    }
+    return nullptr;
 }
 
 } // namespace vynexos::apps

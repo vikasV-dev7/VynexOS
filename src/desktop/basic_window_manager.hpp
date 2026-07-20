@@ -1,4 +1,5 @@
 #pragma once
+#include <optional>
 #include "vynexos/desktop/window_manager.hpp"
 #include "vynexos/core/event_bus.hpp"
 #include "vynexos/core/logger.hpp"
@@ -22,6 +23,7 @@ public:
     void focus_window(uint32_t window_id) override;
     void move_window(uint32_t window_id, int32_t x, int32_t y) override;
     void resize_window(uint32_t window_id, uint32_t width, uint32_t height) override;
+    std::optional<uint32_t> get_window_at(int32_t x, int32_t y) const override;
     
     void set_window_surface(uint32_t window_id, std::shared_ptr<ISurface> surface) override;
     void set_window_visibility(uint32_t window_id, bool visible) override;
@@ -31,7 +33,6 @@ public:
     SceneGraph build_scene() const override;
 
 private:
-    void handle_mouse_event(std::shared_ptr<const core::Event> event);
 
     struct WindowState {
         std::string title;
@@ -48,8 +49,7 @@ private:
     uint32_t m_next_id{1};
     std::unordered_map<uint32_t, WindowState> m_windows;
     std::vector<uint32_t> m_z_order; // front is bottom, back is top
-    uint32_t m_focused_window{0};
-    uint8_t m_last_mouse_state{0};
+    std::optional<uint32_t> m_focused_window;
 };
 
 } // namespace vynexos::desktop

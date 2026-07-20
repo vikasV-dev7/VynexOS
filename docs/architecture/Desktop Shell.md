@@ -5,12 +5,13 @@ The `DesktopShell` (implementing `IDesktopShell`) is the permanent runtime owner
 
 1. **Runtime Ownership:** Maintains the collection of `RunningApplication` descriptors, explicitly tracking the linkage between an `IApplication`, its `ISurface`, and its `window_id`.
 2. **Execution Pipeline:** Drives the `update()` and `render()` loops for all active applications.
-3. **Event Routing:** Receives global input events from the `EventBus` and routes them to the appropriate `RunningApplication`.
-4. **Visual Interface:** Renders the system UI elements (Taskbar, Launcher).
-5. **State Management:** Handles window visibility, minimization, and dirty rect optimization at the desktop level.
+3. **Event Routing:** Receives global input events from the `EventBus` and routes them deterministically: mouse events to the hit-tested target window, and keyboard events exclusively to the focused application.
+4. **Focus Ownership:** Determines which `RunningApplication` currently owns runtime focus.
+5. **Visual Interface:** Renders the system UI elements (Taskbar, Launcher).
+6. **State Management:** Handles window visibility, minimization, and dirty rect optimization at the desktop level.
 
 > [!IMPORTANT]
-> The DesktopShell handles *runtime* coordination. The instantiation, memory ownership, and factory registration of `IApplications` remains the explicit responsibility of the `ApplicationRegistry`.
+> The DesktopShell handles *runtime* coordination, including exclusive focus tracking via `focus_window()` and `clear_focus()`. The instantiation, memory ownership, and factory registration of `IApplications` remains the explicit responsibility of the `ApplicationRegistry`.
 
 ## Runtime Model
 
@@ -22,6 +23,7 @@ struct RunningApplication {
     uint32_t window_id = 0;
     std::shared_ptr<ISurface> surface;
     bool visible = true;
+    bool focused = false;
 };
 ```
 

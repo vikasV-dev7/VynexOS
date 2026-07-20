@@ -6,14 +6,26 @@ State management for windows.
 <!-- AUTO-GENERATED END -->
 
 ## Purpose & Design Goals
-The `[[BasicWindowManager]]` serves as the centralized authority for tracking window states, geometries, and z-ordering in the VynexOS desktop environment. It decouples window manipulation logic from rendering logic, providing a stable API for application shells and compositors to query and mutate window visibility.
+The `BasicWindowManager` (implementing `IWindowManager`) is the core spatial compositor and layout engine for VynexOS. 
 
-## Internal Implementation Overview
-Window state is managed via an internal `WindowState` struct, containing the title and `WindowGeometry`. Windows are stored in a `std::unordered_map` keyed by a unique, monotonically increasing `uint32_t` ID. 
-Z-ordering is maintained using a `std::vector<uint32_t>`, where the front of the vector represents the bottom-most window, and the back represents the top-most (focused) window.
+## Responsibilities
 
-### Focus Routing
-The manager integrates directly with the hardware abstraction layer by subscribing to `HAL_INPUT_MOUSE` on the Event Bus. When a mouse click occurs, it iterates the z-order vector in reverse (top to bottom). The first window whose geometry encloses the click coordinates is immediately promoted to the top of the z-order vector and marked as the focused window.
+1. **Window Lifecycle:** Creates and destroys window IDs (`uint32_t`) and their backing `WindowState`.
+2. **Spatial Geometry:** Tracks the X, Y, Width, and Height of all windows.
+3. **Hit Testing:** Encapsulates the logic to determine which window occupies a specific screen coordinate via `get_window_at(x, y)`.
+4. **Z-Ordering:** Maintains the back-to-front rendering stack.
+5. **Scene Graph Generation:** Produces the `SceneGraph` structure consumed by the compositor.
+
+> [!CAUTION]
+> The WindowManager **does not** own runtime focus. While it tracks Z-order, it is the `DesktopShell`'s responsibility to command focus changes and route input. The `WindowManager` merely answers spatial queries (`get_window_at`).
+
+## Hit Testing & Focus Architecture
+
+VynexOS strictly separates spatial geometry from runtime focus:
+1. `DesktopShell` receives a raw `HAL_INPUT_MOUSE` event.
+2. `DesktopShell` asks `IWindowManager::get_window_at(x, y)` which window was clicked.
+3. `IWindowManager` iterates its internal Z-order from top to bottom, checking bounding boxes against visible windows, and returns a `std::optional<uint32_t>`.
+4. `DesktopShell` then explicitly commands `IWindowManager::focus_window(id)` to update the Z-order, updates its internal `RunningApplication` focus metadata, and routes the mouse event.
 
 ## Ownership & Lifetime Management
 The Window Manager does not "own" the actual graphical buffers or rendering contexts—those belong to the Compositor and the Widget Toolkit. It purely owns the abstract metadata (IDs, titles, coordinates). IDs are leased out upon `create_window()` and must be explicitly relinquished via `destroy_window()`.
