@@ -9,6 +9,7 @@ set(DESKTOP_SOURCES
     basic_taskbar.cpp
     dirty_region.cpp
     decoration_layout.cpp
+    painter.cpp
 )
 
 if(VYNEX_ENABLE_SDL2)

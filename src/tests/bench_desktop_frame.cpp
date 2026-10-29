@@ -6,7 +6,8 @@
 //   full_dirty  the whole screen is invalidated every frame (worst case)
 //   drag        a window is dragged through the real shell input path
 //
-// Usage: bench_desktop_frame [--frames N] [--sdl]
+// Usage: bench_desktop_frame [--frames N] [--sdl] [--micro-only]
+//   --micro-only  skip the desktop scenarios and only run the drawing-primitive micro-benchmarks
 //   --sdl  presents through the real SDL2 backend (opens a window; presentation is vsync-paced,
 //          so the "render" phase then includes waiting for vertical sync).
 #include <algorithm>
@@ -31,6 +32,9 @@
 #include "../desktop/basic_window_decorator.hpp"
 #include "../desktop/basic_window_manager.hpp"
 #include "../desktop/mock_display_backend.hpp"
+#include "../desktop/software_surface.hpp"
+#include "vynexos/desktop/painter.hpp"
+#include "vynexos/desktop/theme.hpp"
 #ifdef VYNEX_ENABLE_SDL2
 #include "../desktop/sdl2_display_backend.hpp"
 #endif
@@ -77,14 +81,96 @@ void print_row(const char* label, const Stats& s) {
                 label, s.mean, s.p50, s.p95, s.p99, s.max);
 }
 
+// Per-call cost of individual drawing operations on surfaces the size of a typical window / the desktop.
+// Toolkit cases use only the IWidgetToolkit API so numbers are comparable before and after toolkit changes.
+void run_micro_benchmarks() {
+    desktop::BasicWidgetToolkit toolkit;
+    auto surface = std::make_shared<desktop::SoftwareSurface>(1920, 1080);
+    auto window = std::make_shared<desktop::SoftwareSurface>(700, 500);
+    const desktop::Color opaque{70, 80, 90, 255};
+    const desktop::Color translucent{34, 199, 220, 128};
+
+    auto time_ms = [](int iterations, auto&& fn) {
+        fn(); // warm-up
+        const auto t0 = Clock::now();
+        for (int i = 0; i < iterations; ++i) fn();
+        return ms_since(t0) / iterations;
+    };
+    auto row = [](const char* label, double ms) { std::printf("    %-52s %10.4f ms\n", label, ms); };
+
+    std::printf("\nDrawing micro-benchmarks (mean time per operation)\n");
+    row("toolkit.draw_rect 700x500 opaque", time_ms(100, [&] { toolkit.draw_rect(window, 0, 0, 700, 500, opaque); }));
+    row("toolkit.draw_rect 700x500 alpha 50%", time_ms(100, [&] { toolkit.draw_rect(window, 0, 0, 700, 500, translucent); }));
+    row("toolkit.draw_rect 1920x1080 opaque (wallpaper)", time_ms(30, [&] { toolkit.draw_rect(surface, 0, 0, 1920, 1080, opaque); }));
+    row("toolkit.draw_rect 40x30 opaque x1000 (small widgets)", time_ms(20, [&] {
+        for (int i = 0; i < 1000; ++i) toolkit.draw_rect(window, (i * 7) % 600, (i * 3) % 450, 40, 30, opaque);
+    }));
+    row("toolkit.draw_panel 700x500", time_ms(100, [&] { toolkit.draw_panel(window, 0, 0, 700, 500); }));
+    row("toolkit.draw_text 32 chars x100", time_ms(20, [&] {
+        for (int i = 0; i < 100; ++i) toolkit.draw_text(window, 10, 10 + (i % 400), "The quick brown fox jumps over it", opaque);
+    }));
+    row("toolkit.draw_button 120x40 x100", time_ms(20, [&] {
+        for (int i = 0; i < 100; ++i) toolkit.draw_button(window, 20, 20 + (i % 400), 120, 40, "Click Me");
+    }));
+
+    // Painter primitives (new in Stage 1). Each case builds its own Painter, as widgets do.
+    const desktop::CornerRadii r10 = desktop::CornerRadii::uniform(10.0f);
+    row("painter.fill_rect 700x500 opaque", time_ms(100, [&] { desktop::Painter p(*window); p.fill_rect({0, 0, 700, 500}, opaque); }));
+    row("painter.fill_rect 700x500 alpha 50%", time_ms(100, [&] { desktop::Painter p(*window); p.fill_rect({0, 0, 700, 500}, translucent); }));
+    row("painter.fill_rect 1920x1080 opaque (wallpaper)", time_ms(30, [&] { desktop::Painter p(*surface); p.fill_rect({0, 0, 1920, 1080}, opaque); }));
+    row("painter.fill_rounded_rect 700x500 r=10 opaque", time_ms(100, [&] { desktop::Painter p(*window); p.fill_rounded_rect({0, 0, 700, 500}, r10, opaque); }));
+    row("painter.fill_rounded_rect 700x500 r=10 alpha 50%", time_ms(100, [&] { desktop::Painter p(*window); p.fill_rounded_rect({0, 0, 700, 500}, r10, translucent); }));
+    row("painter.fill_rounded_rect 120x36 r=8 x100 (buttons)", time_ms(50, [&] {
+        desktop::Painter p(*window);
+        for (int i = 0; i < 100; ++i) p.fill_rounded_rect({20, 20 + (i % 400), 120, 36}, desktop::CornerRadii::uniform(8.0f), opaque);
+    }));
+    row("painter.stroke_rounded_rect 700x500 r=10 1px", time_ms(100, [&] { desktop::Painter p(*window); p.stroke_rounded_rect({0, 0, 700, 500}, r10, 1.0f, opaque); }));
+    row("painter.fill_gradient 1920x1080 dithered", time_ms(20, [&] {
+        desktop::Painter p(*surface);
+        p.fill_gradient({0, 0, 1920, 1080}, desktop::LinearGradient{desktop::Color{18, 23, 28, 255}, desktop::Color{14, 18, 22, 255}, true, true});
+    }));
+    row("painter.fill_radial_gradient r=600 (wallpaper glow)", time_ms(10, [&] {
+        desktop::Painter p(*surface);
+        p.fill_radial_gradient(1400.0f, 300.0f, 600.0f, desktop::Color{34, 199, 220, 28}, desktop::Color{34, 199, 220, 0});
+    }));
+    row("painter.fill_circle r=7 x1000 (control dots)", time_ms(50, [&] {
+        desktop::Painter p(*window);
+        for (int i = 0; i < 1000; ++i) p.fill_circle(10.5f + static_cast<float>(i % 600), 10.5f + static_cast<float>(i % 400), 7.0f, opaque);
+    }));
+    row("painter.draw_line 100px x1000", time_ms(20, [&] {
+        desktop::Painter p(*window);
+        for (int i = 0; i < 1000; ++i) p.draw_line(10.0f, 10.5f + static_cast<float>(i % 400), 110.0f, 10.5f + static_cast<float>(i % 400), 1.0f, opaque);
+    }));
+    row("painter.draw_shadow 700x500 blur 28 (window)", time_ms(10, [&] {
+        desktop::Painter p(*surface);
+        p.draw_shadow({200, 200, 700, 500}, r10, desktop::default_theme().elevation.window_active);
+    }));
+    row("painter.draw_shadow 120x36 blur 8 x20 (controls)", time_ms(20, [&] {
+        desktop::Painter p(*window);
+        for (int i = 0; i < 20; ++i) p.draw_shadow({100, 50 + (i % 300), 120, 36}, desktop::CornerRadii::uniform(8.0f), desktop::default_theme().elevation.control);
+    }));
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
     int frames = 600;
     bool use_sdl = false;
+    bool micro_only = false;
     for (int i = 1; i < argc; ++i) {
+        if (std::strcmp(argv[i], "--micro-only") == 0) micro_only = true;
         if (std::strcmp(argv[i], "--frames") == 0 && i + 1 < argc) frames = std::atoi(argv[++i]);
         if (std::strcmp(argv[i], "--sdl") == 0) use_sdl = true;
+    }
+
+#ifdef NDEBUG
+    std::printf("Build: NDEBUG (optimized)\n");
+#else
+    std::printf("Build: Debug\n");
+#endif
+    if (micro_only) {
+        run_micro_benchmarks();
+        return 0;
     }
 
     auto logger = std::make_shared<NullLogger>();
@@ -140,13 +226,7 @@ int main(int argc, char** argv) {
 
     const auto size = compositor->logical_size();
     std::printf("Desktop frame benchmark: %ux%u logical, %d frames/scenario, display=%s\n",
-#ifdef NDEBUG
                 size.width, size.height, frames, use_sdl ? "SDL2 (vsync)" : "mock");
-    std::printf("Build: NDEBUG (optimized)\n");
-#else
-                size.width, size.height, frames, use_sdl ? "SDL2 (vsync)" : "mock");
-    std::printf("Build: Debug\n");
-#endif
 
     struct Phases {
         std::vector<double> update, scene, render, total;
@@ -218,6 +298,7 @@ int main(int argc, char** argv) {
         report("drag", p, "File Explorer dragged in a circle (shell input + dirty regions)");
     }
 
+    run_micro_benchmarks();
     shell.reset();
     std::printf("\nDone.\n");
     return 0;
