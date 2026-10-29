@@ -9,6 +9,7 @@
 #include "../desktop/basic_compositor.hpp"
 #include "../desktop/basic_window_manager.hpp"
 #include "../desktop/basic_widget_toolkit.hpp"
+#include "../desktop/basic_window_decorator.hpp"
 #include "../hal/mock_input_driver.hpp"
 #ifdef VYNEX_ENABLE_SDL2
 #include "../desktop/sdl2_display_backend.hpp"
@@ -20,6 +21,7 @@
 #include <vynexos/core/plugin_context_factory.hpp>
 #include <vynexos/core/memory_file_system.hpp>
 #include <vynexos/apps/application_registry.hpp>
+#include "../desktop/basic_taskbar.hpp"
 
 namespace vynexos::bootstrap {
 
@@ -43,8 +45,10 @@ CompositionRoot::CompositionRoot() {
     
     m_window_manager = std::make_shared<desktop::BasicWindowManager>(m_event_bus, m_logger);
     m_widget_toolkit = std::make_shared<desktop::BasicWidgetToolkit>();
+    auto decorator = std::make_shared<desktop::BasicWindowDecorator>(m_widget_toolkit);
+    auto taskbar = std::make_shared<desktop::BasicTaskbar>(m_widget_toolkit);
     m_demo_app = std::make_shared<apps::DemoApp>(m_window_manager, m_compositor, m_widget_toolkit);
-    m_desktop_shell = std::make_shared<apps::DesktopShell>(m_window_manager, m_compositor, m_widget_toolkit, m_event_bus);
+    m_desktop_shell = std::make_shared<apps::DesktopShell>(m_window_manager, m_compositor, m_widget_toolkit, decorator, taskbar, m_event_bus);
     m_terminal = std::make_shared<apps::BasicTerminal>(m_window_manager, m_compositor, m_widget_toolkit);
     
     // New V1.0 Architecture Components

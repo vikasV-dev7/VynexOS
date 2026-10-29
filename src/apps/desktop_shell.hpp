@@ -3,7 +3,7 @@
 #include "vynexos/desktop/window_manager.hpp"
 #include "vynexos/desktop/compositor.hpp"
 #include "vynexos/desktop/widget_toolkit.hpp"
-#include "vynexos/desktop/widget_toolkit.hpp"
+#include "vynexos/desktop/window_decorator.hpp"
 #include "vynexos/core/event_bus.hpp"
 #include "vynexos/desktop/notification_service.hpp"
 #include <memory>
@@ -17,6 +17,8 @@ public:
     DesktopShell(std::shared_ptr<desktop::IWindowManager> wm,
                  std::shared_ptr<desktop::ICompositor> compositor,
                  std::shared_ptr<desktop::IWidgetToolkit> toolkit,
+                 std::shared_ptr<desktop::IWindowDecorator> decorator,
+                 std::shared_ptr<desktop::ITaskbar> taskbar,
                  std::shared_ptr<core::IEventBus> event_bus);
     
     void launch() override;
@@ -32,12 +34,20 @@ public:
     std::optional<uint32_t> focused_window() const override;
     desktop::RunningApplication* focused_application() override;
     bool has_focus() const override;
+    std::shared_ptr<desktop::ITaskbar> taskbar() override { return m_taskbar; }
 
 private:
     std::shared_ptr<desktop::IWindowManager> m_wm;
     std::shared_ptr<desktop::ICompositor> m_compositor;
     std::shared_ptr<desktop::IWidgetToolkit> m_toolkit;
+    std::shared_ptr<desktop::IWindowDecorator> m_decorator;
+    std::shared_ptr<desktop::ITaskbar> m_taskbar;
     std::shared_ptr<core::IEventBus> m_event_bus;
+    
+    desktop::WindowTheme m_theme;
+
+    void update_window_decoration(uint32_t window_id, bool focused);
+    void invalidate_window_region(uint32_t window_id);
     
     uint32_t m_wallpaper_id{0};
     uint32_t m_taskbar_id{0};
@@ -48,6 +58,7 @@ private:
     std::shared_ptr<desktop::ISurface> m_launcher_surface;
     
     bool m_launcher_visible{false};
+    bool m_first_frame_drawn{false};
 
     std::mutex m_mutex;
     std::vector<desktop::Notification> m_notifications;
@@ -63,8 +74,20 @@ private:
         bool pointer_captured{false};
     };
     DragState m_drag_state;
+
+    struct ResizeState {
+        std::optional<uint32_t> window_id;
+        desktop::ResizeEdge edge{desktop::ResizeEdge::None};
+        int32_t initial_mouse_x{0};
+        int32_t initial_mouse_y{0};
+        desktop::WindowGeometry initial_geometry;
+        bool pointer_captured{false};
+    };
+    ResizeState m_resize_state;
     
     uint8_t m_last_mouse_state{0};
+    int32_t m_cursor_x{0};
+    int32_t m_cursor_y{0};
 };
 
 } // namespace vynexos::apps

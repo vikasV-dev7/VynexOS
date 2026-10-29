@@ -1,5 +1,6 @@
 #pragma once
 #include "vynexos/desktop/compositor.hpp"
+#include "vynexos/desktop/dirty_region.hpp"
 #include "vynexos/desktop/display_abstraction.hpp"
 #include "vynexos/core/logger.hpp"
 #include <mutex>
@@ -14,6 +15,7 @@ public:
     ~BasicCompositor() override = default;
 
     std::shared_ptr<ISurface> create_surface(uint32_t width, uint32_t height) override;
+    void invalidate_region(const Rect& rect) override;
     std::expected<void, DisplayError> render_frame(const SceneGraph& scene) override;
 
 private:
@@ -21,6 +23,8 @@ private:
     std::shared_ptr<core::ILogger> m_logger;
     std::mutex m_mutex;
     hal::FrameBuffer m_master_fb;
+    DirtyRegionSet m_dirty_regions;
+    bool m_first_frame{true};
     
     std::expected<void, DisplayError> render_scene_internal(const SceneGraph& scene);
     void blend_surface(hal::FrameBuffer& target, int32_t dst_x, int32_t dst_y, uint32_t target_w, uint32_t target_h,

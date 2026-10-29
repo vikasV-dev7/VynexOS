@@ -8,10 +8,6 @@
 
 namespace vynexos::desktop {
 
-struct Color {
-    uint8_t r, g, b, a;
-};
-
 class IWidgetToolkit {
 public:
     virtual ~IWidgetToolkit() = default;

@@ -1,6 +1,8 @@
 #pragma once
 #include <optional>
+#include <memory>
 #include "vynexos/desktop/running_application.hpp"
+#include "vynexos/desktop/taskbar.hpp"
 
 namespace vynexos::apps {
 
@@ -23,6 +25,9 @@ public:
     virtual std::optional<uint32_t> focused_window() const = 0;
     virtual desktop::RunningApplication* focused_application() = 0;
     virtual bool has_focus() const = 0;
+    
+    // Component Access
+    virtual std::shared_ptr<desktop::ITaskbar> taskbar() = 0;
 };
 
 } // namespace vynexos::apps

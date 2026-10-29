@@ -10,6 +10,9 @@ Input begins at the Hardware Abstraction Layer (HAL). The `CompositionRoot` inst
 
 Mouse events are spatially dependent. The `DesktopShell` does not understand window geometry, so it relies on the `IWindowManager` to perform hit testing.
 
+- **Input Interception:** The Desktop Shell routes input either to the active application surface or the decoration hit-testing engine inside the window manager.
+- **Shared Geometry:** Because of [[Shared Decoration Geometry]], the hit-testing logic directly matches the geometric layout used by the renderer. Hit-regions precisely map the [[DecorationLayout]].
+
 ```mermaid
 sequenceDiagram
     participant HAL

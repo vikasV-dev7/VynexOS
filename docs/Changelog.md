@@ -1,8 +1,31 @@
 # Changelog
 
-## [v0.8.0] - 2026-07-20
-### Added
-- Interactive Window Movement and Drag Operations orchestrated via `DesktopShell`.
+## [v0.8.0] - 2026-07-22
+### Implementation 0.8.0.7 — Taskbar & Window Switching
+- Introduced `ITaskbar` and `BasicTaskbar` to render running application status.
+- Added `TaskbarEntry` model to support decoupled UI synchronization.
+- Added `get_window_snapshots()` API in `IWindowManager` for creation-ordered, O(1) taskbar enumeration.
+- Implemented active window visual highlighting in the taskbar.
+- Implemented click-to-restore behavior for minimized windows.
+- Desktop routing integration to ferry taskbar interactions to the `BasicWindowManager`.
+
+### Implementation 0.8.0.6 — Window State Management
+- Introduced persistent window state (`Normal`, `Minimized`) owned by `BasicWindowManager`.
+- Added visual `MinimizeButton` to `BasicWindowDecorator` and extended `DecorationHitRegion`.
+- `DesktopShell` dynamically transfers focus to the next visible window when the active window is minimized.
+- Ensured minimized windows are strictly excluded from scene graph rendering, input routing, and hit testing, while `RunningApplication` lifecycle continues.
+- Implemented comprehensive unit testing for state lifecycle and focus transfer in `test_desktop_shell.cpp`.
+
+### Implementation 0.8.0.4 — Window Resizing Framework
+- Introduced interactive window resizing orchestration within `DesktopShell`.
+- Introduced `ResizeState` to manage pointer capture and movement deltas cleanly separated from drag interactions.
+- Extended `IWindowManager` with `get_resize_handle_at()` to abstract hit-testing logic from the shell, returning the new `HitTestResult` and `ResizeEdge` types.
+- Extended `IWindowManager` with `set_window_geometry()` to allow atomic positional and dimensional updates.
+- Centralized minimum window constraint enforcement within `BasicWindowManager`.
+- Verified deterministic focus tracking and exclusive event routing during resize captures.
+- Full regression suite verified against all interactive desktop primitives.
+
+### Implementation 0.8.0.3 — Window Movement & Drag Operations orchestrated via `DesktopShell`.
 - Threshold-based pointer capture to differentiate rapid clicks from window drags.
 - Exclusive Mouse Event routing to dragged windows during pointer capture.
 - MSVC-compliant strict warning configuration (C++23 compliant).

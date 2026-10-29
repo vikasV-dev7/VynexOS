@@ -13,6 +13,11 @@ std::shared_ptr<ISurface> BasicCompositor::create_surface(uint32_t width, uint32
     return std::make_shared<SoftwareSurface>(width, height);
 }
 
+void BasicCompositor::invalidate_region(const Rect& rect) {
+    std::lock_guard lock(m_mutex);
+    m_dirty_regions.add_region(rect);
+}
+
 std::expected<void, DisplayError> BasicCompositor::render_frame(const SceneGraph& scene) {
     std::lock_guard lock(m_mutex);
     return render_scene_internal(scene);
@@ -23,19 +28,56 @@ std::expected<void, DisplayError> BasicCompositor::render_scene_internal(const S
         m_master_fb.width = 1920;
         m_master_fb.height = 1080;
         m_master_fb.pixels.resize(m_master_fb.width * m_master_fb.height * 4, static_cast<uint8_t>(0));
-    } else {
-        std::fill(m_master_fb.pixels.begin(), m_master_fb.pixels.end(), static_cast<uint8_t>(0));
     }
     
-    for (const auto& layer : scene) {
-        if (!layer.visible || layer.opacity <= 0.0f) continue;
+    if (m_first_frame) {
+        m_dirty_regions.add_region({0, 0, m_master_fb.width, m_master_fb.height});
+        m_first_frame = false;
+    }
+    
+    if (m_dirty_regions.is_empty()) {
+        // Nothing to redraw
+        return {};
+    }
+    
+    auto regions = m_dirty_regions.get_regions();
+    m_dirty_regions.clear();
+    
+    for (const auto& dirty_rect : regions) {
+        int32_t start_y = std::max(0, dirty_rect.y);
+        int32_t end_y = std::min(static_cast<int32_t>(m_master_fb.height), dirty_rect.y + static_cast<int32_t>(dirty_rect.height));
+        int32_t start_x = std::max(0, dirty_rect.x);
+        int32_t end_x = std::min(static_cast<int32_t>(m_master_fb.width), dirty_rect.x + static_cast<int32_t>(dirty_rect.width));
         
-        Rect clip = layer.clip;
-        if (clip.width == 0 || clip.height == 0) {
-            clip = {0, 0, m_master_fb.width, m_master_fb.height};
+        if (start_x < end_x && start_y < end_y) {
+            uint8_t* ptr = m_master_fb.pixels.data();
+            uint32_t clear_width = static_cast<uint32_t>(end_x - start_x);
+            for (int32_t y = start_y; y < end_y; ++y) {
+                size_t row_idx = (static_cast<uint32_t>(y) * m_master_fb.width + static_cast<uint32_t>(start_x)) * 4;
+                std::memset(&ptr[row_idx], 0, clear_width * 4);
+            }
         }
         
-        blend_surface(m_master_fb, layer.bounds.x, layer.bounds.y, m_master_fb.width, m_master_fb.height, clip, layer.opacity, layer.surface);
+        for (const auto& layer : scene) {
+            if (!layer.visible || layer.opacity <= 0.0f) continue;
+            
+            Rect clip = layer.clip;
+            if (clip.width == 0 || clip.height == 0) {
+                clip = {0, 0, m_master_fb.width, m_master_fb.height};
+            }
+            
+            // Further clip by the layer's local bounds mapped to screen
+            Rect screen_layer = {layer.bounds.x, layer.bounds.y, layer.bounds.width, layer.bounds.height};
+            
+            auto intersection = intersect_rects(dirty_rect, screen_layer);
+            if (!intersection) continue; // Skip non-intersecting layers
+            
+            // Constrain clip to the dirty intersection
+            auto final_clip = intersect_rects(clip, *intersection);
+            if (!final_clip) continue;
+            
+            blend_surface(m_master_fb, layer.bounds.x, layer.bounds.y, m_master_fb.width, m_master_fb.height, *final_clip, layer.opacity, layer.surface);
+        }
     }
     
     return m_display->flush_buffer(m_master_fb);

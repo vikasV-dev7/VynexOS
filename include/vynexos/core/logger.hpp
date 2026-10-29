@@ -34,7 +34,7 @@ public:
     virtual void set_log_level(LogLevel level) = 0;
     [[nodiscard]] virtual LogLevel get_log_level() const = 0;
 
-    // Pure virtual raw logger to be implemented by specific backends
+            // Pure virtual raw logger to be implemented by specific backends
     virtual void log_raw(LogLevel level, std::string_view message) = 0;
 
     template<typename... Args>

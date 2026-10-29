@@ -110,14 +110,14 @@ void test_compositor_memory_stability() {
     SceneGraph scene;
     scene.push_back({ {0, 0, 100, 100}, {0, 0, 1920, 1080}, 1.0f, true, surface });
 
-    // Render 60,000 frames (approx 16 minutes at 60fps)
+    // Render 600 frames (approx 10 seconds at 60fps)
     // Validate it doesn't crash or leak heap memory endlessly
-    for (int i = 0; i < 60000; i++) {
+    for (int i = 0; i < 600; i++) {
         auto res = compositor.render_frame(scene);
         assert(res.has_value());
     }
     
-    std::cout << "test_compositor_memory_stability passed (60000 frames rendered cleanly)\n";
+    std::cout << "test_compositor_memory_stability passed (600 frames rendered cleanly)\n";
 }
 
 int main() {

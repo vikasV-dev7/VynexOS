@@ -29,4 +29,10 @@ struct RunningApplication {
 ```
 
 This ensures that applications remain entirely ignorant of their windowing context while allowing the Desktop Shell to intelligently pause rendering for hidden windows.
+
+### Event Flow & UI Ownership
+The shell operates as the ultimate middleman. When the window manager signals that a window needs redrawing, the shell orchestrates the update by:
+1. Fetching canonical geometries from the Window Manager.
+2. Generating a layout via the [[Decoration Layout Engine]].
+3. Proxying that layout (via [[DecorationLayout]]) directly to the renderer to enforce strict [[UI Layout Ownership]].
 <!-- AUTO-GENERATED END -->

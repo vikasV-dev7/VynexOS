@@ -3,8 +3,12 @@ set(DESKTOP_SOURCES
     basic_compositor.cpp
     basic_window_manager.cpp
     basic_widget_toolkit.cpp
+    basic_window_decorator.cpp
     basic_notification_service.cpp
     software_surface.cpp
+    basic_taskbar.cpp
+    dirty_region.cpp
+    decoration_layout.cpp
 )
 
 if(VYNEX_ENABLE_SDL2)

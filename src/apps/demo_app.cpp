@@ -28,11 +28,7 @@ void DemoApp::update_frame() {
     // Draw background
     m_toolkit->draw_panel(m_surface, 0, 0, 300, 200);
     
-    // Draw title bar
-    m_toolkit->draw_rect(m_surface, 0, 0, 300, 25, desktop::Color{80, 80, 100, 255});
-    m_toolkit->draw_text(m_surface, 5, 5, "Demo App", desktop::Color{255, 255, 255, 255});
-    
-    m_toolkit->draw_button(m_surface, 20, 50, 120, 40, "Click Me");
+    m_toolkit->draw_button(m_surface, 20, 20, 120, 40, "Click Me");
 }
 
 } // namespace vynexos::apps

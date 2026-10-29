@@ -14,6 +14,7 @@ public:
     
     // New Interface
     virtual std::shared_ptr<ISurface> create_surface(uint32_t width, uint32_t height) = 0;
+    virtual void invalidate_region(const Rect& rect) = 0;
     virtual std::expected<void, DisplayError> render_frame(const SceneGraph& scene) = 0;
     
 

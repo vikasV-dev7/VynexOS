@@ -62,7 +62,9 @@ void test_initialization() {
     auto toolkit = std::make_shared<MockWidgetToolkit>();
     apps::BasicFileExplorer explorer(vfs, toolkit);
     
-    assert(explorer.initialize());
+    bool ok = explorer.initialize();
+    assert(ok);
+    (void)ok;
     assert(explorer.get_current_path().as_string() == "/");
     assert(explorer.get_entries().size() == 2);
     // Because dirs are sorted alphabetically:
@@ -80,13 +82,19 @@ void test_navigation_into_directory() {
     
     auto toolkit = std::make_shared<MockWidgetToolkit>();
     apps::BasicFileExplorer explorer(vfs, toolkit);
-    explorer.initialize();
+    bool ok = explorer.initialize();
+    assert(ok);
+    (void)ok;
     
     core::Event ev;
     ev.topic = "HAL_INPUT_MOUSE";
-    ev.payload = hal::MouseEvent(20, 85, 1);
+    ev.payload = hal::MouseEvent(20, 65, 1);
     
     // Simulate click on "home" (row 0 since dirs are sorted first)
+    explorer.handle_event(ev);
+    
+    // Release
+    ev.payload = hal::MouseEvent(20, 65, 0);
     explorer.handle_event(ev);
     
     assert(explorer.get_selected_index().has_value());
@@ -94,6 +102,11 @@ void test_navigation_into_directory() {
     assert(explorer.get_current_path().as_string() == "/");
     
     // Simulate second click on "home" (activate)
+    ev.payload = hal::MouseEvent(20, 65, 1);
+    explorer.handle_event(ev);
+    
+    // Release
+    ev.payload = hal::MouseEvent(20, 65, 0);
     explorer.handle_event(ev);
     
     assert(explorer.get_current_path().as_string() == "/home");
@@ -113,20 +126,29 @@ void test_navigation_to_parent() {
     
     auto toolkit = std::make_shared<MockWidgetToolkit>();
     apps::BasicFileExplorer explorer(vfs, toolkit);
-    explorer.initialize();
+    bool ok = explorer.initialize();
+    assert(ok);
+    (void)ok;
     
     core::Event ev;
     ev.topic = "HAL_INPUT_MOUSE";
-    ev.payload = hal::MouseEvent(20, 85, 1);
+    ev.payload = hal::MouseEvent(20, 65, 1);
     
     // Click home, activate home
     explorer.handle_event(ev);
+    ev.payload = hal::MouseEvent(20, 65, 0);
+    explorer.handle_event(ev);
+    ev.payload = hal::MouseEvent(20, 65, 1);
+    explorer.handle_event(ev);
+    ev.payload = hal::MouseEvent(20, 65, 0);
     explorer.handle_event(ev);
     
     assert(explorer.get_current_path().as_string() == "/home");
     
-    // Click "Up" button (x:10-50, y:40-70)
-    ev.payload = hal::MouseEvent(20, 50, 1);
+    // Click "Up" button (x:10-50, y:10-40)
+    ev.payload = hal::MouseEvent(20, 25, 1);
+    explorer.handle_event(ev);
+    ev.payload = hal::MouseEvent(20, 25, 0);
     explorer.handle_event(ev);
     
     assert(explorer.get_current_path().as_string() == "/");
@@ -140,11 +162,13 @@ void test_select_file_no_navigate() {
     
     auto toolkit = std::make_shared<MockWidgetToolkit>();
     apps::BasicFileExplorer explorer(vfs, toolkit);
-    explorer.initialize();
+    bool ok = explorer.initialize();
+    assert(ok);
+    (void)ok;
     
     core::Event ev;
     ev.topic = "HAL_INPUT_MOUSE";
-    ev.payload = hal::MouseEvent(20, 85, 1);
+    ev.payload = hal::MouseEvent(20, 65, 1);
     
     // First click selects
     explorer.handle_event(ev);
@@ -168,7 +192,9 @@ void test_invalid_navigation() {
     
     auto toolkit = std::make_shared<MockWidgetToolkit>();
     apps::BasicFileExplorer explorer(vfs, toolkit);
-    explorer.initialize();
+    bool ok = explorer.initialize();
+    assert(ok);
+    (void)ok;
     
     // The initialize will try to stat "ghost_dir", which fails, so it won't be in the entries!
     assert(explorer.get_entries().size() == 0);

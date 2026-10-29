@@ -49,15 +49,8 @@ void BasicTerminal::update_frame() {
     // Draw background
     m_toolkit->draw_panel(m_surface, 0, 0, 600, 400);
     
-    // Draw title bar
-    m_toolkit->draw_rect(m_surface, 0, 0, 600, 30, desktop::Color{50, 50, 50, 255});
-    m_toolkit->draw_text(m_surface, 10, 10, "Terminal", desktop::Color{255, 255, 255, 255});
-    
-    // Draw close button
-    m_toolkit->draw_button(m_surface, 560, 5, 30, 20, "X");
-    
     // Draw text history
-    int32_t y_offset = 40;
+    int32_t y_offset = 10;
     for (const auto& line : m_history) {
         m_toolkit->draw_text(m_surface, 10, y_offset, line, desktop::Color{200, 200, 200, 255});
         y_offset += 20;

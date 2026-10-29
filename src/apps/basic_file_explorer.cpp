@@ -33,15 +33,15 @@ bool BasicFileExplorer::handle_event(const vynexos::core::Event& event) {
         int32_t x = mouse_ev.x;
         int32_t y = mouse_ev.y;
         
-        // "Up" button bounds: 10, 40, 40, 30
-        if (x >= 10 && x <= 50 && y >= 40 && y <= 70) {
+        // "Up" button bounds: 10, 10, 40, 30
+        if (x >= 10 && x <= 50 && y >= 10 && y <= 40) {
             navigate_up();
             return true;
         }
         
-        // List entries: starts at y=80, height=30 per entry
-        if (y >= 80) {
-            int row = (y - 80) / 30;
+        // List entries: starts at y=50, height=30 per entry
+        if (y >= 50) {
+            int row = (y - 50) / 30;
             if (row >= 0 && row < static_cast<int>(m_entries.size())) {
                 if (m_selected_index.has_value() && m_selected_index.value() == static_cast<size_t>(row)) {
                     // Second click: Activation gesture
@@ -74,16 +74,11 @@ void BasicFileExplorer::render(vynexos::desktop::ISurface& target_surface) {
     // Draw background
     m_toolkit->draw_panel(surf_ptr, 0, 0, width, height);
     
-    // Top bar (Title)
-    m_toolkit->draw_rect(surf_ptr, 0, 0, width, 30, desktop::Color{60, 60, 80, 255});
-    std::string title = "File Explorer - " + m_current_path.as_string();
-    m_toolkit->draw_text(surf_ptr, 10, 10, title, desktop::Color{255, 255, 255, 255});
-    
     // "Up" button
-    m_toolkit->draw_button(surf_ptr, 10, 40, 40, 30, "Up");
+    m_toolkit->draw_button(surf_ptr, 10, 10, 40, 30, "Up");
     
     // List
-    int32_t list_y = 80;
+    int32_t list_y = 50;
     for (size_t i = 0; i < m_entries.size(); ++i) {
         if (m_selected_index.has_value() && m_selected_index.value() == i) {
             // Highlight selected row

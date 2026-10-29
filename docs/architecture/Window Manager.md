@@ -42,5 +42,5 @@ API boundaries employ robust defensive programming:
 Due to its isolation from rendering, `[[BasicWindowManager]]` can be unit-tested purely through state inspection. Tests verify that synthetic mouse click payloads dispatched to a mock Event Bus correctly mutate the z-order array.
 
 ## Extension Points & Future Roadmap
-- **Window Decorations:** Future versions will track client-side versus server-side decorations to better handle drag-and-drop window moving.
+- **Window Decorations:** Decorations are now strictly geometrically centralized through the [[Decoration Layout Engine]]. `BasicWindowManager` owns generating the [[Window Frame Metrics]], but it consumes the final [[DecorationLayout]] to conduct hit-testing. This enforces [[Shared Decoration Geometry]]. Future versions will track client-side versus server-side decorations to better handle drag-and-drop window moving.
 - **Spatial Partitioning:** The current reverse-iteration hit-testing for mouse clicks is $O(N)$ with the number of windows. As the window count grows, this will be migrated to a quad-tree or similar spatial partitioning structure for performance.
