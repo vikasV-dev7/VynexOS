@@ -1,0 +1,5 @@
+# Vendored third-party files must stay byte-identical to the audited upstream copies: their SHA-256 is
+# verified at CMake configure time (see cmake/verify_third_party.cmake). Disable newline conversion for them
+# regardless of core.autocrlf, otherwise a Windows checkout would change the bytes and fail the check.
+third_party/** -text
+assets/fonts/** -text
