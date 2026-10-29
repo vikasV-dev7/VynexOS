@@ -54,6 +54,15 @@ add_executable(test_window_manager test_window_manager.cpp)
 target_include_directories(test_window_manager PRIVATE ${PROJECT_SOURCE_DIR}/include)
 target_link_libraries(test_window_manager PRIVATE vynex_core vynex_desktop vynex_hal)
 
+add_executable(test_font_glyphs test_font_glyphs.cpp)
+target_include_directories(test_font_glyphs PRIVATE ${PROJECT_SOURCE_DIR}/include)
+target_link_libraries(test_font_glyphs PRIVATE vynex_core vynex_desktop vynex_hal)
+
+# Frame-cost benchmark: built but deliberately not registered with CTest (it reports numbers, it does not assert).
+add_executable(bench_desktop_frame bench_desktop_frame.cpp)
+target_include_directories(bench_desktop_frame PRIVATE ${PROJECT_SOURCE_DIR}/include)
+target_link_libraries(bench_desktop_frame PRIVATE vynex_apps vynex_core vynex_desktop vynex_hal)
+
 add_executable(test_input_display test_input_display.cpp ${PROJECT_SOURCE_DIR}/src/apps/desktop_shell.cpp)
 target_include_directories(test_input_display PRIVATE ${PROJECT_SOURCE_DIR}/include)
 target_link_libraries(test_input_display PRIVATE vynex_core vynex_desktop vynex_hal)
@@ -109,6 +118,7 @@ add_test(NAME WidgetToolkitTests COMMAND test_widget_toolkit)
 add_test(NAME WindowManagerTests COMMAND test_window_manager)
 add_test(NAME DesktopShellTests COMMAND test_desktop_shell)
 add_test(NAME InputDisplayTests COMMAND test_input_display)
+add_test(NAME FontGlyphTests COMMAND test_font_glyphs)
 add_test(NAME VirtualPathTests COMMAND test_virtual_path)
 add_test(NAME VNodeTests COMMAND test_vnode)
 add_test(NAME MemoryFileHandleTests COMMAND test_memory_file_handle)
