@@ -32,6 +32,11 @@ if(TARGET SDL2-static)
     add_executable(test_sdl_integration test_sdl_integration.cpp ${PROJECT_SOURCE_DIR}/src/bootstrap/composition_root.cpp)
     target_link_libraries(test_sdl_integration PRIVATE vynex_core vynex_desktop vynex_hal vynex_apps SDL2-static)
     add_test(NAME SDLIntegrationTests COMMAND test_sdl_integration)
+
+    # Framebuffer -> texture channel order (headless: software renderer, no window)
+    add_executable(test_sdl_pixel_format test_sdl_pixel_format.cpp)
+    target_link_libraries(test_sdl_pixel_format PRIVATE SDL2-static)
+    add_test(NAME SDLPixelFormatTests COMMAND test_sdl_pixel_format)
 endif()
 
 add_executable(test_runtime_bug test_runtime_bug.cpp ${PROJECT_SOURCE_DIR}/src/bootstrap/composition_root.cpp)

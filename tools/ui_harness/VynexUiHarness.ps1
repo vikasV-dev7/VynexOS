@@ -238,6 +238,19 @@ function Test-VynexWindowExcluded {
     return [bool]($snap -and $snap.Excluded.ContainsKey($WindowId) -and $snap.Excluded[$WindowId] -eq $Reason)
 }
 
+# Colour of the on-screen pixel under a logical desktop coordinate (0..255 per channel).
+function Get-VynexPixel {
+    param([Parameter(Mandatory)]$App, [Parameter(Mandatory)]$Geo, [double]$X, [double]$Y)
+    $p = ConvertTo-VynexScreenPoint $Geo $X $Y
+    Assert-VynexInputSafe $App $Geo $p.X $p.Y
+    $bmp = New-Object System.Drawing.Bitmap 1, 1
+    $g = [System.Drawing.Graphics]::FromImage($bmp)
+    $g.CopyFromScreen($p.X, $p.Y, 0, 0, $bmp.Size)
+    $c = $bmp.GetPixel(0, 0)
+    $g.Dispose(); $bmp.Dispose()
+    return [pscustomobject]@{ R = [int]$c.R; G = [int]$c.G; B = [int]$c.B }
+}
+
 function Get-VynexLogErrorCount {
     param([Parameter(Mandatory)]$App)
     return @(Select-String -Path $App.Log -Pattern '\[ERROR\]|\[FATAL\]' -ErrorAction SilentlyContinue).Count

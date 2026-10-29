@@ -72,6 +72,10 @@ try {
     Write-Host '[4] taskbar'
     $b = Get-VynexWindowBounds $app 5
     Invoke-VynexClick $app $geo ($b.X + 350) ($b.Y - 20)     # focus the Explorer first
+    # Colour fidelity: the focused title bar is defined as blue (50,100,200) by the current theme. If the display path
+    # swapped the red and blue channels it would appear orange instead.
+    $px = Get-VynexPixel $app $geo ($b.X + 250) ($b.Y - 12)
+    Confirm-Vynex $app 'focused title bar renders blue (RGB channel order)' ($px.B -gt ($px.R + 80)) ("pixel R{0} G{1} B{2}" -f $px.R, $px.G, $px.B)
     Invoke-VynexClick $app $geo 330 1060                      # its taskbar entry: focused window minimizes
     Start-Sleep -Milliseconds 1300
     Confirm-Vynex $app 'taskbar click minimizes the focused window' (Test-VynexWindowExcluded $app 5 'Minimized') ''

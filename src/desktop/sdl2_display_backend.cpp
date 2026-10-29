@@ -1,4 +1,5 @@
 #include "sdl2_display_backend.hpp"
+#include "sdl2_pixel_format.hpp"
 #include <SDL.h>
 #include <algorithm>
 
@@ -93,7 +94,7 @@ std::expected<void, DisplayError> SDL2DisplayBackend::flush_buffer(const hal::Fr
         if (m_ctx->texture) SDL_DestroyTexture(m_ctx->texture);
         m_ctx->texture = SDL_CreateTexture(
             m_ctx->renderer,
-            SDL_PIXELFORMAT_ARGB8888,
+            kFramebufferTextureFormat, // byte order R,G,B,A, matching the software surfaces on any endianness
             SDL_TEXTUREACCESS_STREAMING,
             static_cast<int>(buffer.width), static_cast<int>(buffer.height)
         );
