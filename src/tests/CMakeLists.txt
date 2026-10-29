@@ -70,6 +70,14 @@ add_executable(test_font_glyphs test_font_glyphs.cpp)
 target_include_directories(test_font_glyphs PRIVATE ${PROJECT_SOURCE_DIR}/include)
 target_link_libraries(test_font_glyphs PRIVATE vynex_core vynex_desktop vynex_hal)
 
+add_executable(test_utf8 test_utf8.cpp)
+target_include_directories(test_utf8 PRIVATE ${PROJECT_SOURCE_DIR}/include)
+target_link_libraries(test_utf8 PRIVATE vynex_desktop vynex_core)
+
+add_executable(test_font_face test_font_face.cpp)
+target_include_directories(test_font_face PRIVATE ${PROJECT_SOURCE_DIR}/include)
+target_link_libraries(test_font_face PRIVATE vynex_desktop vynex_core)
+
 # Frame-cost benchmark: built but deliberately not registered with CTest (it reports numbers, it does not assert).
 add_executable(bench_desktop_frame bench_desktop_frame.cpp)
 target_include_directories(bench_desktop_frame PRIVATE ${PROJECT_SOURCE_DIR}/include)
@@ -133,6 +141,8 @@ add_test(NAME InputDisplayTests COMMAND test_input_display)
 add_test(NAME FontGlyphTests COMMAND test_font_glyphs)
 add_test(NAME PainterTests COMMAND test_painter)
 add_test(NAME ThemeTests COMMAND test_theme)
+add_test(NAME Utf8Tests COMMAND test_utf8)
+add_test(NAME FontFaceTests COMMAND test_font_face ${PROJECT_SOURCE_DIR}/assets/fonts/inter)
 add_test(NAME VirtualPathTests COMMAND test_virtual_path)
 add_test(NAME VNodeTests COMMAND test_vnode)
 add_test(NAME MemoryFileHandleTests COMMAND test_memory_file_handle)
