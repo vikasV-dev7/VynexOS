@@ -34,9 +34,12 @@ CompositionRoot::CompositionRoot() {
     m_ipc_framework = std::make_shared<core::LocalIpcFramework>();
     
 #ifdef VYNEX_ENABLE_SDL2
-    m_display_backend = std::make_shared<desktop::SDL2DisplayBackend>(m_logger);
+    // The display backend owns the window geometry, so it also maps pointer coordinates
+    // from the window into the logical desktop space.
+    auto sdl_display = std::make_shared<desktop::SDL2DisplayBackend>(m_logger);
+    m_display_backend = sdl_display;
     m_compositor = std::make_shared<desktop::BasicCompositor>(m_display_backend, m_logger);
-    m_input_driver = std::make_shared<hal::SDL2InputDriver>(m_event_bus, m_logger);
+    m_input_driver = std::make_shared<hal::SDL2InputDriver>(m_event_bus, m_logger, sdl_display);
 #else
     m_display_backend = std::make_shared<desktop::MockDisplayBackend>(m_logger);
     m_compositor = std::make_shared<desktop::BasicCompositor>(m_display_backend, m_logger);

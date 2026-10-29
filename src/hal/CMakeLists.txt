@@ -6,6 +6,7 @@ set(HAL_SOURCES
     mock_block_device.cpp
     mock_hardware_clock.cpp
     library_loader_factory.cpp
+    viewport.cpp
 )
 
 if(VYNEX_ENABLE_SDL2)

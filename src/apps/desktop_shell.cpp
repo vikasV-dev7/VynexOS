@@ -16,6 +16,8 @@ DesktopShell::DesktopShell(std::shared_ptr<desktop::IWindowManager> wm,
       m_toolkit(std::move(toolkit)), m_decorator(std::move(decorator)), 
       m_taskbar(std::move(taskbar)), m_event_bus(std::move(event_bus)) {
       
+    m_display_size = m_compositor->logical_size();
+
     m_theme.active_title_color = {50, 100, 200, 255};
     m_theme.inactive_title_color = {100, 100, 100, 255};
     m_theme.border_color = {80, 80, 80, 255};
@@ -38,7 +40,7 @@ DesktopShell::DesktopShell(std::shared_ptr<desktop::IWindowManager> wm,
         }
     });
 
-    m_event_bus->subscribe("HAL_INPUT_MOUSE", [this](std::shared_ptr<const core::Event> ev) {
+    m_event_bus->subscribe(hal::kTopicInputMouse, [this](std::shared_ptr<const core::Event> ev) {
         if (ev->payload.type() == typeid(hal::MouseEvent)) {
             auto mouse_ev = std::any_cast<hal::MouseEvent>(ev->payload);
             
@@ -54,11 +56,14 @@ DesktopShell::DesktopShell(std::shared_ptr<desktop::IWindowManager> wm,
             m_last_mouse_state = mouse_ev.button_state;
             
             if (clicked) { // Click / Drag Candidate Creation
-                // Check if Vynex button bounds clicked: x in [10, 90], y in [1045, 1075]
-                if (mouse_ev.x >= 10 && mouse_ev.x <= 90 && mouse_ev.y >= 1045 && mouse_ev.y <= 1075) {
+                // Vynex launcher button, anchored to the taskbar at the bottom of the logical desktop.
+                const int32_t button_top = display_height() - kTaskbarHeight + kLauncherButtonY;
+                if (mouse_ev.x >= kLauncherButtonX && mouse_ev.x <= kLauncherButtonX + kLauncherButtonWidth &&
+                    mouse_ev.y >= button_top && mouse_ev.y <= button_top + kLauncherButtonHeight) {
                     std::lock_guard lock(m_mutex);
                     m_launcher_visible = !m_launcher_visible;
                     m_wm->set_window_visibility(m_launcher_id, m_launcher_visible);
+                    invalidate_window_region(m_launcher_id); // repaint: the compositor only redraws dirty regions
                     return; // Consumed by DesktopShell
                 }
                 
@@ -343,7 +348,7 @@ DesktopShell::DesktopShell(std::shared_ptr<desktop::IWindowManager> wm,
         }
     });
     
-    m_event_bus->subscribe("HAL_INPUT_KEYBOARD", [this](std::shared_ptr<const core::Event> ev) {
+    m_event_bus->subscribe(hal::kTopicInputKey, [this](std::shared_ptr<const core::Event> ev) {
         std::lock_guard lock(m_mutex);
         if (m_focused_window.has_value()) {
             for (auto& running_app : m_running_apps) {
@@ -357,10 +362,10 @@ DesktopShell::DesktopShell(std::shared_ptr<desktop::IWindowManager> wm,
 }
 
 void DesktopShell::launch() {
-    m_wm->set_work_area({0, 0, 1920, 1080 - 40});
+    m_wm->set_work_area({0, 0, m_display_size.width, m_display_size.height - kTaskbarHeight});
     
     // 1. Wallpaper (Fullscreen)
-    desktop::WindowGeometry wall_geom{0, 0, 1920, 1080};
+    desktop::WindowGeometry wall_geom{0, 0, m_display_size.width, m_display_size.height};
     m_wallpaper_id = m_wm->create_window("Wallpaper", wall_geom);
     
     m_wallpaper_surface = m_compositor->create_surface(wall_geom.width, wall_geom.height);
@@ -375,7 +380,7 @@ void DesktopShell::launch() {
     m_wm->set_window_surface(m_wallpaper_id, m_wallpaper_surface);
     
     // 2. Taskbar (Bottom panel)
-    desktop::WindowGeometry task_geom{0, 1080 - 40, 1920, 40};
+    desktop::WindowGeometry task_geom{0, display_height() - kTaskbarHeight, m_display_size.width, kTaskbarHeight};
     m_taskbar_id = m_wm->create_window("Taskbar", task_geom);
     
     m_taskbar_surface = m_compositor->create_surface(task_geom.width, task_geom.height);
@@ -385,7 +390,7 @@ void DesktopShell::launch() {
     m_wm->set_window_surface(m_taskbar_id, m_taskbar_surface);
     
     // 3. Launcher Window
-    desktop::WindowGeometry launcher_geom{10, 1080 - 40 - 400, 300, 400};
+    desktop::WindowGeometry launcher_geom{10, display_height() - kTaskbarHeight - 400, 300, 400};
     m_launcher_id = m_wm->create_window("Launcher", launcher_geom);
     
     m_launcher_surface = m_compositor->create_surface(launcher_geom.width, launcher_geom.height);
@@ -427,10 +432,10 @@ void DesktopShell::update_frame() {
         m_taskbar_surface->unmap_pixels();
         
         // Draw Taskbar using toolkit (native ISurface interface)
-        m_toolkit->draw_panel(m_taskbar_surface, 0, 0, 1920, 40);
-        m_toolkit->draw_button(m_taskbar_surface, 10, 5, 80, 30, "Vynex");
+        m_toolkit->draw_panel(m_taskbar_surface, 0, 0, m_display_size.width, kTaskbarHeight);
+        m_toolkit->draw_button(m_taskbar_surface, kLauncherButtonX, kLauncherButtonY, kLauncherButtonWidth, kLauncherButtonHeight, "Vynex");
         m_taskbar->draw(m_taskbar_surface);
-        m_toolkit->draw_text(m_taskbar_surface, 1850, 15, "12:00", desktop::Color{255, 255, 255, 255});
+        m_toolkit->draw_text(m_taskbar_surface, display_width() - 70, 15, "12:00", desktop::Color{255, 255, 255, 255});
         
         invalidate_window_region(m_taskbar_id);
     }
@@ -438,11 +443,11 @@ void DesktopShell::update_frame() {
     // Draw Notifications
     {
         std::lock_guard lock(m_mutex);
-        int32_t notif_y = 1080 - 45; // Start drawing above taskbar
+        int32_t notif_y = display_height() - kTaskbarHeight - 5; // Start drawing above taskbar
         for (const auto& notif : m_notifications) {
-            m_toolkit->draw_panel(m_wallpaper_surface, 1600, notif_y - 60, 300, 50);
-            m_toolkit->draw_text(m_wallpaper_surface, 1610, notif_y - 50, notif.title, desktop::Color{255, 255, 255, 255});
-            m_toolkit->draw_text(m_wallpaper_surface, 1610, notif_y - 30, notif.body, desktop::Color{200, 200, 200, 255});
+            m_toolkit->draw_panel(m_wallpaper_surface, display_width() - 320, notif_y - 60, 300, 50);
+            m_toolkit->draw_text(m_wallpaper_surface, display_width() - 310, notif_y - 50, notif.title, desktop::Color{255, 255, 255, 255});
+            m_toolkit->draw_text(m_wallpaper_surface, display_width() - 310, notif_y - 30, notif.body, desktop::Color{200, 200, 200, 255});
             notif_y -= 60;
         }
         

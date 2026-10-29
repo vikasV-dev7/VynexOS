@@ -1,6 +1,7 @@
 #include <iostream>
 #include <cassert>
 #include <memory>
+#include <string>
 #include "../apps/desktop_shell.hpp"
 #include "../desktop/basic_window_manager.hpp"
 #include "../desktop/basic_compositor.hpp"
@@ -113,13 +114,14 @@ public:
     bool rendered = false;
     bool shutdown_called = false;
     bool event_handled = false;
+    std::string last_topic;
     
     bool initialize() override { initialized = true; return true; }
     void start() override {}
     void update(double /*delta_time*/) override { updated = true; }
     void render(vynexos::desktop::ISurface& /*surface*/) override { rendered = true; }
     void shutdown() override { shutdown_called = true; }
-    bool handle_event(const vynexos::core::Event& /*event*/) override { event_handled = true; return true; }
+    bool handle_event(const vynexos::core::Event& event) override { event_handled = true; last_topic = event.topic; return true; }
     [[nodiscard]] std::string get_name() const noexcept override { return "MockApp"; }
 };
 
@@ -270,11 +272,29 @@ void test_focus_routing() {
     assert(shell.focused_window().value() == win_id);
     
     // Keyboard event should be routed to focused app
+    // The topic must be the exact one published by the real input drivers.
+    assert(std::string(hal::kTopicInputKey) == "HAL_INPUT_KEY");
+
+    // Earlier mouse clicks were also routed to the app; clear that state so the keyboard
+    // assertions below can only be satisfied by keyboard events.
+    app_ptr->event_handled = false;
+    app_ptr->last_topic.clear();
+
+    // A legacy/incorrect topic must not reach the application.
+    auto wrong_topic_ev = std::make_shared<core::Event>();
+    wrong_topic_ev->topic = "HAL_INPUT_KEYBOARD";
+    wrong_topic_ev->payload = hal::KeyEvent(65, true);
+    event_bus->publish(wrong_topic_ev);
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    assert(!app_ptr->event_handled);
+
     auto key_ev = std::make_shared<core::Event>();
-    key_ev->topic = "HAL_INPUT_KEYBOARD";
+    key_ev->topic = hal::kTopicInputKey;
+    key_ev->payload = hal::KeyEvent(65, true);
     event_bus->publish(key_ev);
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
     assert(app_ptr->event_handled);
+    assert(app_ptr->last_topic == hal::kTopicInputKey);
     app_ptr->event_handled = false; // Reset
     
     // Test that destroying focused application clears focus safely

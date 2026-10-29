@@ -17,6 +17,7 @@ public:
     std::shared_ptr<ISurface> create_surface(uint32_t width, uint32_t height) override;
     void invalidate_region(const Rect& rect) override;
     std::expected<void, DisplayError> render_frame(const SceneGraph& scene) override;
+    hal::DisplaySize logical_size() const override;
 
 private:
     std::shared_ptr<IDisplayAbstraction> m_display;

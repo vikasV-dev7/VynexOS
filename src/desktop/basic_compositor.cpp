@@ -9,6 +9,10 @@ namespace vynexos::desktop {
 BasicCompositor::BasicCompositor(std::shared_ptr<IDisplayAbstraction> display, std::shared_ptr<core::ILogger> logger)
     : m_display(std::move(display)), m_logger(std::move(logger)) {}
 
+hal::DisplaySize BasicCompositor::logical_size() const {
+    return m_display->logical_size();
+}
+
 std::shared_ptr<ISurface> BasicCompositor::create_surface(uint32_t width, uint32_t height) {
     return std::make_shared<SoftwareSurface>(width, height);
 }
@@ -25,8 +29,9 @@ std::expected<void, DisplayError> BasicCompositor::render_frame(const SceneGraph
 
 std::expected<void, DisplayError> BasicCompositor::render_scene_internal(const SceneGraph& scene) {
     if (m_master_fb.pixels.empty()) {
-        m_master_fb.width = 1920;
-        m_master_fb.height = 1080;
+        const auto size = m_display->logical_size();
+        m_master_fb.width = size.width;
+        m_master_fb.height = size.height;
         m_master_fb.pixels.resize(m_master_fb.width * m_master_fb.height * 4, static_cast<uint8_t>(0));
     }
     
@@ -36,7 +41,8 @@ std::expected<void, DisplayError> BasicCompositor::render_scene_internal(const S
     }
     
     if (m_dirty_regions.is_empty()) {
-        // Nothing to redraw
+        // Nothing to redraw; let the backend re-present if the host window changed.
+        m_display->refresh();
         return {};
     }
     

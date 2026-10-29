@@ -13,17 +13,17 @@ void MockInputDriver::poll() {
 void MockInputDriver::inject_key(uint32_t key_code, bool pressed) {
     m_logger->trace("MockInputDriver: Hardware IRQ - Key {} {}", key_code, pressed ? "PRESSED" : "RELEASED");
     auto ev = std::make_shared<core::Event>();
-    ev->topic = "HAL_INPUT_KEY";
+    ev->topic = kTopicInputKey;
     ev->payload = KeyEvent(key_code, pressed);
-    m_event_bus->publish(ev);
+    m_event_bus->dispatch_immediate(ev);
 }
 
 void MockInputDriver::inject_mouse(int32_t x, int32_t y, uint8_t button_state) {
     m_logger->trace("MockInputDriver: Hardware IRQ - Mouse at {},{} btn: {}", x, y, button_state);
     auto ev = std::make_shared<core::Event>();
-    ev->topic = "HAL_INPUT_MOUSE";
+    ev->topic = kTopicInputMouse;
     ev->payload = MouseEvent(x, y, button_state);
-    m_event_bus->publish(ev);
+    m_event_bus->dispatch_immediate(ev);
 }
 
 void MockInputDriver::inject_shutdown() {

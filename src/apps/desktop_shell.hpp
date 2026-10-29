@@ -49,6 +49,16 @@ private:
     void update_window_decoration(uint32_t window_id, bool focused);
     void invalidate_window_region(uint32_t window_id);
     
+    // Desktop layout derives from the compositor's logical size (no hard-coded resolution).
+    static constexpr int32_t kTaskbarHeight = 40;
+    static constexpr int32_t kLauncherButtonX = 10;
+    static constexpr int32_t kLauncherButtonY = 5;
+    static constexpr int32_t kLauncherButtonWidth = 80;
+    static constexpr int32_t kLauncherButtonHeight = 30;
+    hal::DisplaySize m_display_size{hal::kDefaultDisplaySize};
+    int32_t display_width() const { return static_cast<int32_t>(m_display_size.width); }
+    int32_t display_height() const { return static_cast<int32_t>(m_display_size.height); }
+
     uint32_t m_wallpaper_id{0};
     uint32_t m_taskbar_id{0};
     uint32_t m_launcher_id{0};

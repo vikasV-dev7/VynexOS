@@ -37,6 +37,16 @@ public:
         }
     }
 
+    void dispatch_immediate(std::shared_ptr<const Event> event) override {
+        std::shared_lock lock(m_sub_mutex);
+        auto it = m_subscribers.find(event->topic);
+        if (it != m_subscribers.end()) {
+            for (const auto& handler : it->second) {
+                handler(event);
+            }
+        }
+    }
+
 private:
     ITaskScheduler& m_scheduler;
     std::shared_mutex m_sub_mutex;

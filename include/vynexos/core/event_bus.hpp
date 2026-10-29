@@ -40,6 +40,19 @@ public:
      * @param event The event payload to dispatch.
      */
     virtual void publish(std::shared_ptr<const Event> event) = 0;
+
+    /**
+     * @brief Dispatches an event synchronously on the calling thread, in call order.
+     *
+     * Intended for latency- and order-sensitive UI input, which must be processed
+     * deterministically on the UI thread rather than on scheduler workers. Handlers run
+     * before this call returns, so successive calls from one thread are observed in order.
+     * The default implementation falls back to asynchronous publish() for buses that
+     * cannot dispatch inline.
+     */
+    virtual void dispatch_immediate(std::shared_ptr<const Event> event) {
+        publish(std::move(event));
+    }
     
     /**
      * @brief Registers a handler for a specific topic.

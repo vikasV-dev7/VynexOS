@@ -5,6 +5,11 @@
 
 namespace vynexos::hal {
 
+/// Event-bus topics published by input drivers. This is the single contract between
+/// drivers (publishers) and consumers (e.g. the desktop shell).
+inline constexpr const char* kTopicInputKey = "HAL_INPUT_KEY";
+inline constexpr const char* kTopicInputMouse = "HAL_INPUT_MOUSE";
+
 struct KeyEvent {
     uint32_t key_code;
     bool pressed;
