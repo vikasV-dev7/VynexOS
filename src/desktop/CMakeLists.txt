@@ -13,6 +13,7 @@ set(DESKTOP_SOURCES
     utf8.cpp
     font_face.cpp
     font_data.cpp
+    text_renderer.cpp
 )
 
 # Embed the Inter fonts (unmodified, hash-verified at configure time) into the executable as byte arrays.

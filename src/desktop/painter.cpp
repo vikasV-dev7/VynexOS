@@ -527,6 +527,25 @@ void Painter::fill_radial_gradient(float cx, float cy, float radius, Color inner
     }
 }
 
+void Painter::draw_coverage_mask(int32_t x, int32_t y, uint32_t width, uint32_t height, const uint8_t* coverage, size_t stride,
+                                 Color color) noexcept {
+    if (m_width == 0 || color.a == 0 || coverage == nullptr || width == 0 || height == 0 || stride < width) return;
+    // Beyond this the clamped box arithmetic in to_box() would no longer line up with the mask rows.
+    if (x < -kCoordLimit || x > kCoordLimit || y < -kCoordLimit || y > kCoordLimit) return;
+
+    const Target t = make_target(m_pixels.data(), m_width, m_height, clip_bounds());
+    const Box mask{x, y, static_cast<int32_t>(std::min<int64_t>(int64_t{x} + width, kCoordLimit)),
+                   static_cast<int32_t>(std::min<int64_t>(int64_t{y} + height, kCoordLimit))};
+    const Box vis = intersect(mask, t.clip);
+    for (int32_t row = vis.y0; row < vis.y1; ++row) {
+        const uint8_t* src = coverage + static_cast<size_t>(row - y) * stride + static_cast<size_t>(vis.x0 - x);
+        uint8_t* d = t.at(vis.x0, row);
+        for (int32_t col = vis.x0; col < vis.x1; ++col, ++src, d += 4) {
+            if (*src != 0) blend_px(d, color, *src);
+        }
+    }
+}
+
 void Painter::draw_shadow(const Rect& box, const CornerRadii& radii, const ShadowSpec& s, bool cut_out) noexcept {
     if (m_width == 0 || s.color.a == 0 || !finite(s.blur) || !finite(s.offset_x) || !finite(s.offset_y) || !finite(s.spread)) return;
     const Box b = to_box(box);

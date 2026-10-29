@@ -83,6 +83,14 @@ public:
     /// Composited over existing pixels, so an `outer` alpha of 0 produces a soft glow.
     void fill_radial_gradient(float cx, float cy, float radius, Color inner, Color outer, bool dither = true) noexcept;
 
+    // --- Masks (text) ---------------------------------------------------------------------------------
+    /// Blends `color` through an 8-bit coverage mask (a glyph bitmap, for instance) whose top-left pixel lands at
+    /// (x, y). `stride` is the byte distance between mask rows and must be >= `width`. The mask must hold
+    /// `(height - 1) * stride + width` bytes. Clipped like every other primitive; a null mask, an empty size, a
+    /// stride smaller than the width, or an origin beyond +-2^28 draws nothing.
+    void draw_coverage_mask(int32_t x, int32_t y, uint32_t width, uint32_t height, const uint8_t* coverage, size_t stride,
+                            Color color) noexcept;
+
     // --- Depth ----------------------------------------------------------------------------------------
     /// Soft shadow for a rounded box. With `cut_out` (default) the box interior is left untouched so a translucent
     /// window never shows a dark rectangle through itself. Cost is proportional to the shadow ring's area.

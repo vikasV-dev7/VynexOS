@@ -16,6 +16,9 @@
 #include <new>
 #include <string>
 #include <vector>
+#if defined(_MSC_VER)
+#include <crtdbg.h>
+#endif
 #include "../desktop/basic_widget_toolkit.hpp"
 #include "../desktop/software_surface.hpp"
 #include "vynexos/desktop/painter.hpp"
@@ -604,6 +607,139 @@ void test_clipping() {
 // ---------------------------------------------------------------------------------------------------------
 // Shadows
 // ---------------------------------------------------------------------------------------------------------
+// ---------------------------------------------------------------------------------------------------------
+// Coverage masks (glyph bitmaps)
+// ---------------------------------------------------------------------------------------------------------
+void test_coverage_mask() {
+    // Exact values: 0 leaves the pixel alone, 255 is the colour, in-between scales the alpha.
+    {
+        const uint8_t cov[6] = {0, 128, 255, 255, 0, 64};
+        SoftwareSurface s(6, 4);
+        { Painter p(s); p.draw_coverage_mask(1, 1, 3, 2, cov, 3, kWhite); }
+        assert(get(s, 1, 1) == (Px{0, 0, 0, 0}));
+        assert(get(s, 2, 1) == (Px{255, 255, 255, 128}));
+        assert(get(s, 3, 1) == (Px{255, 255, 255, 255}));
+        assert(get(s, 1, 2) == (Px{255, 255, 255, 255}));
+        assert(get(s, 2, 2) == (Px{0, 0, 0, 0}));
+        assert(get(s, 3, 2) == (Px{255, 255, 255, 64}));
+        assert(count_alpha_nonzero(s) == 4);
+    }
+    // A translucent colour multiplies with the coverage; onto an opaque background it blends.
+    {
+        const uint8_t cov[2] = {255, 128};
+        SoftwareSurface s(4, 2);
+        {
+            Painter p(s);
+            p.fill_rect({0, 0, 4, 2}, Color{0, 0, 255, 255});
+            p.draw_coverage_mask(0, 0, 2, 1, cov, 2, Color{255, 0, 0, 128});
+        }
+        const Px a = get(s, 0, 0);
+        const Px b = get(s, 1, 0);
+        assert(a.a == 255 && near(a.r, 128, 1) && near(a.b, 127, 1)); // alpha 128 over blue
+        assert(b.a == 255 && near(b.r, 64, 1) && near(b.b, 191, 1));  // alpha 64 over blue
+    }
+    // Stride larger than the width: the gap bytes are never read.
+    {
+        // 2 cells wide, stride 5, 2 rows. Real cells are 10,20 / 30,40; the gap bytes are 99 and must never be drawn.
+        const uint8_t cov[10] = {10, 20, 99, 99, 99, 30, 40, 99, 99, 99};
+        SoftwareSurface s(5, 3);
+        { Painter p(s); p.draw_coverage_mask(0, 0, 2, 2, cov, 5, kWhite); }
+        assert(alpha(s, 0, 0) == 10 && alpha(s, 1, 0) == 20 && alpha(s, 0, 1) == 30 && alpha(s, 1, 1) == 40);
+        assert(count_alpha_nonzero(s) == 4); // nothing from the gaps leaked in
+        assert(alpha(s, 2, 0) == 0 && alpha(s, 2, 1) == 0);
+    }
+    // Clipping to the surface (origin partly outside) and to the clip stack: rows and columns stay aligned.
+    {
+        const uint8_t cov[9] = {1, 2, 3, 4, 5, 6, 7, 8, 9};
+        SoftwareSurface s(4, 4);
+        { Painter p(s); p.draw_coverage_mask(-1, -1, 3, 3, cov, 3, kWhite); } // only mask cells (1,1)..(2,2) land on the surface
+        assert(alpha(s, 0, 0) == 5 && alpha(s, 1, 0) == 6 && alpha(s, 0, 1) == 8 && alpha(s, 1, 1) == 9);
+        assert(count_alpha_nonzero(s) == 4);
+
+        SoftwareSurface c(6, 6);
+        {
+            Painter p(c);
+            assert(p.push_clip({2, 2, 2, 2}));
+            p.draw_coverage_mask(0, 0, 6, 1, cov, 9, kWhite); // row outside the clip: nothing
+            const uint8_t big[16] = {200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200};
+            p.draw_coverage_mask(1, 1, 4, 4, big, 4, kWhite);
+        }
+        assert(count_alpha_nonzero(c) == 4);
+        assert(alpha(c, 2, 2) == 200 && alpha(c, 3, 3) == 200 && alpha(c, 1, 1) == 0 && alpha(c, 4, 4) == 0);
+    }
+    // Invalid arguments draw nothing.
+    {
+        const uint8_t cov[16] = {255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255};
+        SoftwareSurface s(8, 8);
+        {
+            Painter p(s);
+            p.draw_coverage_mask(0, 0, 4, 4, nullptr, 4, kWhite);
+            p.draw_coverage_mask(0, 0, 0, 4, cov, 4, kWhite);
+            p.draw_coverage_mask(0, 0, 4, 0, cov, 4, kWhite);
+            p.draw_coverage_mask(0, 0, 4, 4, cov, 3, kWhite);      // stride < width
+            p.draw_coverage_mask(0, 0, 4, 4, cov, 4, Color{255, 255, 255, 0});
+            p.draw_coverage_mask(std::numeric_limits<int32_t>::min(), 0, 4, 4, cov, 4, kWhite);
+            p.draw_coverage_mask(0, std::numeric_limits<int32_t>::max(), 4, 4, cov, 4, kWhite);
+            p.draw_coverage_mask(100, 100, 4, 4, cov, 4, kWhite);   // entirely off-surface
+        }
+        assert(count_alpha_nonzero(s) == 0);
+    }
+    // Randomised comparison against a reference built from the (already tested) fill_rect, with poison bytes in the
+    // stride gaps and after the mask: any over-read would put visible pixels where the reference has none.
+    {
+        uint64_t state = 0xBEEF;
+        auto next = [&] {
+            state = state * 6364136223846793005ULL + 1442695040888963407ULL;
+            return static_cast<unsigned>(state >> 33);
+        };
+        for (int iter = 0; iter < 500; ++iter) {
+            const int x = static_cast<int>(next() % 120) - 60;
+            const int y = static_cast<int>(next() % 120) - 60;
+            const uint32_t w = next() % 41;
+            const uint32_t h = next() % 41;
+            const size_t stride = w + next() % 11;
+            std::vector<uint8_t> mask(stride * (h > 0 ? h : 1) + 64, 255); // poison everywhere...
+            for (uint32_t r = 0; r < h; ++r) {
+                for (uint32_t c = 0; c < w; ++c) mask[r * stride + c] = static_cast<uint8_t>(next() % 5 == 0 ? 0 : next()); // ...except real cells
+            }
+            const Color color{static_cast<uint8_t>(next()), static_cast<uint8_t>(next()), static_cast<uint8_t>(next()), static_cast<uint8_t>(next() % 3 == 0 ? 255 : next())};
+            const bool use_clip = next() % 3 == 0;
+            const Rect clip{static_cast<int32_t>(next() % 60) - 10, static_cast<int32_t>(next() % 60) - 10, next() % 50, next() % 50};
+
+            SoftwareSurface actual(40, 40), expected(40, 40);
+            {
+                Painter pa(actual);
+                Painter pe(expected);
+                // Identical opaque backgrounds, so blending (not only coverage) is compared.
+                pa.fill_rect({0, 0, 40, 40}, Color{20, 40, 60, 255});
+                pe.fill_rect({0, 0, 40, 40}, Color{20, 40, 60, 255});
+                if (use_clip) {
+                    pa.push_clip(clip);
+                    pe.push_clip(clip);
+                }
+                pa.draw_coverage_mask(x, y, w, h, mask.data(), stride, color);
+                for (uint32_t r = 0; r < h; ++r) {
+                    for (uint32_t c = 0; c < w; ++c) {
+                        const unsigned cov = mask[r * stride + c];
+                        if (cov == 0) continue;
+                        const unsigned a = cov == 255 ? color.a : (color.a * cov + 127) / 255;
+                        pe.fill_rect({x + static_cast<int>(c), y + static_cast<int>(r), 1, 1}, Color{color.r, color.g, color.b, static_cast<uint8_t>(a)});
+                    }
+                }
+            }
+            // Every byte of every pixel must agree (blending rounding is the same code path, so +-1 is generous).
+            const auto pa = actual.map_pixels();
+            const auto pe = expected.map_pixels();
+            bool same = pa.size() == pe.size();
+            for (size_t i = 0; same && i < pa.size(); ++i) same = std::abs(int{pa[i]} - int{pe[i]}) <= 1;
+            actual.unmap_pixels();
+            expected.unmap_pixels();
+            assert(same);
+        }
+    }
+    std::cout << "test_coverage_mask passed\n";
+}
+
 void test_shadow() {
     const ShadowSpec spec{12.0f, 0.0f, 6.0f, 0.0f, Color{0, 0, 0, 200}};
     const Rect box{30, 30, 60, 40};
@@ -928,6 +1064,15 @@ void test_legacy_toolkit_fallbacks() {
 } // namespace
 
 int main() {
+#if defined(_MSC_VER)
+    // A failed assertion must print and exit, never open a modal dialog that would hang an unattended run.
+    _set_error_mode(_OUT_TO_STDERR);
+    _set_abort_behavior(0, _WRITE_ABORT_MSG | _CALL_REPORTFAULT);
+    _CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_FILE);
+    _CrtSetReportFile(_CRT_ASSERT, _CRTDBG_FILE_STDERR);
+    _CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_FILE);
+    _CrtSetReportFile(_CRT_ERROR, _CRTDBG_FILE_STDERR);
+#endif
     std::cout << std::unitbuf;
     std::cout << "Running Painter Tests...\n";
     test_fill_rect_exact();
@@ -949,6 +1094,7 @@ int main() {
     test_rounded_gradient();
     test_radial_gradient();
     test_clipping();
+    test_coverage_mask();
     test_shadow();
     test_bounds_safety_fuzz();
     test_no_heap_allocation_while_drawing();

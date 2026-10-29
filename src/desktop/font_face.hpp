@@ -51,6 +51,9 @@ public:
     // laid out with plain advance widths (Inter's designed default spacing). A GPOS reader would be a separate,
     // reviewed change; see text_charset.hpp / the Stage 2 notes.
 
+    /// Top of the glyph's outline above the baseline in font units (e.g. the cap height for 'H'); 0 for empty glyphs.
+    [[nodiscard]] int glyph_top_units(int glyph) const noexcept;
+
     /// Bounding box of the rendered glyph in pixels, relative to the glyph origin on the baseline (y grows down).
     /// Empty glyphs (space) yield x1 <= x0 or y1 <= y0.
     struct GlyphBox {

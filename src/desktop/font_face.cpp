@@ -137,6 +137,15 @@ int FontFace::advance_units(int glyph) const noexcept {
     return advance;
 }
 
+int FontFace::glyph_top_units(int glyph) const noexcept {
+    int x0 = 0;
+    int y0 = 0;
+    int x1 = 0;
+    int y1 = 0;
+    if (stbtt_GetGlyphBox(&m_impl->info, glyph, &x0, &y0, &x1, &y1) == 0) return 0;
+    return y1;
+}
+
 FontFace::GlyphBox FontFace::glyph_box(int glyph, float scale) const noexcept {
     GlyphBox b{0, 0, 0, 0};
     stbtt_GetGlyphBitmapBox(&m_impl->info, glyph, scale, scale, &b.x0, &b.y0, &b.x1, &b.y1);
