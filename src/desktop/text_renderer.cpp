@@ -98,8 +98,12 @@ struct TextRenderer::Impl {
     static void draw_glyph(Painter& painter, const Strike& s, const Glyph& g, double pen_x, int32_t baseline_y, Color color) noexcept {
         if (g.w == 0 || g.h == 0) return;
         if (!(std::fabs(pen_x) < 1.0e8)) return; // also rejects NaN/inf
-        const int32_t gx = static_cast<int32_t>(std::floor(pen_x + 0.5)) + g.x0;
-        painter.draw_coverage_mask(gx, baseline_y + g.y0, g.w, g.h, s.coverage.data() + g.offset, g.w, color);
+        // 64-bit arithmetic so extreme coordinates cannot overflow; the Painter ignores anything beyond +-2^28 anyway.
+        const int64_t gx = static_cast<int64_t>(std::floor(pen_x + 0.5)) + g.x0;
+        const int64_t gy = int64_t{baseline_y} + g.y0;
+        constexpr int64_t kLimit = int64_t{1} << 28;
+        if (gx < -kLimit || gx > kLimit || gy < -kLimit || gy > kLimit) return;
+        painter.draw_coverage_mask(static_cast<int32_t>(gx), static_cast<int32_t>(gy), g.w, g.h, s.coverage.data() + g.offset, g.w, color);
     }
 };
 
@@ -183,6 +187,11 @@ std::unique_ptr<TextRenderer> TextRenderer::create(const TypographyTokens& token
         impl->strikes.push_back(std::move(strike));
     }
     return std::unique_ptr<TextRenderer>(new TextRenderer(std::move(impl)));
+}
+
+const TextRenderer* TextRenderer::shared_default() {
+    static const std::unique_ptr<TextRenderer> instance = TextRenderer::create();
+    return instance.get();
 }
 
 TextMetrics TextRenderer::measure(std::string_view utf8, const TextStyle& style) const noexcept {

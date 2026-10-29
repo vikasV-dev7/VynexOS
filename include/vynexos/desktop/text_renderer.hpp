@@ -61,6 +61,11 @@ public:
     [[nodiscard]] static std::unique_ptr<TextRenderer> create(const TypographyTokens& tokens = default_theme().type,
                                                               const TextRendererOptions& options = {});
 
+    /// The process-wide renderer for the default theme's typography, built on first call (thread-safe) and then shared:
+    /// the atlas is only a few hundred kilobytes and immutable, so every toolkit instance can use the same one.
+    /// Call it during start-up so the one-time build never lands inside a frame. Null if construction failed.
+    [[nodiscard]] static const TextRenderer* shared_default();
+
     [[nodiscard]] TextMetrics measure(std::string_view utf8, const TextStyle& style) const noexcept;
     [[nodiscard]] FontMetrics font_metrics(const TextStyle& style) const noexcept;
 

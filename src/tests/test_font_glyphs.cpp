@@ -22,7 +22,7 @@ using Bitmap = std::array<std::string, 8>; // 8 rows of '#' / '.'
 // Renders one character through the real toolkit path onto a transparent 8x8 surface.
 Bitmap render_glyph(BasicWidgetToolkit& toolkit, char c) {
     auto surface = std::make_shared<SoftwareSurface>(8, 8);
-    toolkit.draw_text(surface, 0, 0, std::string(1, c), Color{255, 255, 255, 255});
+    toolkit.draw_text_bitmap(surface, 0, 0, std::string(1, c), Color{255, 255, 255, 255});
     auto px = surface->map_pixels();
     Bitmap bm;
     for (int row = 0; row < 8; ++row) {
@@ -57,7 +57,7 @@ bool is_blank(const Bitmap& bm) {
 void print_text_dump(BasicWidgetToolkit& toolkit, const std::string& text) {
     const auto w = static_cast<uint32_t>(text.size() * 8);
     auto surface = std::make_shared<SoftwareSurface>(w, 8);
-    toolkit.draw_text(surface, 0, 0, text, Color{255, 255, 255, 255});
+    toolkit.draw_text_bitmap(surface, 0, 0, text, Color{255, 255, 255, 255});
     auto px = surface->map_pixels();
     std::cout << "  \"" << text << "\" rendered at 1:1:\n";
     for (uint32_t row = 0; row < 8; ++row) {
@@ -150,7 +150,7 @@ void test_text_advance_and_clipping() {
     BasicWidgetToolkit toolkit;
     // Fixed 8px advance: "AA" must equal two 'A' glyphs side by side.
     auto surface = std::make_shared<SoftwareSurface>(16, 8);
-    toolkit.draw_text(surface, 0, 0, "AA", Color{255, 255, 255, 255});
+    toolkit.draw_text_bitmap(surface, 0, 0, "AA", Color{255, 255, 255, 255});
     auto px = surface->map_pixels();
     const auto a = render_glyph(toolkit, 'A');
     for (int row = 0; row < 8; ++row) {
@@ -164,8 +164,8 @@ void test_text_advance_and_clipping() {
 
     // Drawing partly or fully outside the surface must not crash or corrupt memory.
     auto small = std::make_shared<SoftwareSurface>(4, 4);
-    toolkit.draw_text(small, -6, -6, "Hello", Color{255, 255, 255, 255});
-    toolkit.draw_text(small, 100, 100, "Hello", Color{255, 255, 255, 255});
+    toolkit.draw_text_bitmap(small, -6, -6, "Hello", Color{255, 255, 255, 255});
+    toolkit.draw_text_bitmap(small, 100, 100, "Hello", Color{255, 255, 255, 255});
     std::cout << "test_text_advance_and_clipping passed\n";
 }
 

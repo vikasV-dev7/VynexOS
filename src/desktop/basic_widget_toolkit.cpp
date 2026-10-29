@@ -3,6 +3,7 @@
 #include "vynexos/desktop/painter.hpp"
 #include "font8x8_basic.h"
 #include <algorithm>
+#include <cmath>
 
 namespace vynexos::desktop {
 
@@ -77,12 +78,66 @@ void BasicWidgetToolkit::draw_char(std::shared_ptr<ISurface> surface, int32_t x,
     surface->unmap_pixels();
 }
 
-void BasicWidgetToolkit::draw_text(std::shared_ptr<ISurface> surface, int32_t x, int32_t y, std::string_view text, Color color) {
+void BasicWidgetToolkit::draw_text_bitmap(std::shared_ptr<ISurface> surface, int32_t x, int32_t y, std::string_view text, Color color) {
     int32_t cursor_x = x;
     for (char c : text) {
         draw_char(surface, cursor_x, y, c, color);
         cursor_x += 8; // fixed width
     }
+}
+
+BasicWidgetToolkit::BasicWidgetToolkit() : BasicWidgetToolkit(TextRenderer::shared_default()) {}
+
+BasicWidgetToolkit::BasicWidgetToolkit(const TextRenderer* text_renderer) : m_text(text_renderer) {
+    if (m_text != nullptr) {
+        // Legacy draw_text() callers pass the TOP of an 8 px glyph cell. Keep their layout meaningful by centring the
+        // capitals of the body style inside that cell: baseline = top + (cell + cap_height) / 2.
+        const FontMetrics fm = m_text->font_metrics(default_theme().type.body);
+        m_legacy_baseline_offset = static_cast<int32_t>(std::lround((8.0f + fm.cap_height) * 0.5f));
+    }
+}
+
+void BasicWidgetToolkit::draw_text(std::shared_ptr<ISurface> surface, int32_t x, int32_t y, std::string_view text, Color color) {
+    if (!surface) return;
+    if (m_text == nullptr) {
+        draw_text_bitmap(std::move(surface), x, y, text, color); // no font engine: the original 8x8 renderer
+        return;
+    }
+    Painter painter(*surface);
+    const int64_t baseline = int64_t{y} + m_legacy_baseline_offset; // 64-bit: y may be extreme
+    m_text->draw(painter, static_cast<float>(x), static_cast<int32_t>(std::clamp<int64_t>(baseline, INT32_MIN, INT32_MAX)), text,
+                 default_theme().type.body, color);
+}
+
+void BasicWidgetToolkit::draw_text_styled(std::shared_ptr<ISurface> surface, int32_t x, int32_t baseline_y, std::string_view utf8,
+                                          const TextStyle& style, Color color) {
+    if (!surface) return;
+    if (m_text == nullptr) {
+        IWidgetToolkit::draw_text_styled(std::move(surface), x, baseline_y, utf8, style, color);
+        return;
+    }
+    Painter painter(*surface);
+    m_text->draw(painter, static_cast<float>(x), baseline_y, utf8, style, color);
+}
+
+TextMetrics BasicWidgetToolkit::measure_text(std::string_view utf8, const TextStyle& style) const {
+    return m_text != nullptr ? m_text->measure(utf8, style) : IWidgetToolkit::measure_text(utf8, style);
+}
+
+FontMetrics BasicWidgetToolkit::font_metrics(const TextStyle& style) const {
+    return m_text != nullptr ? m_text->font_metrics(style) : IWidgetToolkit::font_metrics(style);
+}
+
+size_t BasicWidgetToolkit::fit_text_prefix(std::string_view utf8, const TextStyle& style, float max_width) const {
+    return m_text != nullptr ? m_text->fit_prefix(utf8, style, max_width) : IWidgetToolkit::fit_text_prefix(utf8, style, max_width);
+}
+
+float BasicWidgetToolkit::draw_text_ellipsized(std::shared_ptr<ISurface> surface, int32_t x, int32_t baseline_y, std::string_view utf8,
+                                               const TextStyle& style, Color color, float max_width) {
+    if (!surface) return 0.0f;
+    if (m_text == nullptr) return IWidgetToolkit::draw_text_ellipsized(std::move(surface), x, baseline_y, utf8, style, color, max_width);
+    Painter painter(*surface);
+    return m_text->draw_ellipsized(painter, static_cast<float>(x), baseline_y, utf8, style, color, max_width);
 }
 
 void BasicWidgetToolkit::draw_button(std::shared_ptr<ISurface> surface, int32_t x, int32_t y, uint32_t width, uint32_t height, std::string_view label) {

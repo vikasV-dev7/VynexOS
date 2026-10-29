@@ -7,7 +7,10 @@
 //   drag        a window is dragged through the real shell input path
 //
 // Usage: bench_desktop_frame [--frames N] [--sdl] [--micro-only]
+//        bench_desktop_frame --dump <file.bmp> [--bitmap-text] [--focus-explorer] [--open-launcher]
 //   --micro-only  skip the desktop scenarios and only run the drawing-primitive micro-benchmarks
+//   --dump        render the desktop headlessly and write the compositor's exact output frame (1920x1080) as a BMP;
+//                 --bitmap-text renders it with the legacy 8x8 font for a before/after comparison
 //   --sdl  presents through the real SDL2 backend (opens a window; presentation is vsync-paced,
 //          so the "render" phase then includes waiting for vertical sync).
 #include <algorithm>
@@ -34,6 +37,7 @@
 #include "../desktop/mock_display_backend.hpp"
 #include "../desktop/software_surface.hpp"
 #include "vynexos/desktop/painter.hpp"
+#include "vynexos/desktop/text_renderer.hpp"
 #include "vynexos/desktop/theme.hpp"
 #ifdef VYNEX_ENABLE_SDL2
 #include "../desktop/sdl2_display_backend.hpp"
@@ -149,6 +153,79 @@ void run_micro_benchmarks() {
         desktop::Painter p(*window);
         for (int i = 0; i < 20; ++i) p.draw_shadow({100, 50 + (i % 300), 120, 36}, desktop::CornerRadii::uniform(8.0f), desktop::default_theme().elevation.control);
     }));
+
+    // Typography (Stage 2). draw_text now goes through the anti-aliased renderer; the 8x8 bitmap path is kept for comparison.
+    const char* line = "The quick brown fox jumps over it";
+    row("toolkit.draw_text_bitmap 32 chars x100 (legacy 8x8)", time_ms(20, [&] {
+        for (int i = 0; i < 100; ++i) toolkit.draw_text_bitmap(window, 10, 10 + (i % 400), line, opaque);
+    }));
+    const desktop::TextRenderer* text = desktop::TextRenderer::shared_default();
+    const desktop::TextStyle body = desktop::default_theme().type.body;
+    if (text != nullptr) {
+        row("TextRenderer::draw 32 chars x100 (body 14px)", time_ms(20, [&] {
+            desktop::Painter p(*window);
+            for (int i = 0; i < 100; ++i) text->draw(p, 10.0f, 24 + (i % 400), line, body, opaque);
+        }));
+        row("TextRenderer::draw 32 chars x100 (display 32px)", time_ms(20, [&] {
+            desktop::Painter p(*window);
+            for (int i = 0; i < 100; ++i) text->draw(p, 10.0f, 40 + (i % 400), "Settings", desktop::default_theme().type.display, opaque);
+        }));
+        float sink = 0.0f;
+        row("TextRenderer::measure 32 chars x1000", time_ms(50, [&] {
+            for (int i = 0; i < 1000; ++i) sink += text->measure(line, body).width;
+        }));
+        row("TextRenderer::draw_ellipsized 60 chars to 200px x100", time_ms(20, [&] {
+            desktop::Painter p(*window);
+            for (int i = 0; i < 100; ++i) text->draw_ellipsized(p, 10.0f, 24 + (i % 400), "A fairly long label that will not fit into the box", body, opaque, 200.0f);
+        }));
+        if (sink < 0.0f) std::printf("%f\n", static_cast<double>(sink)); // keep the loop observable
+        row("TextRenderer::create (glyph atlas build, ONE-TIME at startup)", time_ms(5, [&] { auto r = desktop::TextRenderer::create(); (void)r; }));
+        std::printf("    %-52s %10zu bytes\n", "glyph atlas coverage data", text->atlas_bytes());
+    }
+}
+
+// Display that keeps the last composited frame, so the exact pixels the compositor produces can be written to disk.
+// This is independent of any OS window, focus or GPU state, which makes it suitable for repeatable visual review.
+class CapturingDisplay final : public desktop::IDisplayAbstraction {
+public:
+    std::expected<void, desktop::DisplayError> initialize() override { return {}; }
+    std::expected<void, desktop::DisplayError> flush_buffer(const hal::FrameBuffer& buffer) override {
+        last = buffer;
+        return {};
+    }
+    void shutdown() override {}
+    hal::FrameBuffer last{0, 0, {}};
+};
+
+// Writes a frame as an uncompressed 24-bit BMP (readable by every image viewer; no dependencies).
+bool write_bmp(const char* path, const hal::FrameBuffer& fb) {
+    if (fb.width == 0 || fb.height == 0 || fb.pixels.size() < static_cast<size_t>(fb.width) * fb.height * 4) return false;
+    std::FILE* f = std::fopen(path, "wb");
+    if (!f) return false;
+    const uint32_t row_bytes = (fb.width * 3 + 3) & ~3u;
+    const uint32_t image_bytes = row_bytes * fb.height;
+    unsigned char header[54] = {'B', 'M'};
+    auto put32 = [&](size_t at, uint32_t v) { for (int i = 0; i < 4; ++i) header[at + static_cast<size_t>(i)] = static_cast<unsigned char>(v >> (8 * i)); };
+    put32(2, 54 + image_bytes);
+    put32(10, 54);
+    put32(14, 40);
+    put32(18, fb.width);
+    put32(22, fb.height);
+    header[26] = 1;
+    header[28] = 24;
+    put32(34, image_bytes);
+    std::fwrite(header, 1, sizeof header, f);
+    std::vector<unsigned char> row(row_bytes, 0);
+    for (uint32_t y = fb.height; y > 0; --y) { // BMP stores rows bottom-up
+        const unsigned char* src = fb.pixels.data() + static_cast<size_t>(y - 1) * fb.width * 4;
+        for (uint32_t x = 0; x < fb.width; ++x) {
+            row[x * 3 + 0] = src[x * 4 + 2]; // B
+            row[x * 3 + 1] = src[x * 4 + 1]; // G
+            row[x * 3 + 2] = src[x * 4 + 0]; // R
+        }
+        std::fwrite(row.data(), 1, row.size(), f);
+    }
+    return std::fclose(f) == 0;
 }
 
 } // namespace
@@ -157,10 +234,18 @@ int main(int argc, char** argv) {
     int frames = 600;
     bool use_sdl = false;
     bool micro_only = false;
+    const char* dump_path = nullptr;  // --dump <file.bmp>: write one composited frame and exit
+    bool bitmap_text = false;         // --bitmap-text: use the legacy 8x8 font (the pre-Stage-2 look) for a before/after
+    bool focus_explorer = false;      // --focus-explorer: click the Explorer title bar first (active title bar)
+    bool open_launcher = false;       // --open-launcher: click the Vynex button first
     for (int i = 1; i < argc; ++i) {
         if (std::strcmp(argv[i], "--micro-only") == 0) micro_only = true;
         if (std::strcmp(argv[i], "--frames") == 0 && i + 1 < argc) frames = std::atoi(argv[++i]);
         if (std::strcmp(argv[i], "--sdl") == 0) use_sdl = true;
+        if (std::strcmp(argv[i], "--dump") == 0 && i + 1 < argc) dump_path = argv[++i];
+        if (std::strcmp(argv[i], "--bitmap-text") == 0) bitmap_text = true;
+        if (std::strcmp(argv[i], "--focus-explorer") == 0) focus_explorer = true;
+        if (std::strcmp(argv[i], "--open-launcher") == 0) open_launcher = true;
     }
 
 #ifdef NDEBUG
@@ -178,7 +263,10 @@ int main(int argc, char** argv) {
     auto bus = std::make_shared<core::InMemoryEventBus>(scheduler);
 
     std::shared_ptr<desktop::IDisplayAbstraction> display;
-    if (use_sdl) {
+    auto capture = std::make_shared<CapturingDisplay>();
+    if (dump_path != nullptr) {
+        display = capture;
+    } else if (use_sdl) {
 #ifdef VYNEX_ENABLE_SDL2
         auto sdl = std::make_shared<desktop::SDL2DisplayBackend>(logger);
         if (!sdl->initialize()) {
@@ -198,7 +286,7 @@ int main(int argc, char** argv) {
 
     auto compositor = std::make_shared<desktop::BasicCompositor>(display, logger);
     auto wm = std::make_shared<desktop::BasicWindowManager>(bus, logger);
-    auto toolkit = std::make_shared<desktop::BasicWidgetToolkit>();
+    auto toolkit = bitmap_text ? std::make_shared<desktop::BasicWidgetToolkit>(nullptr) : std::make_shared<desktop::BasicWidgetToolkit>();
     auto decorator = std::make_shared<desktop::BasicWindowDecorator>(toolkit);
     auto taskbar = std::make_shared<desktop::BasicTaskbar>(toolkit);
     auto shell = std::make_shared<apps::DesktopShell>(wm, compositor, toolkit, decorator, taskbar, bus);
@@ -267,6 +355,24 @@ int main(int argc, char** argv) {
 
     Phases warm;
     for (int i = 0; i < 30; ++i) run_frame(warm); // warm-up; first frame is a full redraw
+
+    if (dump_path != nullptr) {
+        // Same real input path as a user: dispatch the clicks, then let a few frames settle before capturing.
+        auto click = [&](int32_t x, int32_t y) {
+            mouse(x, y, 1);
+            mouse(x, y, 0);
+            for (int i = 0; i < 5; ++i) run_frame(warm);
+        };
+        if (open_launcher) click(50, 1060);
+        if (focus_explorer) click(500, 180);
+        for (int i = 0; i < 10; ++i) run_frame(warm);
+        if (!write_bmp(dump_path, capture->last)) {
+            std::fprintf(stderr, "failed to write %s\n", dump_path);
+            return 1;
+        }
+        std::printf("Wrote %ux%u frame (%s text) to %s\n", capture->last.width, capture->last.height, bitmap_text ? "legacy 8x8" : "Inter", dump_path);
+        return 0;
+    }
 
     // 1. idle
     {
