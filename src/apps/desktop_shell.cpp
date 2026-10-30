@@ -1,6 +1,7 @@
 #include "desktop_shell.hpp"
 #include "vynexos/desktop/decoration_layout.hpp"
 #include "vynexos/hal/input_driver.hpp"
+#include <algorithm>
 
 namespace vynexos::apps {
 
@@ -18,11 +19,7 @@ DesktopShell::DesktopShell(std::shared_ptr<desktop::IWindowManager> wm,
       
     m_display_size = m_compositor->logical_size();
 
-    m_theme.active_title_color = {50, 100, 200, 255};
-    m_theme.inactive_title_color = {100, 100, 100, 255};
-    m_theme.border_color = {80, 80, 80, 255};
-    m_theme.background_color = {255, 255, 255, 255};
-    m_theme.text_color = {255, 255, 255, 255};
+    m_theme = desktop::to_window_theme(m_toolkit->theme());
       
     m_event_bus->subscribe("notification_show", [this](std::shared_ptr<const core::Event> ev) {
         if (ev->payload.type() == typeid(desktop::Notification)) {
@@ -396,6 +393,10 @@ void DesktopShell::launch() {
     m_launcher_surface = m_compositor->create_surface(launcher_geom.width, launcher_geom.height);
     m_wm->set_window_surface(m_launcher_id, m_launcher_surface);
     m_wm->set_window_visibility(m_launcher_id, false);
+
+    m_wm->set_window_layer(m_wallpaper_id, desktop::WindowLayer::Desktop);
+    m_wm->set_window_layer(m_taskbar_id, desktop::WindowLayer::Panel);
+    m_wm->set_window_layer(m_launcher_id, desktop::WindowLayer::Overlay);
 }
 
 void DesktopShell::update_frame() {
@@ -408,11 +409,16 @@ void DesktopShell::update_frame() {
         auto active_win = m_wm->get_active_window();
         auto snapshots = m_wm->get_window_snapshots();
         
+        std::vector<uint32_t> live_windows;
+        live_windows.reserve(snapshots.size());
         for (const auto& snap : snapshots) {
             if (snap.window_id == m_wallpaper_id || snap.window_id == m_taskbar_id || snap.window_id == m_launcher_id) {
                 continue;
             }
-            
+
+            live_windows.push_back(snap.window_id);
+            sync_window_chrome(snap);
+
             desktop::TaskbarEntry entry;
             entry.window_id = snap.window_id;
             entry.title = snap.title;
@@ -422,6 +428,9 @@ void DesktopShell::update_frame() {
             entries.push_back(std::move(entry));
         }
         taskbar_changed = m_taskbar->synchronize(entries);
+
+        std::lock_guard lock(m_mutex);
+        std::erase_if(m_chrome, [&](const auto& item) { return std::find(live_windows.begin(), live_windows.end(), item.first) == live_windows.end(); });
     }
     
     if (taskbar_changed || !m_first_frame_drawn) {
@@ -576,40 +585,58 @@ bool DesktopShell::has_focus() const {
 }
 
 void DesktopShell::update_window_decoration(uint32_t window_id, bool focused) {
-    auto bounds = m_wm->get_decorated_window_bounds(window_id);
+    // The decorator owns the frame geometry. Applying it first matters: the decorated bounds depend on the margins.
+    m_wm->set_window_frame_styles(window_id, m_decorator->frame_style(desktop::WindowState::Normal),
+                                  m_decorator->frame_style(desktop::WindowState::Maximized));
+
+    const auto bounds = m_wm->get_decorated_window_bounds(window_id);
     if (bounds.width == 0 || bounds.height == 0) return;
 
-    std::string title = "Window";
-    {
-        std::lock_guard lock(m_mutex);
-        for (const auto& app : m_running_apps) {
-            if (app.window_id == window_id && app.app) {
-                // If application exposes a title, use it. Defaulting for now.
-                // In future, IApplication should expose get_title()
-                title = "Application"; 
-                break;
-            }
-        }
+    // The title always comes from the window manager; the fallback only covers a window that has none.
+    std::string title = m_wm->get_window_title(window_id);
+    if (title.empty()) title = "Untitled";
+    const auto state = m_wm->get_window_state(window_id);
+
+    desktop::Rect client = bounds;
+    if (auto client_geom = m_wm->get_window_geometry(window_id)) {
+        client = {client_geom->x, client_geom->y, client_geom->width, client_geom->height};
     }
 
+    // Hit-testing in the window manager uses this same style, so what is drawn is what is clickable.
+    const desktop::FrameStyle style = m_wm->get_window_frame_style(window_id);
+    const desktop::DecorationLayout layout = desktop::calculate_decoration_layout(desktop::make_frame_metrics(style, bounds, client));
+
     auto dec_surface = m_compositor->create_surface(bounds.width, bounds.height);
-    
-    desktop::WindowFrameMetrics metrics;
-    metrics.decorated_bounds = bounds;
-    // DesktopShell doesn't strictly need client_bounds right here for layout generation 
-    // unless the layout engine relies on it. But we can fetch it to be thorough.
-    if (auto client_geom = m_wm->get_window_geometry(window_id)) {
-        metrics.client_bounds = {client_geom->x, client_geom->y, client_geom->width, client_geom->height};
-    } else {
-        metrics.client_bounds = bounds;
+    desktop::DecorationVisualState visual;
+    visual.focused = focused;
+    visual.state = state;
+    m_decorator->draw_decorations(dec_surface, layout, title, visual, m_theme);
+    m_wm->set_window_decoration(window_id, dec_surface, style.margins);
+
+    {
+        std::lock_guard lock(m_mutex);
+        m_chrome[window_id] = ChromeStamp{focused, state, bounds.width, bounds.height, std::move(title)};
     }
-    metrics.margins = m_decorator->get_margins();
-    
-    desktop::DecorationLayout layout = desktop::calculate_decoration_layout(metrics);
-    
-    m_decorator->draw_decorations(dec_surface, layout, title, focused, m_wm->get_window_state(window_id), m_theme);
-    m_wm->set_window_decoration(window_id, dec_surface, m_decorator->get_margins());
     invalidate_window_region(window_id);
+}
+
+void DesktopShell::sync_window_chrome(const desktop::WindowSnapshot& snapshot) {
+    if (snapshot.state == desktop::WindowState::Minimized) return; // nothing is shown; redrawn when restored
+
+    bool focused = false;
+    bool up_to_date = false;
+    {
+        std::lock_guard lock(m_mutex);
+        focused = m_focused_window.has_value() && m_focused_window.value() == snapshot.window_id;
+        if (const auto it = m_chrome.find(snapshot.window_id); it != m_chrome.end()) {
+            const auto& stamp = it->second;
+            const auto bounds = m_wm->get_decorated_window_bounds(snapshot.window_id);
+            const std::string_view title = snapshot.title.empty() ? std::string_view{"Untitled"} : std::string_view{snapshot.title};
+            up_to_date = stamp.focused == focused && stamp.state == snapshot.state && stamp.width == bounds.width &&
+                         stamp.height == bounds.height && stamp.title == title;
+        }
+    }
+    if (!up_to_date) update_window_decoration(snapshot.window_id, focused);
 }
 
 void DesktopShell::invalidate_window_region(uint32_t window_id) {

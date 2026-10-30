@@ -60,6 +60,33 @@ public:
 
     // Scene Orchestration
     virtual SceneGraph build_scene() const = 0;
+
+    // Frame geometry (non-pure: implementations without chrome keep the original behaviour).
+    //
+    // A window's frame style describes its margins and resize band for each state. Setting styles makes the window
+    // manager use the NORMAL style's margins immediately and switch to the MAXIMIZED style's margins while the window is
+    // maximized (so a maximized window can sit flush with the work area, with no borders or resize band).
+    virtual void set_window_frame_styles(uint32_t window_id, const FrameStyle& normal, const FrameStyle& maximized) {
+        (void)window_id;
+        (void)normal;
+        (void)maximized;
+    }
+    /// The frame style currently in effect for the window (the style of its present state), margins included.
+    [[nodiscard]] virtual FrameStyle get_window_frame_style(uint32_t window_id) const {
+        (void)window_id;
+        return FrameStyle{};
+    }
+
+    // Stacking class. In hit-testing, Desktop windows (the wallpaper) never take priority over the invisible resize band
+    // of an ordinary window, so windows can be resized from just outside their edge over an empty desktop.
+    virtual void set_window_layer(uint32_t window_id, WindowLayer layer) {
+        (void)window_id;
+        (void)layer;
+    }
+    [[nodiscard]] virtual WindowLayer get_window_layer(uint32_t window_id) const {
+        (void)window_id;
+        return WindowLayer::Normal;
+    }
 };
 
 } // namespace vynexos::desktop

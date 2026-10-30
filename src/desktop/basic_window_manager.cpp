@@ -16,79 +16,87 @@ BasicWindowManager::BasicWindowManager(std::shared_ptr<core::IEventBus> event_bu
     : m_event_bus(std::move(event_bus)), m_logger(std::move(logger)) {
 }
 
-std::optional<uint32_t> BasicWindowManager::get_window_at(int32_t x, int32_t y) const {
-    std::lock_guard lock(m_mutex);
-    
-    // Iterate Z-order from top to bottom
+FrameStyle BasicWindowManager::effective_style(const WindowRecord& win) {
+    FrameStyle style = (win.maximized_style_active && win.frame_maximized.has_value()) ? *win.frame_maximized : win.frame_normal;
+    style.margins = win.margins; // set_window_decoration() may have supplied margins of its own
+    return style;
+}
+
+Rect BasicWindowManager::decorated_bounds_of(const WindowRecord& win) {
+    return {
+        win.geometry.x - static_cast<int32_t>(win.margins.left),
+        win.geometry.y - static_cast<int32_t>(win.margins.top),
+        win.geometry.width + static_cast<uint32_t>(win.margins.left + win.margins.right),
+        win.geometry.height + static_cast<uint32_t>(win.margins.top + win.margins.bottom)
+    };
+}
+
+DecorationLayout BasicWindowManager::layout_of(const WindowRecord& win) {
+    const Rect client{win.geometry.x, win.geometry.y, win.geometry.width, win.geometry.height};
+    return calculate_decoration_layout(make_frame_metrics(effective_style(win), decorated_bounds_of(win), client));
+}
+
+std::optional<BasicWindowManager::Hit> BasicWindowManager::find_hit_locked(int32_t x, int32_t y) const {
+    std::optional<Hit> band_candidate;
+    std::optional<Hit> desktop_hit;
+
+    // Topmost first. A window only claims the point if it is inside its VISIBLE frame; being inside just its invisible
+    // resize band makes it a fallback candidate, so something visible underneath still wins.
     for (auto it = m_z_order.rbegin(); it != m_z_order.rend(); ++it) {
-        uint32_t win_id = *it;
-        const auto& win = m_windows.at(win_id);
-        
-        if (!win.visible || win.state == WindowState::Minimized) {
+        const uint32_t id = *it;
+        const auto& win = m_windows.at(id);
+        if (!win.visible || win.state == WindowState::Minimized) continue;
+
+        const Rect bounds = decorated_bounds_of(win);
+        if (!point_in_rect(x, y, bounds)) continue;
+
+        if (win.layer == WindowLayer::Desktop) {
+            if (!desktop_hit) desktop_hit = Hit{id, false};
             continue;
         }
-        
-        Rect bounds = {
-            win.geometry.x - static_cast<int32_t>(win.margins.left),
-            win.geometry.y - static_cast<int32_t>(win.margins.top),
-            win.geometry.width + static_cast<uint32_t>(win.margins.left + win.margins.right),
-            win.geometry.height + static_cast<uint32_t>(win.margins.top + win.margins.bottom)
-        };
-        
-        if (x >= bounds.x && x <= (bounds.x + static_cast<int32_t>(bounds.width)) &&
-            y >= bounds.y && y <= (bounds.y + static_cast<int32_t>(bounds.height))) {
-            return win_id;
-        }
+
+        const DecorationLayout layout = layout_of(win);
+        const Rect frame{bounds.x + layout.visible_frame.x, bounds.y + layout.visible_frame.y, layout.visible_frame.width,
+                         layout.visible_frame.height};
+        if (point_in_rect(x, y, frame)) return Hit{id, false};
+        if (!band_candidate) band_candidate = Hit{id, true};
     }
-    
+
+    if (band_candidate) return band_candidate;
+    return desktop_hit;
+}
+
+std::optional<uint32_t> BasicWindowManager::get_window_at(int32_t x, int32_t y) const {
+    std::lock_guard lock(m_mutex);
+    if (auto hit = find_hit_locked(x, y)) return hit->id;
     return std::nullopt;
 }
 
 std::optional<HitTestResult> BasicWindowManager::get_resize_handle_at(int32_t x, int32_t y) const {
     std::lock_guard lock(m_mutex);
-    
-    for (auto it = m_z_order.rbegin(); it != m_z_order.rend(); ++it) {
-        uint32_t win_id = *it;
-        const auto& win = m_windows.at(win_id);
-        
-        if (!win.visible || win.state == WindowState::Minimized) {
-            continue;
-        }
-        
-        Rect bounds = {
-            win.geometry.x - static_cast<int32_t>(win.margins.left),
-            win.geometry.y - static_cast<int32_t>(win.margins.top),
-            win.geometry.width + static_cast<uint32_t>(win.margins.left + win.margins.right),
-            win.geometry.height + static_cast<uint32_t>(win.margins.top + win.margins.bottom)
-        };
-        
-        WindowFrameMetrics metrics;
-        metrics.decorated_bounds = bounds;
-        metrics.client_bounds = {win.geometry.x, win.geometry.y, win.geometry.width, win.geometry.height};
-        metrics.margins = win.margins;
-        
-        DecorationLayout layout = calculate_decoration_layout(metrics);
-        
-        int32_t rel_x = x - bounds.x;
-        int32_t rel_y = y - bounds.y;
-        
-        HitTestResult result{win_id, ResizeEdge::None};
-        
-        if (point_in_rect(rel_x, rel_y, layout.top_left_resize)) result.edge = ResizeEdge::TopLeft;
-        else if (point_in_rect(rel_x, rel_y, layout.top_right_resize)) result.edge = ResizeEdge::TopRight;
-        else if (point_in_rect(rel_x, rel_y, layout.bottom_left_resize)) result.edge = ResizeEdge::BottomLeft;
-        else if (point_in_rect(rel_x, rel_y, layout.bottom_right_resize)) result.edge = ResizeEdge::BottomRight;
-        else if (point_in_rect(rel_x, rel_y, layout.top_border)) result.edge = ResizeEdge::Top;
-        else if (point_in_rect(rel_x, rel_y, layout.bottom_border)) result.edge = ResizeEdge::Bottom;
-        else if (point_in_rect(rel_x, rel_y, layout.left_border)) result.edge = ResizeEdge::Left;
-        else if (point_in_rect(rel_x, rel_y, layout.right_border)) result.edge = ResizeEdge::Right;
-        
-        if (result.edge != ResizeEdge::None) return result;
-        
-        // Return nullopt if clicked inside client but not on a border. (Note: get_window_at already does initial rect checks)
-    }
-    
-    return std::nullopt;
+
+    const auto hit = find_hit_locked(x, y);
+    if (!hit) return std::nullopt;
+    const auto& win = m_windows.at(hit->id);
+    if (win.layer == WindowLayer::Desktop) return std::nullopt;
+
+    const Rect bounds = decorated_bounds_of(win);
+    const DecorationLayout layout = layout_of(win);
+    const int32_t rel_x = x - bounds.x;
+    const int32_t rel_y = y - bounds.y;
+
+    HitTestResult result{hit->id, ResizeEdge::None};
+    if (point_in_rect(rel_x, rel_y, layout.top_left_resize)) result.edge = ResizeEdge::TopLeft;
+    else if (point_in_rect(rel_x, rel_y, layout.top_right_resize)) result.edge = ResizeEdge::TopRight;
+    else if (point_in_rect(rel_x, rel_y, layout.bottom_left_resize)) result.edge = ResizeEdge::BottomLeft;
+    else if (point_in_rect(rel_x, rel_y, layout.bottom_right_resize)) result.edge = ResizeEdge::BottomRight;
+    else if (point_in_rect(rel_x, rel_y, layout.top_border)) result.edge = ResizeEdge::Top;
+    else if (point_in_rect(rel_x, rel_y, layout.bottom_border)) result.edge = ResizeEdge::Bottom;
+    else if (point_in_rect(rel_x, rel_y, layout.left_border)) result.edge = ResizeEdge::Left;
+    else if (point_in_rect(rel_x, rel_y, layout.right_border)) result.edge = ResizeEdge::Right;
+
+    if (result.edge != ResizeEdge::None) return result;
+    return std::nullopt; // inside the client or title bar, not on a resize zone
 }
 
 DecorationHitRegion BasicWindowManager::get_decoration_hit_region(uint32_t window_id, int32_t x, int32_t y) const {
@@ -96,45 +104,27 @@ DecorationHitRegion BasicWindowManager::get_decoration_hit_region(uint32_t windo
     if (auto it = m_windows.find(window_id); it != m_windows.end()) {
         const auto& win = it->second;
         if (!win.visible || win.state == WindowState::Minimized) return DecorationHitRegion::None;
-        
-        Rect bounds = {
-            win.geometry.x - static_cast<int32_t>(win.margins.left),
-            win.geometry.y - static_cast<int32_t>(win.margins.top),
-            win.geometry.width + static_cast<uint32_t>(win.margins.left + win.margins.right),
-            win.geometry.height + static_cast<uint32_t>(win.margins.top + win.margins.bottom)
-        };
-        
-        // Quick bounds check
-        if (x < bounds.x || x >= bounds.x + static_cast<int32_t>(bounds.width) ||
-            y < bounds.y || y >= bounds.y + static_cast<int32_t>(bounds.height)) {
-            return DecorationHitRegion::None;
-        }
-        
-        WindowFrameMetrics metrics;
-        metrics.decorated_bounds = bounds;
-        metrics.client_bounds = {win.geometry.x, win.geometry.y, win.geometry.width, win.geometry.height};
-        metrics.margins = win.margins;
-        
-        DecorationLayout layout = calculate_decoration_layout(metrics);
-        
-        int32_t rel_x = x - bounds.x;
-        int32_t rel_y = y - bounds.y;
-        
+
+        const Rect bounds = decorated_bounds_of(win);
+        if (!point_in_rect(x, y, bounds)) return DecorationHitRegion::None;
+
+        const DecorationLayout layout = layout_of(win);
+        const int32_t rel_x = x - bounds.x;
+        const int32_t rel_y = y - bounds.y;
+
         if (point_in_rect(rel_x, rel_y, layout.close_button)) return DecorationHitRegion::CloseButton;
         if (point_in_rect(rel_x, rel_y, layout.maximize_button)) return DecorationHitRegion::MaximizeButton;
         if (point_in_rect(rel_x, rel_y, layout.minimize_button)) return DecorationHitRegion::MinimizeButton;
-        
-        // Borders
-        if (point_in_rect(rel_x, rel_y, layout.top_border) || 
-            point_in_rect(rel_x, rel_y, layout.bottom_border) || 
-            point_in_rect(rel_x, rel_y, layout.left_border) || 
-            point_in_rect(rel_x, rel_y, layout.right_border)) {
+
+        // The resize ring (invisible band plus visible border).
+        if (point_in_rect(rel_x, rel_y, layout.top_border) || point_in_rect(rel_x, rel_y, layout.bottom_border) ||
+            point_in_rect(rel_x, rel_y, layout.left_border) || point_in_rect(rel_x, rel_y, layout.right_border)) {
             return DecorationHitRegion::Border;
         }
-        
+
         if (point_in_rect(rel_x, rel_y, layout.title_bar)) return DecorationHitRegion::TitleBar;
     }
-    
+
     return DecorationHitRegion::None;
 }
 
@@ -282,6 +272,34 @@ void BasicWindowManager::set_window_decoration(uint32_t window_id, std::shared_p
     }
 }
 
+void BasicWindowManager::set_window_frame_styles(uint32_t window_id, const FrameStyle& normal, const FrameStyle& maximized) {
+    std::lock_guard lock(m_mutex);
+    if (auto it = m_windows.find(window_id); it != m_windows.end()) {
+        auto& win = it->second;
+        win.frame_normal = normal;
+        win.frame_maximized = maximized;
+        win.maximized_style_active = (win.state == WindowState::Maximized);
+        win.margins = win.maximized_style_active ? maximized.margins : normal.margins;
+    }
+}
+
+FrameStyle BasicWindowManager::get_window_frame_style(uint32_t window_id) const {
+    std::lock_guard lock(m_mutex);
+    if (auto it = m_windows.find(window_id); it != m_windows.end()) return effective_style(it->second);
+    return FrameStyle{};
+}
+
+void BasicWindowManager::set_window_layer(uint32_t window_id, WindowLayer layer) {
+    std::lock_guard lock(m_mutex);
+    if (auto it = m_windows.find(window_id); it != m_windows.end()) it->second.layer = layer;
+}
+
+WindowLayer BasicWindowManager::get_window_layer(uint32_t window_id) const {
+    std::lock_guard lock(m_mutex);
+    if (auto it = m_windows.find(window_id); it != m_windows.end()) return it->second.layer;
+    return WindowLayer::Normal;
+}
+
 void BasicWindowManager::set_window_visibility(uint32_t window_id, bool visible) {
     std::lock_guard lock(m_mutex);
     if (m_windows.contains(window_id)) {
@@ -331,6 +349,12 @@ void BasicWindowManager::set_window_state(uint32_t window_id, WindowState state)
             win.previous_state = win.state;
         }
         
+        // Windows with frame styles switch margins with their state (a minimized window keeps the margins it had).
+        if (win.frame_maximized.has_value() && state != WindowState::Minimized) {
+            win.maximized_style_active = (state == WindowState::Maximized);
+            win.margins = win.maximized_style_active ? win.frame_maximized->margins : win.frame_normal.margins;
+        }
+
         if (win.state == WindowState::Normal && state == WindowState::Maximized) {
             win.restore_geometry = win.geometry;
             win.geometry.x = m_work_area.x + static_cast<int32_t>(win.margins.left);
@@ -346,7 +370,13 @@ void BasicWindowManager::set_window_state(uint32_t window_id, WindowState state)
             if (!win.restore_geometry.has_value()) {
                 win.restore_geometry = win.geometry;
             }
-            win.geometry = m_work_area;
+            // Fill the work area inside the margins (legacy windows have none, so this is the whole work area).
+            const uint32_t h_margins = static_cast<uint32_t>(win.margins.left + win.margins.right);
+            const uint32_t v_margins = static_cast<uint32_t>(win.margins.top + win.margins.bottom);
+            win.geometry.x = m_work_area.x + static_cast<int32_t>(win.margins.left);
+            win.geometry.y = m_work_area.y + static_cast<int32_t>(win.margins.top);
+            win.geometry.width = m_work_area.width > h_margins ? m_work_area.width - h_margins : 0;
+            win.geometry.height = m_work_area.height > v_margins ? m_work_area.height - v_margins : 0;
         } else if (win.state == WindowState::Minimized && state == WindowState::Normal) {
             // Minimized -> Normal: Restore previous normal geometry if it exists
             if (win.restore_geometry.has_value()) {

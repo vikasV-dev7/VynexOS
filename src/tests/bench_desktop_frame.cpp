@@ -7,7 +7,7 @@
 //   drag        a window is dragged through the real shell input path
 //
 // Usage: bench_desktop_frame [--frames N] [--sdl] [--micro-only]
-//        bench_desktop_frame --dump <file.bmp> [--bitmap-text] [--focus-explorer] [--open-launcher]
+//        bench_desktop_frame --dump <file.bmp> [--bitmap-text] [--focus-explorer] [--open-launcher] [--maximize-explorer]
 //   --micro-only  skip the desktop scenarios and only run the drawing-primitive micro-benchmarks
 //   --dump        render the desktop headlessly and write the compositor's exact output frame (1920x1080) as a BMP;
 //                 --bitmap-text renders it with the legacy 8x8 font for a before/after comparison
@@ -36,6 +36,7 @@
 #include "../desktop/basic_window_manager.hpp"
 #include "../desktop/mock_display_backend.hpp"
 #include "../desktop/software_surface.hpp"
+#include "vynexos/desktop/decoration_layout.hpp"
 #include "vynexos/desktop/painter.hpp"
 #include "vynexos/desktop/text_renderer.hpp"
 #include "vynexos/desktop/theme.hpp"
@@ -119,6 +120,18 @@ void run_micro_benchmarks() {
 
     // Painter primitives (new in Stage 1). Each case builds its own Painter, as widgets do.
     const desktop::CornerRadii r10 = desktop::CornerRadii::uniform(10.0f);
+    {
+        // Window chrome: one full redraw of a 714x549 decoration surface (what a focus/size/title change costs).
+        auto tk = std::make_shared<desktop::BasicWidgetToolkit>();
+        desktop::BasicWindowDecorator decorator(tk);
+        const desktop::FrameStyle style = decorator.frame_style(desktop::WindowState::Normal);
+        auto deco = std::make_shared<desktop::SoftwareSurface>(714, 549);
+        const auto layout = desktop::calculate_decoration_layout(desktop::make_frame_metrics(style, {0, 0, 714, 549}, {7, 42, 700, 500}));
+        desktop::DecorationVisualState visual;
+        visual.focused = true;
+        row("decorator.draw_decorations 714x549 (full chrome)", time_ms(50, [&] { decorator.draw_decorations(deco, layout, "File Explorer", visual, desktop::WindowTheme{}); }));
+        row("create_surface 714x549 (chrome surface alloc)", time_ms(50, [&] { desktop::SoftwareSurface s(714, 549); (void)s; }));
+    }
     row("painter.fill_rect 700x500 opaque", time_ms(100, [&] { desktop::Painter p(*window); p.fill_rect({0, 0, 700, 500}, opaque); }));
     row("painter.fill_rect 700x500 alpha 50%", time_ms(100, [&] { desktop::Painter p(*window); p.fill_rect({0, 0, 700, 500}, translucent); }));
     row("painter.fill_rect 1920x1080 opaque (wallpaper)", time_ms(30, [&] { desktop::Painter p(*surface); p.fill_rect({0, 0, 1920, 1080}, opaque); }));
@@ -238,6 +251,7 @@ int main(int argc, char** argv) {
     bool bitmap_text = false;         // --bitmap-text: use the legacy 8x8 font (the pre-Stage-2 look) for a before/after
     bool focus_explorer = false;      // --focus-explorer: click the Explorer title bar first (active title bar)
     bool open_launcher = false;       // --open-launcher: click the Vynex button first
+    bool maximize_explorer = false;   // --maximize-explorer: maximize and focus the Explorer window first
     for (int i = 1; i < argc; ++i) {
         if (std::strcmp(argv[i], "--micro-only") == 0) micro_only = true;
         if (std::strcmp(argv[i], "--frames") == 0 && i + 1 < argc) frames = std::atoi(argv[++i]);
@@ -246,6 +260,7 @@ int main(int argc, char** argv) {
         if (std::strcmp(argv[i], "--bitmap-text") == 0) bitmap_text = true;
         if (std::strcmp(argv[i], "--focus-explorer") == 0) focus_explorer = true;
         if (std::strcmp(argv[i], "--open-launcher") == 0) open_launcher = true;
+        if (std::strcmp(argv[i], "--maximize-explorer") == 0) maximize_explorer = true;
     }
 
 #ifdef NDEBUG
@@ -298,9 +313,11 @@ int main(int argc, char** argv) {
     shell->launch();
     terminal->launch();
     apps::BasicFileExplorer explorer(vfs, toolkit);
+    uint32_t explorer_id = 0;
     {
         desktop::WindowGeometry geom{200, 200, 700, 500};
         const uint32_t win_id = wm->create_window("File Explorer", geom);
+        explorer_id = win_id;
         auto surface = compositor->create_surface(geom.width, geom.height);
         wm->set_window_surface(win_id, surface);
         desktop::RunningApplication app;
@@ -365,6 +382,11 @@ int main(int argc, char** argv) {
         };
         if (open_launcher) click(50, 1060);
         if (focus_explorer) click(500, 180);
+        if (maximize_explorer) {
+            wm->set_window_state(explorer_id, desktop::WindowState::Maximized);
+            shell->focus_window(explorer_id);
+            compositor->invalidate_region({0, 0, size.width, size.height});
+        }
         for (int i = 0; i < 10; ++i) run_frame(warm);
         if (!write_bmp(dump_path, capture->last)) {
             std::fprintf(stderr, "failed to write %s\n", dump_path);

@@ -9,6 +9,8 @@
 #include <memory>
 #include <vector>
 #include <mutex>
+#include <string>
+#include <unordered_map>
 
 namespace vynexos::apps {
 
@@ -48,6 +50,18 @@ private:
 
     void update_window_decoration(uint32_t window_id, bool focused);
     void invalidate_window_region(uint32_t window_id);
+
+    // Chrome is drawn for every window the shell does not own (wallpaper, taskbar, launcher), not only registered
+    // applications. A window's chrome is redrawn only when what it shows changes; the stamp records what was drawn.
+    struct ChromeStamp {
+        bool focused{false};
+        desktop::WindowState state{desktop::WindowState::Normal};
+        uint32_t width{0};
+        uint32_t height{0};
+        std::string title;
+    };
+    std::unordered_map<uint32_t, ChromeStamp> m_chrome;
+    void sync_window_chrome(const desktop::WindowSnapshot& snapshot);
     
     // Desktop layout derives from the compositor's logical size (no hard-coded resolution).
     static constexpr int32_t kTaskbarHeight = 40;

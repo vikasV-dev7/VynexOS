@@ -53,6 +53,11 @@ public:
 
     SceneGraph build_scene() const override;
 
+    void set_window_frame_styles(uint32_t window_id, const FrameStyle& normal, const FrameStyle& maximized) override;
+    FrameStyle get_window_frame_style(uint32_t window_id) const override;
+    void set_window_layer(uint32_t window_id, WindowLayer layer) override;
+    WindowLayer get_window_layer(uint32_t window_id) const override;
+
 private:
 
     struct WindowRecord {
@@ -61,7 +66,11 @@ private:
         std::optional<WindowGeometry> restore_geometry;
         std::shared_ptr<ISurface> surface;
         std::shared_ptr<ISurface> decoration_surface;
-        WindowMargins margins{0, 0, 0, 0};
+        WindowMargins margins{0, 0, 0, 0};  // margins currently in effect (follow the active style when styles are set)
+        FrameStyle frame_normal{};
+        std::optional<FrameStyle> frame_maximized;  // set together with frame_normal by set_window_frame_styles()
+        bool maximized_style_active{false};
+        WindowLayer layer{WindowLayer::Normal};
         bool visible{true};
         WindowState state{WindowState::Normal};
         WindowState previous_state{WindowState::Normal};
@@ -80,6 +89,22 @@ private:
     WindowGeometry m_work_area{0, 0, 1920, 1080};
     std::vector<uint32_t> m_z_order; // front is bottom, back is top
     std::optional<uint32_t> m_focused_window;
+
+    // The style in effect for a window, with the margins actually in use (set_window_decoration may override them).
+    [[nodiscard]] static FrameStyle effective_style(const WindowRecord& win);
+    [[nodiscard]] static Rect decorated_bounds_of(const WindowRecord& win);
+    [[nodiscard]] static DecorationLayout layout_of(const WindowRecord& win);
+
+    // Who is under a point. Visible pixels win over invisible resize bands, and the desktop (wallpaper) is last:
+    //   1. the topmost non-desktop window whose VISIBLE frame contains the point;
+    //   2. otherwise the topmost non-desktop window whose invisible resize band contains it (`band` = true);
+    //   3. otherwise the desktop window.
+    // so a window's invisible band never steals clicks from another window's visible area, a panel, or a maximized window.
+    struct Hit {
+        uint32_t id;
+        bool band;
+    };
+    [[nodiscard]] std::optional<Hit> find_hit_locked(int32_t x, int32_t y) const;
 };
 
 } // namespace vynexos::desktop

@@ -2,6 +2,7 @@
 #include <cassert>
 #include <memory>
 #include <string>
+#include <vector>
 #include "../apps/desktop_shell.hpp"
 #include "../desktop/basic_window_manager.hpp"
 #include "../desktop/basic_compositor.hpp"
@@ -13,6 +14,7 @@
 #include "../core/basic_task_scheduler.hpp"
 #include "../desktop/mock_display_backend.hpp"
 #include "vynexos/hal/input_driver.hpp"
+#include "vynexos/desktop/decoration_layout.hpp"
 
 using namespace vynexos;
 using namespace vynexos::desktop;
@@ -528,17 +530,24 @@ void test_window_state_management() {
     shell.focus_window(win_id);
     assert(shell.focused_window().has_value() && shell.focused_window().value() == win_id);
     
-    // Click Minimize Button (Width - 80 to Width - 50, Y: 5 to 35)
-    // Absolute position: x = 95 + 410 - 65 = 440, y = 60 + 20 = 80
+    // Click the centre of the minimize button, wherever the frame layout puts it.
+    const auto frame = wm->get_window_frame_style(win_id);
+    const auto dec_bounds = wm->get_decorated_window_bounds(win_id);
+    const auto layout = desktop::calculate_decoration_layout(
+        desktop::make_frame_metrics(frame, dec_bounds, desktop::Rect{100, 100, 400, 300}));
+    assert(layout.minimize_button.width > 0);
+    const int32_t min_x = dec_bounds.x + layout.minimize_button.x + static_cast<int32_t>(layout.minimize_button.width) / 2;
+    const int32_t min_y = dec_bounds.y + layout.minimize_button.y + static_cast<int32_t>(layout.minimize_button.height) / 2;
+
     auto click_ev = std::make_shared<core::Event>();
     click_ev->topic = "HAL_INPUT_MOUSE";
-    click_ev->payload = hal::MouseEvent(440, 80, 1);
+    click_ev->payload = hal::MouseEvent(min_x, min_y, 1);
     event_bus->publish(click_ev);
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
-    
+
     auto release_ev = std::make_shared<core::Event>();
     release_ev->topic = "HAL_INPUT_MOUSE";
-    release_ev->payload = hal::MouseEvent(440, 80, 0); // Release should trigger
+    release_ev->payload = hal::MouseEvent(min_x, min_y, 0); // Release should trigger
     event_bus->publish(release_ev);
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
     
@@ -673,20 +682,24 @@ void test_maximize_routing() {
     
     shell.update_frame();
     
-    // Simulate Maximize Button click: Width - 120 to Width - 90, Y: 5 to 35
-    // Window is at 100, 100 with width 400.
-    // Button is at rel_x = 305, rel_y = 20. Abs = 400, 80
-    
+    // Click the centre of the maximize button, wherever the frame layout puts it.
+    const auto dec_bounds = wm->get_decorated_window_bounds(win_id);
+    const auto layout = desktop::calculate_decoration_layout(
+        desktop::make_frame_metrics(wm->get_window_frame_style(win_id), dec_bounds, desktop::Rect{100, 100, 400, 300}));
+    assert(layout.maximize_button.width > 0);
+    const int32_t max_x = dec_bounds.x + layout.maximize_button.x + static_cast<int32_t>(layout.maximize_button.width) / 2;
+    const int32_t max_y = dec_bounds.y + layout.maximize_button.y + static_cast<int32_t>(layout.maximize_button.height) / 2;
+
     auto click_ev = std::make_shared<core::Event>();
     click_ev->topic = "HAL_INPUT_MOUSE";
-    click_ev->payload = hal::MouseEvent(400, 80, 1);
+    click_ev->payload = hal::MouseEvent(max_x, max_y, 1);
     event_bus->publish(click_ev);
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
-    
+
     assert(wm->get_window_state(win_id) == WindowState::Maximized);
-    
+
     // Try to drag (click TitleBar)
-    click_ev->payload = hal::MouseEvent(400, 80, 0); // Release Maximize button
+    click_ev->payload = hal::MouseEvent(max_x, max_y, 0); // Release Maximize button
     event_bus->publish(click_ev);
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
     
@@ -702,9 +715,82 @@ void test_maximize_routing() {
     
     // Window should NOT have moved because drag is disabled when maximized
     auto geom = wm->get_window_geometry(win_id);
-    assert(geom->x == 5); // Still at 5 (work_area.x + margin.left) because it's maximized
+    assert(geom->x == 0); // Still flush with the work area (maximized frames have no side margins)
     
     std::cout << "test_maximize_routing passed\n";
+}
+
+// The chrome layer the window manager would composite for a window (null if there is none).
+static std::shared_ptr<desktop::ISurface> decoration_layer_of(const std::shared_ptr<BasicWindowManager>& wm, uint32_t id) {
+    const auto bounds = wm->get_decorated_window_bounds(id);
+    for (const auto& layer : wm->build_scene()) {
+        if (layer.window_id == id && layer.bounds.x == bounds.x && layer.bounds.y == bounds.y && layer.bounds.width == bounds.width &&
+            layer.bounds.height == bounds.height) {
+            return layer.surface;
+        }
+    }
+    return nullptr;
+}
+
+static std::vector<uint8_t> pixels_of(const std::shared_ptr<desktop::ISurface>& s) {
+    auto m = s->map_pixels();
+    std::vector<uint8_t> v(m.begin(), m.end());
+    s->unmap_pixels();
+    return v;
+}
+
+void test_every_window_gets_chrome_with_its_own_title() {
+    auto logger = std::make_shared<TestLogger>();
+    core::BasicTaskScheduler scheduler(*logger);
+    auto event_bus = std::make_shared<core::InMemoryEventBus>(scheduler);
+    auto display = std::make_shared<MockDisplayBackend>(logger);
+    auto comp = std::make_shared<BasicCompositor>(display, logger);
+    auto wm = std::make_shared<BasicWindowManager>(event_bus, logger);
+    auto toolkit = std::make_shared<BasicWidgetToolkit>();
+    auto dec = std::make_shared<BasicWindowDecorator>(toolkit);
+    auto taskbar = std::make_shared<BasicTaskbar>(toolkit);
+
+    DesktopShell shell(wm, comp, toolkit, dec, taskbar, event_bus);
+    shell.launch();
+
+    // Windows that are never registered with the shell (like the terminal and demo app) still get chrome.
+    const uint32_t alpha = wm->create_window("Alpha", {100, 100, 300, 200});
+    wm->set_window_surface(alpha, comp->create_surface(300, 200));
+    const uint32_t beta = wm->create_window("Beta", {500, 100, 300, 200});
+    wm->set_window_surface(beta, comp->create_surface(300, 200));
+    const uint32_t untitled = wm->create_window("", {100, 400, 300, 200});
+    wm->set_window_surface(untitled, comp->create_surface(300, 200));
+
+    shell.update_frame();
+
+    for (uint32_t id : {alpha, beta, untitled}) {
+        assert(wm->get_window_margins(id).top == 42);
+        assert(decoration_layer_of(wm, id) != nullptr);
+    }
+
+    // Titles come from the window manager: different titles draw different chrome, and the chrome matches an
+    // independent draw of the same title. An empty title falls back to "Untitled".
+    auto expected = [&](const std::string& title, uint32_t id) {
+        const auto bounds = wm->get_decorated_window_bounds(id);
+        const auto g = wm->get_window_geometry(id);
+        const auto layout = desktop::calculate_decoration_layout(
+            desktop::make_frame_metrics(wm->get_window_frame_style(id), bounds, desktop::Rect{g->x, g->y, g->width, g->height}));
+        auto surface = comp->create_surface(bounds.width, bounds.height);
+        desktop::DecorationVisualState visual;
+        dec->draw_decorations(surface, layout, title, visual, desktop::WindowTheme{});
+        return pixels_of(surface);
+    };
+    assert(pixels_of(decoration_layer_of(wm, alpha)) == expected("Alpha", alpha));
+    assert(pixels_of(decoration_layer_of(wm, beta)) == expected("Beta", beta));
+    assert(pixels_of(decoration_layer_of(wm, alpha)) != expected("Application", alpha));
+    assert(pixels_of(decoration_layer_of(wm, untitled)) == expected("Untitled", untitled));
+
+    // Chrome follows focus without being asked twice.
+    shell.focus_window(alpha);
+    shell.update_frame();
+    assert(pixels_of(decoration_layer_of(wm, alpha)) != expected("Alpha", alpha)); // now focused, drawn differently
+
+    std::cout << "test_every_window_gets_chrome_with_its_own_title passed\n";
 }
 
 int main(int argc, char **argv) {
@@ -720,6 +806,7 @@ int main(int argc, char **argv) {
     test_window_state_management();
     test_taskbar_routing();
     test_maximize_routing();
+    test_every_window_gets_chrome_with_its_own_title();
     std::cout << "All tests passed successfully.\n";
     return 0;
 }

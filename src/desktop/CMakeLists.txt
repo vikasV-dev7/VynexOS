@@ -9,6 +9,7 @@ set(DESKTOP_SOURCES
     basic_taskbar.cpp
     dirty_region.cpp
     decoration_layout.cpp
+    icons.cpp
     painter.cpp
     utf8.cpp
     font_face.cpp

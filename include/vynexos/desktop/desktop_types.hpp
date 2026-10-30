@@ -45,30 +45,60 @@ enum class ResizeEdge {
     BottomRight
 };
 
-struct WindowFrameMetrics {
-    Rect decorated_bounds;
-    Rect client_bounds;
-    WindowMargins margins;
-    uint32_t title_bar_height{40};
+/// Everything the decoration layout needs to know about a window's frame except its size. A window that never
+/// receives a style keeps these defaults, which reproduce the original (pre-redesign) frame metrics.
+///
+/// Geometry model (all relative to the window's *decorated bounds*, which are the client area grown by `margins`):
+///   - `resize_inset` is an invisible band at the very edge of the decorated bounds that is hit-testable for resizing
+///     but not drawn. The visible frame is the decorated bounds inset by it.
+///   - The resize zones form a ring of `resize_inset + border_thickness` around the decorated bounds: the invisible band
+///     plus the visible border.
+///   - The title bar is the part of the top margin inside the visible frame: `margins.top - resize_inset` tall.
+struct FrameStyle {
+    WindowMargins margins{0, 0, 0, 0};
     uint32_t border_thickness{5};
+    uint32_t resize_inset{0};
     uint32_t button_size{30};
     uint32_t button_spacing{10};
     uint32_t button_margin_top{5};
     uint32_t button_margin_right{10};
 };
 
+/// Stacking class of a window. The window manager keeps desktop-level windows (the wallpaper) from swallowing the
+/// invisible resize bands of ordinary windows; full ordering rules arrive with the layered z-order.
+enum class WindowLayer : uint8_t {
+    Desktop,  ///< wallpaper: below everything, never blocks window resize bands
+    Normal,   ///< application windows (default)
+    Panel,    ///< taskbar
+    Overlay   ///< launcher, menus: above panels
+};
+
+struct WindowFrameMetrics {
+    Rect decorated_bounds;
+    Rect client_bounds;
+    WindowMargins margins;
+    uint32_t title_bar_height{40};  // retained for compatibility; the layout derives the title bar from margins.top
+    uint32_t border_thickness{5};
+    uint32_t button_size{30};
+    uint32_t button_spacing{10};
+    uint32_t button_margin_top{5};
+    uint32_t button_margin_right{10};
+    uint32_t resize_inset{0};
+};
+
 struct DecorationLayout {
+    Rect visible_frame;   ///< the drawn window frame (decorated bounds minus the invisible resize band)
     Rect title_bar;
     Rect client_area;
     Rect close_button;
     Rect minimize_button;
     Rect maximize_button;
-    
+
     Rect left_border;
     Rect right_border;
     Rect top_border;
     Rect bottom_border;
-    
+
     Rect top_left_resize;
     Rect top_right_resize;
     Rect bottom_left_resize;

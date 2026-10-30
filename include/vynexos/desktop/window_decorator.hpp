@@ -6,6 +6,14 @@
 
 namespace vynexos::desktop {
 
+/// What a decoration looks like right now.
+struct DecorationVisualState {
+    bool focused{false};
+    WindowState state{WindowState::Normal};
+    DecorationHitRegion hovered{DecorationHitRegion::None};  // control under the pointer, if any
+    DecorationHitRegion pressed{DecorationHitRegion::None};  // control being pressed, if any
+};
+
 class IWindowDecorator {
 public:
     virtual ~IWindowDecorator() = default;
@@ -21,6 +29,26 @@ public:
 
     // Returns the standard margins required for the decorations
     virtual WindowMargins get_margins() const = 0;
+
+    // Draws with interaction state (hover/pressed control). Decorators without interaction visuals fall back to the
+    // plain call above.
+    virtual void draw_decorations(
+        std::shared_ptr<ISurface> surface,
+        const DecorationLayout& layout,
+        std::string_view title,
+        const DecorationVisualState& visual,
+        const WindowTheme& theme) {
+        draw_decorations(std::move(surface), layout, title, visual.focused, visual.state, theme);
+    }
+
+    // The frame geometry this decorator wants for a window in the given state. The default derives it from
+    // get_margins() with no invisible resize band, i.e. the original frame.
+    [[nodiscard]] virtual FrameStyle frame_style(WindowState state) const {
+        (void)state;
+        FrameStyle style;
+        style.margins = get_margins();
+        return style;
+    }
 };
 
 } // namespace vynexos::desktop
