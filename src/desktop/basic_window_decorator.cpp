@@ -86,6 +86,71 @@ void BasicWindowDecorator::draw_decorations(
         surface->unmap_pixels();
     }
 
+    paint_frame(*surface, layout, visual, {0, 0, surface->width(), surface->height()});
+
+    // Title: left aligned, vertically centred on the cap height, truncated before the first control.
+    const Rect text_box = title_text_box(layout);
+    if (!title.empty() && text_box.width > 0) {
+        const Theme& theme = m_toolkit->theme();
+        const ChromePalette palette = make_palette(theme, visual.focused);
+        const TextStyle& style = theme.type.body_strong;
+        const FontMetrics fm = m_toolkit->font_metrics(style);
+        const Rect& title_bar = layout.title_bar;
+        const int32_t baseline = title_bar.y + static_cast<int32_t>((static_cast<float>(title_bar.height) + fm.cap_height) * 0.5f);
+        m_toolkit->draw_text_ellipsized(surface, text_box.x, baseline, title, style, palette.title_text, static_cast<float>(text_box.width));
+    }
+}
+
+bool BasicWindowDecorator::redraw_decoration_region(
+    std::shared_ptr<ISurface> surface,
+    const DecorationLayout& layout,
+    std::string_view title,
+    const DecorationVisualState& visual,
+    const WindowTheme& /*legacy_theme*/,
+    const Rect& region) {
+    if (!surface) return false;
+    const int64_t x0 = std::max<int64_t>(region.x, 0);
+    const int64_t y0 = std::max<int64_t>(region.y, 0);
+    const int64_t x1 = std::min<int64_t>(static_cast<int64_t>(region.x) + region.width, surface->width());
+    const int64_t y1 = std::min<int64_t>(static_cast<int64_t>(region.y) + region.height, surface->height());
+    if (x0 >= x1 || y0 >= y1) return true; // nothing of the region is on the surface
+
+    // Text cannot be clipped, so a region that reaches the title (with a margin for anti-aliasing) needs a full redraw.
+    constexpr int64_t kTextBleed = 2;
+    const Rect text_box = title_text_box(layout);
+    if (!title.empty() && text_box.width > 0 && x0 < text_box.x + static_cast<int64_t>(text_box.width) + kTextBleed &&
+        text_box.x - kTextBleed < x1 && y0 < text_box.y + static_cast<int64_t>(text_box.height) + kTextBleed && text_box.y - kTextBleed < y1) {
+        return false;
+    }
+
+    // Same starting point as a full draw (transparent), then the same painting, clipped to the region.
+    {
+        auto map = surface->map_pixels();
+        const size_t stride = static_cast<size_t>(surface->width()) * 4;
+        for (int64_t y = y0; y < y1; ++y) {
+            std::fill_n(map.begin() + static_cast<std::ptrdiff_t>(static_cast<size_t>(y) * stride + static_cast<size_t>(x0) * 4),
+                        static_cast<size_t>(x1 - x0) * 4, static_cast<uint8_t>(0));
+        }
+        surface->unmap_pixels();
+    }
+    paint_frame(*surface, layout, visual, {static_cast<int32_t>(x0), static_cast<int32_t>(y0), static_cast<uint32_t>(x1 - x0), static_cast<uint32_t>(y1 - y0)});
+    return true;
+}
+
+Rect BasicWindowDecorator::title_text_box(const DecorationLayout& layout) const {
+    const Theme& theme = m_toolkit->theme();
+    const Rect& title_bar = layout.title_bar;
+    if (title_bar.width == 0 || title_bar.height == 0) return {0, 0, 0, 0};
+    const int32_t text_x = title_bar.x + theme.spacing.md;
+    int32_t right_limit = title_bar.x + static_cast<int32_t>(title_bar.width) - theme.spacing.md;
+    for (const Rect* b : {&layout.minimize_button, &layout.maximize_button, &layout.close_button}) {
+        if (b->width > 0) right_limit = std::min(right_limit, b->x - theme.spacing.sm);
+    }
+    if (right_limit <= text_x) return {0, 0, 0, 0};
+    return {text_x, title_bar.y, static_cast<uint32_t>(right_limit - text_x), title_bar.height};
+}
+
+void BasicWindowDecorator::paint_frame(ISurface& surface, const DecorationLayout& layout, const DecorationVisualState& visual, const Rect& clip) const {
     const Theme& theme = m_toolkit->theme();
     const ChromePalette palette = make_palette(theme, visual.focused);
     const bool maximized = (visual.state == WindowState::Maximized);
@@ -95,7 +160,9 @@ void BasicWindowDecorator::draw_decorations(
     // Maximized windows sit flush with the screen: no rounding, no border. Bottom corners stay square until the
     // corner-mask stage, because the client surface is drawn on top and is rectangular.
     const float radius = maximized ? 0.0f : theme.radius.window;
-    Painter painter(*surface);
+    Painter painter(surface);
+    const Painter::ClipScope scope(painter, clip);
+    if (!scope.pushed()) return; // the clip misses the surface entirely
 
     painter.fill_rounded_rect(frame, CornerRadii::top(radius), palette.body);
 
@@ -118,22 +185,6 @@ void BasicWindowDecorator::draw_decorations(
                  visual.pressed == DecorationHitRegion::MaximizeButton, false);
     draw_control(painter, theme, palette, IconId::Minimize, layout.minimize_button, min_hot,
                  visual.pressed == DecorationHitRegion::MinimizeButton, false);
-
-    // Title: left aligned, vertically centred on the cap height, truncated before the first control.
-    if (!title.empty() && title_bar.width > 0 && title_bar.height > 0) {
-        const TextStyle& style = theme.type.body_strong;
-        const FontMetrics fm = m_toolkit->font_metrics(style);
-        const int32_t text_x = title_bar.x + theme.spacing.md;
-        int32_t right_limit = title_bar.x + static_cast<int32_t>(title_bar.width) - theme.spacing.md;
-        for (const Rect* b : {&layout.minimize_button, &layout.maximize_button, &layout.close_button}) {
-            if (b->width > 0) right_limit = std::min(right_limit, b->x - theme.spacing.sm);
-        }
-        const float max_width = static_cast<float>(right_limit - text_x);
-        if (max_width > 0.0f) {
-            const int32_t baseline = title_bar.y + static_cast<int32_t>((static_cast<float>(title_bar.height) + fm.cap_height) * 0.5f);
-            m_toolkit->draw_text_ellipsized(surface, text_x, baseline, title, style, palette.title_text, max_width);
-        }
-    }
 }
 
 WindowMargins BasicWindowDecorator::get_margins() const {

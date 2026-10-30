@@ -41,6 +41,25 @@ public:
         draw_decorations(std::move(surface), layout, title, visual.focused, visual.state, theme);
     }
 
+    // Repaints only `region` (surface coordinates) of an existing decoration so it reflects `visual`, leaving every
+    // other pixel untouched. Inside the region the result equals a full draw_decorations() with the same arguments.
+    // Returns false when the decorator cannot update that region on its own; the caller then redraws everything.
+    virtual bool redraw_decoration_region(
+        std::shared_ptr<ISurface> surface,
+        const DecorationLayout& layout,
+        std::string_view title,
+        const DecorationVisualState& visual,
+        const WindowTheme& theme,
+        const Rect& region) {
+        (void)surface;
+        (void)layout;
+        (void)title;
+        (void)visual;
+        (void)theme;
+        (void)region;
+        return false;
+    }
+
     // The frame geometry this decorator wants for a window in the given state. The default derives it from
     // get_margins() with no invisible resize band, i.e. the original frame.
     [[nodiscard]] virtual FrameStyle frame_style(WindowState state) const {

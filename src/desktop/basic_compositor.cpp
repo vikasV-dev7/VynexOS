@@ -110,22 +110,32 @@ void BasicCompositor::blend_surface(hal::FrameBuffer& target, int32_t dst_x, int
         int32_t src_y = y - dst_y;
         size_t dst_idx = (static_cast<size_t>(y) * target_w + static_cast<size_t>(start_x)) * 4;
         size_t src_idx = (static_cast<size_t>(src_y) * surf_w + static_cast<size_t>(start_x - dst_x)) * 4;
-        
-        // Fast path for fully opaque row
+
+        // Fully opaque layers are processed in spans: runs of opaque pixels are copied, runs of transparent pixels
+        // (such as a window's invisible resize band or the empty corners of rounded chrome) are skipped, and only the
+        // pixels in between are blended. The result is identical to blending every pixel.
         if (global_opacity == 1.0f) {
-            bool row_opaque = true;
-            size_t temp_src = src_idx;
-            for (int32_t x = start_x; x < end_x; ++x) {
-                if (src_ptr[temp_src + 3] != 255) {
-                    row_opaque = false;
-                    break;
+            const size_t row_end = src_idx + static_cast<size_t>(end_x - start_x) * 4;
+            while (src_idx < row_end) {
+                const uint8_t a = src_ptr[src_idx + 3];
+                if (a == 255 || a == 0) {
+                    size_t run_end = src_idx + 4;
+                    while (run_end < row_end && src_ptr[run_end + 3] == a) run_end += 4;
+                    if (a == 255) std::memcpy(&dst_ptr[dst_idx], &src_ptr[src_idx], run_end - src_idx);
+                    dst_idx += run_end - src_idx;
+                    src_idx = run_end;
+                    continue;
                 }
-                temp_src += 4;
+                const float alpha = a / 255.0f;
+                const float inv_alpha = 1.0f - alpha;
+                dst_ptr[dst_idx] = static_cast<uint8_t>((src_ptr[src_idx] * alpha) + (dst_ptr[dst_idx] * inv_alpha));
+                dst_ptr[dst_idx + 1] = static_cast<uint8_t>((src_ptr[src_idx + 1] * alpha) + (dst_ptr[dst_idx + 1] * inv_alpha));
+                dst_ptr[dst_idx + 2] = static_cast<uint8_t>((src_ptr[src_idx + 2] * alpha) + (dst_ptr[dst_idx + 2] * inv_alpha));
+                dst_ptr[dst_idx + 3] = std::max(dst_ptr[dst_idx + 3], a);
+                src_idx += 4;
+                dst_idx += 4;
             }
-            if (row_opaque) {
-                std::memcpy(&dst_ptr[dst_idx], &src_ptr[src_idx], static_cast<size_t>(end_x - start_x) * 4);
-                continue;
-            }
+            continue;
         }
 
         for (int32_t x = start_x; x < end_x; ++x) {

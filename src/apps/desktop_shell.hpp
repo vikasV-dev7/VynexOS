@@ -11,6 +11,7 @@
 #include <mutex>
 #include <string>
 #include <unordered_map>
+#include <optional>
 
 namespace vynexos::apps {
 
@@ -53,15 +54,51 @@ private:
 
     // Chrome is drawn for every window the shell does not own (wallpaper, taskbar, launcher), not only registered
     // applications. A window's chrome is redrawn only when what it shows changes; the stamp records what was drawn.
+    // The surface is kept and reused: a change of hover or pressed control repaints just the affected controls in
+    // place, anything else repaints the same surface, and only a new size allocates a new one.
     struct ChromeStamp {
         bool focused{false};
         desktop::WindowState state{desktop::WindowState::Normal};
         uint32_t width{0};
         uint32_t height{0};
         std::string title;
+        desktop::DecorationHitRegion hovered{desktop::DecorationHitRegion::None};
+        desktop::DecorationHitRegion pressed{desktop::DecorationHitRegion::None};
+        std::shared_ptr<desktop::ISurface> surface;
     };
     std::unordered_map<uint32_t, ChromeStamp> m_chrome;
     void sync_window_chrome(const desktop::WindowSnapshot& snapshot);
+    void refresh_chrome(uint32_t window_id);
+
+    // Pointer interaction with the title-bar controls (minimize, maximize, close). A press captures the pointer for
+    // that control: it shows as pressed only while the pointer is over it, activates on release over it, and is
+    // abandoned if the pointer is released elsewhere, the window goes away or changes state, or input is cancelled.
+    struct ControlTarget {
+        std::optional<uint32_t> window_id;
+        desktop::DecorationHitRegion control{desktop::DecorationHitRegion::None};
+        bool operator==(const ControlTarget&) const = default;
+    };
+    struct ChromePointer {
+        ControlTarget hover;                 // control under the pointer while no button is held
+        ControlTarget press;                 // control that captured the pointer
+        bool press_inside{false};            // pointer currently over the captured control
+        desktop::WindowState press_state{desktop::WindowState::Normal};  // a change of state interrupts the press
+    };
+    ChromePointer m_pointer;                 // guarded by m_mutex
+    bool m_input_suppressed{false};          // after a cancel: ignore held buttons until everything is released
+
+    ControlTarget control_at(int32_t x, int32_t y) const;
+    desktop::DecorationVisualState chrome_visual_locked(uint32_t window_id, bool focused, desktop::WindowState state) const;
+    void set_hover(const ControlTarget& target);
+    void begin_control_press(const ControlTarget& target);
+    void track_control_press(int32_t x, int32_t y);
+    void release_control_press(int32_t x, int32_t y);
+    void activate_control(uint32_t window_id, desktop::DecorationHitRegion control);
+    void validate_captures();
+    void cancel_interaction();
+    bool is_shell_window(uint32_t window_id) const {
+        return window_id == m_wallpaper_id || window_id == m_taskbar_id || window_id == m_launcher_id;
+    }
     
     // Desktop layout derives from the compositor's logical size (no hard-coded resolution).
     static constexpr int32_t kTaskbarHeight = 40;

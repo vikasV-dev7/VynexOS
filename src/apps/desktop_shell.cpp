@@ -2,6 +2,7 @@
 #include "vynexos/desktop/decoration_layout.hpp"
 #include "vynexos/hal/input_driver.hpp"
 #include <algorithm>
+#include <array>
 
 namespace vynexos::apps {
 
@@ -45,7 +46,15 @@ DesktopShell::DesktopShell(std::shared_ptr<desktop::IWindowManager> wm,
             m_cursor_x = mouse_ev.x;
             m_cursor_y = mouse_ev.y;
             m_compositor->invalidate_region({m_cursor_x, m_cursor_y, 16, 16});
-            
+
+            if (m_input_suppressed) {
+                // After a cancelled interaction, buttons still held are ignored until everything has been released.
+                if (mouse_ev.button_state != 0) return;
+                m_input_suppressed = false;
+                m_last_mouse_state = 0;
+            }
+            validate_captures();
+
             bool clicked = (mouse_ev.button_state != 0 && m_last_mouse_state == 0);
             bool released = (mouse_ev.button_state == 0 && m_last_mouse_state != 0);
             bool dragging = (mouse_ev.button_state != 0 && m_last_mouse_state != 0);
@@ -53,6 +62,8 @@ DesktopShell::DesktopShell(std::shared_ptr<desktop::IWindowManager> wm,
             m_last_mouse_state = mouse_ev.button_state;
             
             if (clicked) { // Click / Drag Candidate Creation
+                set_hover({}); // hover feedback is for a free pointer; a press takes over
+
                 // Vynex launcher button, anchored to the taskbar at the bottom of the logical desktop.
                 const int32_t button_top = display_height() - kTaskbarHeight + kLauncherButtonY;
                 if (mouse_ev.x >= kLauncherButtonX && mouse_ev.x <= kLauncherButtonX + kLauncherButtonWidth &&
@@ -138,47 +149,11 @@ DesktopShell::DesktopShell(std::shared_ptr<desktop::IWindowManager> wm,
                 
                 if (target_window.has_value() && target_window.value() != m_wallpaper_id && target_window.value() != m_taskbar_id) {
                     auto dec_hit = m_wm->get_decoration_hit_region(target_window.value(), mouse_ev.x, mouse_ev.y);
-                    
-                    if (dec_hit == desktop::DecorationHitRegion::CloseButton) {
-                        uint32_t wid = target_window.value();
-                        invalidate_window_region(wid);
-                        this->remove_running_application(wid);
-                        m_wm->destroy_window(wid);
-                        return;
-                    }
-                    
-                    if (dec_hit == desktop::DecorationHitRegion::MinimizeButton) {
-                        uint32_t wid = target_window.value();
-                        invalidate_window_region(wid);
-                        m_wm->set_window_state(wid, desktop::WindowState::Minimized);
-                        invalidate_window_region(wid);
-                        
-                        // Transfer focus if the minimized window was focused
-                        std::lock_guard lock(m_mutex);
-                        if (m_focused_window.has_value() && m_focused_window.value() == wid) {
-                            auto visible_windows = m_wm->get_visible_windows_z_ordered();
-                            if (!visible_windows.empty()) {
-                                m_focused_window = visible_windows.back();
-                                m_wm->focus_window(m_focused_window.value());
-                            } else {
-                                m_focused_window = std::nullopt;
-                            }
-                        }
-                        return;
-                    }
-                    
-                    if (dec_hit == desktop::DecorationHitRegion::MaximizeButton) {
-                        uint32_t wid = target_window.value();
-                        auto state = m_wm->get_window_state(wid);
-                        invalidate_window_region(wid);
-                        if (state == desktop::WindowState::Normal) {
-                            m_wm->set_window_state(wid, desktop::WindowState::Maximized);
-                        } else if (state == desktop::WindowState::Maximized) {
-                            m_wm->set_window_state(wid, desktop::WindowState::Normal);
-                        }
-                        invalidate_window_region(wid);
-                        this->focus_window(wid);
-                        m_wm->focus_window(wid);
+
+                    if (dec_hit == desktop::DecorationHitRegion::CloseButton || dec_hit == desktop::DecorationHitRegion::MinimizeButton ||
+                        dec_hit == desktop::DecorationHitRegion::MaximizeButton) {
+                        // Controls act on release, not on press: the press only captures the pointer.
+                        begin_control_press({target_window.value(), dec_hit});
                         return;
                     }
                     
@@ -227,6 +202,15 @@ DesktopShell::DesktopShell(std::shared_ptr<desktop::IWindowManager> wm,
                     m_resize_state.window_id = std::nullopt;
                 }
             } else if (dragging) { // Drag Update
+                bool pressing_control = false;
+                {
+                    std::lock_guard lock(m_mutex);
+                    pressing_control = m_pointer.press.window_id.has_value();
+                }
+                if (pressing_control) {
+                    track_control_press(mouse_ev.x, mouse_ev.y); // captured: nothing else sees this pointer
+                    return;
+                }
                 std::unique_lock lock(m_mutex);
                 if (m_resize_state.window_id.has_value()) {
                     if (!m_resize_state.pointer_captured) {
@@ -295,11 +279,22 @@ DesktopShell::DesktopShell(std::shared_ptr<desktop::IWindowManager> wm,
                     }
                 }
             } else if (released) { // Drag Completion / Release Pointer Capture
-                std::lock_guard lock(m_mutex);
-                m_drag_state.window_id = std::nullopt;
-                m_drag_state.pointer_captured = false;
-                m_resize_state.window_id = std::nullopt;
-                m_resize_state.pointer_captured = false;
+                bool pressing_control = false;
+                {
+                    std::lock_guard lock(m_mutex);
+                    pressing_control = m_pointer.press.window_id.has_value();
+                    m_drag_state.window_id = std::nullopt;
+                    m_drag_state.pointer_captured = false;
+                    m_resize_state.window_id = std::nullopt;
+                    m_resize_state.pointer_captured = false;
+                }
+                if (pressing_control) {
+                    release_control_press(mouse_ev.x, mouse_ev.y);
+                    return;
+                }
+                set_hover(control_at(mouse_ev.x, mouse_ev.y));
+            } else if (mouse_ev.button_state == 0) { // Free pointer motion
+                set_hover(control_at(mouse_ev.x, mouse_ev.y));
             }
             
             // Route mouse event exclusively to the window under cursor OR captured window
@@ -345,6 +340,16 @@ DesktopShell::DesktopShell(std::shared_ptr<desktop::IWindowManager> wm,
         }
     });
     
+    m_event_bus->subscribe(hal::kTopicInputPointer, [this](std::shared_ptr<const core::Event> ev) {
+        if (ev->payload.type() != typeid(hal::PointerSignalEvent)) return;
+        const auto signal = std::any_cast<hal::PointerSignalEvent>(ev->payload).signal;
+        if (signal == hal::PointerSignal::Cancel) {
+            cancel_interaction();
+        } else {
+            set_hover({}); // the pointer is gone; a press in progress keeps its capture
+        }
+    });
+
     m_event_bus->subscribe(hal::kTopicInputKey, [this](std::shared_ptr<const core::Event> ev) {
         std::lock_guard lock(m_mutex);
         if (m_focused_window.has_value()) {
@@ -584,6 +589,20 @@ bool DesktopShell::has_focus() const {
     return m_focused_window.has_value();
 }
 
+namespace {
+
+// The rectangle (decoration-surface coordinates) a control occupies; empty for anything that is not a control.
+desktop::Rect control_rect(const desktop::DecorationLayout& layout, desktop::DecorationHitRegion control) {
+    switch (control) {
+    case desktop::DecorationHitRegion::CloseButton: return layout.close_button;
+    case desktop::DecorationHitRegion::MinimizeButton: return layout.minimize_button;
+    case desktop::DecorationHitRegion::MaximizeButton: return layout.maximize_button;
+    default: return {0, 0, 0, 0};
+    }
+}
+
+} // namespace
+
 void DesktopShell::update_window_decoration(uint32_t window_id, bool focused) {
     // The decorator owns the frame geometry. Applying it first matters: the decorated bounds depend on the margins.
     m_wm->set_window_frame_styles(window_id, m_decorator->frame_style(desktop::WindowState::Normal),
@@ -606,17 +625,50 @@ void DesktopShell::update_window_decoration(uint32_t window_id, bool focused) {
     const desktop::FrameStyle style = m_wm->get_window_frame_style(window_id);
     const desktop::DecorationLayout layout = desktop::calculate_decoration_layout(desktop::make_frame_metrics(style, bounds, client));
 
-    auto dec_surface = m_compositor->create_surface(bounds.width, bounds.height);
-    desktop::DecorationVisualState visual;
-    visual.focused = focused;
-    visual.state = state;
-    m_decorator->draw_decorations(dec_surface, layout, title, visual, m_theme);
-    m_wm->set_window_decoration(window_id, dec_surface, style.margins);
+    // Held while drawing: chrome is updated from both the input path and the frame loop.
+    std::lock_guard lock(m_mutex);
+    const desktop::DecorationVisualState visual = chrome_visual_locked(window_id, focused, state);
+    ChromeStamp& stamp = m_chrome[window_id];
 
-    {
-        std::lock_guard lock(m_mutex);
-        m_chrome[window_id] = ChromeStamp{focused, state, bounds.width, bounds.height, std::move(title)};
+    const bool same_frame = stamp.surface && stamp.width == bounds.width && stamp.height == bounds.height &&
+                            stamp.focused == focused && stamp.state == state && stamp.title == title;
+    if (same_frame) {
+        if (stamp.hovered == visual.hovered && stamp.pressed == visual.pressed) return; // already showing exactly this
+
+        // Only the interaction feedback changed: repaint the controls it affects, in place, and nothing else.
+        std::array<desktop::Rect, 4> dirty{};
+        size_t dirty_count = 0;
+        for (const auto control : {stamp.hovered, stamp.pressed, visual.hovered, visual.pressed}) {
+            const desktop::Rect r = control_rect(layout, control);
+            if (r.width == 0 || r.height == 0) continue;
+            const bool seen = std::any_of(dirty.begin(), dirty.begin() + static_cast<std::ptrdiff_t>(dirty_count), [&](const desktop::Rect& d) {
+                return d.x == r.x && d.y == r.y && d.width == r.width && d.height == r.height;
+            });
+            if (!seen) dirty[dirty_count++] = r;
+        }
+        bool repainted = true;
+        for (size_t i = 0; i < dirty_count && repainted; ++i) {
+            repainted = m_decorator->redraw_decoration_region(stamp.surface, layout, title, visual, m_theme, dirty[i]);
+        }
+        if (repainted) {
+            stamp.hovered = visual.hovered;
+            stamp.pressed = visual.pressed;
+            for (size_t i = 0; i < dirty_count; ++i) {
+                m_compositor->invalidate_region({bounds.x + dirty[i].x, bounds.y + dirty[i].y, dirty[i].width, dirty[i].height});
+            }
+            return;
+        }
+        // The decorator could not update just those regions: fall through to a full redraw of the same surface.
     }
+
+    std::shared_ptr<desktop::ISurface> surface = stamp.surface;
+    if (!surface || surface->width() != bounds.width || surface->height() != bounds.height) {
+        surface = m_compositor->create_surface(bounds.width, bounds.height); // only a new size needs new pixels
+    }
+    m_decorator->draw_decorations(surface, layout, title, visual, m_theme);
+    m_wm->set_window_decoration(window_id, surface, style.margins);
+
+    stamp = ChromeStamp{focused, state, bounds.width, bounds.height, std::move(title), visual.hovered, visual.pressed, std::move(surface)};
     invalidate_window_region(window_id);
 }
 
@@ -632,11 +684,204 @@ void DesktopShell::sync_window_chrome(const desktop::WindowSnapshot& snapshot) {
             const auto& stamp = it->second;
             const auto bounds = m_wm->get_decorated_window_bounds(snapshot.window_id);
             const std::string_view title = snapshot.title.empty() ? std::string_view{"Untitled"} : std::string_view{snapshot.title};
-            up_to_date = stamp.focused == focused && stamp.state == snapshot.state && stamp.width == bounds.width &&
-                         stamp.height == bounds.height && stamp.title == title;
+            const auto visual = chrome_visual_locked(snapshot.window_id, focused, snapshot.state);
+            up_to_date = stamp.surface && stamp.focused == focused && stamp.state == snapshot.state && stamp.width == bounds.width &&
+                         stamp.height == bounds.height && stamp.title == title && stamp.hovered == visual.hovered &&
+                         stamp.pressed == visual.pressed;
         }
     }
     if (!up_to_date) update_window_decoration(snapshot.window_id, focused);
+}
+
+void DesktopShell::refresh_chrome(uint32_t window_id) {
+    bool focused = false;
+    {
+        std::lock_guard lock(m_mutex);
+        focused = m_focused_window.has_value() && m_focused_window.value() == window_id;
+    }
+    update_window_decoration(window_id, focused);
+}
+
+desktop::DecorationVisualState DesktopShell::chrome_visual_locked(uint32_t window_id, bool focused, desktop::WindowState state) const {
+    desktop::DecorationVisualState visual;
+    visual.focused = focused;
+    visual.state = state;
+    if (m_pointer.press.window_id.has_value()) {
+        // While a control holds the pointer, it is the only one with feedback, and only while the pointer is over it.
+        if (m_pointer.press.window_id == window_id && m_pointer.press_inside) {
+            visual.hovered = m_pointer.press.control;
+            visual.pressed = m_pointer.press.control;
+        }
+    } else if (m_pointer.hover.window_id == window_id) {
+        visual.hovered = m_pointer.hover.control;
+    }
+    return visual;
+}
+
+DesktopShell::ControlTarget DesktopShell::control_at(int32_t x, int32_t y) const {
+    const auto window = m_wm->get_window_at(x, y);
+    if (!window.has_value() || is_shell_window(window.value())) return {};
+    if (m_wm->get_window_state(window.value()) == desktop::WindowState::Minimized) return {};
+    if (m_wm->get_resize_handle_at(x, y).has_value()) return {}; // a press here would resize, so it is not a control
+    const auto region = m_wm->get_decoration_hit_region(window.value(), x, y);
+    if (region == desktop::DecorationHitRegion::CloseButton || region == desktop::DecorationHitRegion::MinimizeButton ||
+        region == desktop::DecorationHitRegion::MaximizeButton) {
+        return {window, region};
+    }
+    return {};
+}
+
+void DesktopShell::set_hover(const ControlTarget& target) {
+    ControlTarget previous;
+    {
+        std::lock_guard lock(m_mutex);
+        if (m_pointer.hover == target) return; // ordinary pointer motion: nothing to repaint
+        previous = m_pointer.hover;
+        m_pointer.hover = target;
+    }
+    if (previous.window_id.has_value() && previous.window_id != target.window_id) refresh_chrome(previous.window_id.value());
+    if (target.window_id.has_value()) refresh_chrome(target.window_id.value());
+}
+
+void DesktopShell::begin_control_press(const ControlTarget& target) {
+    if (!target.window_id.has_value()) return;
+    const auto state = m_wm->get_window_state(target.window_id.value());
+    {
+        std::lock_guard lock(m_mutex);
+        m_pointer.press = target;
+        m_pointer.press_inside = true;
+        m_pointer.press_state = state;
+        m_drag_state.window_id = std::nullopt;
+        m_resize_state.window_id = std::nullopt;
+    }
+    refresh_chrome(target.window_id.value());
+}
+
+void DesktopShell::track_control_press(int32_t x, int32_t y) {
+    ControlTarget press;
+    {
+        std::lock_guard lock(m_mutex);
+        press = m_pointer.press;
+    }
+    if (!press.window_id.has_value()) return;
+    const bool inside = (control_at(x, y) == press);
+    {
+        std::lock_guard lock(m_mutex);
+        if (m_pointer.press_inside == inside) return;
+        m_pointer.press_inside = inside;
+    }
+    refresh_chrome(press.window_id.value());
+}
+
+void DesktopShell::release_control_press(int32_t x, int32_t y) {
+    ControlTarget press;
+    {
+        std::lock_guard lock(m_mutex);
+        press = m_pointer.press;
+        m_pointer.press = {};
+        m_pointer.press_inside = false;
+    }
+    if (!press.window_id.has_value()) return;
+    // Activation needs the release over the very control that was pressed.
+    if (control_at(x, y) == press) {
+        activate_control(press.window_id.value(), press.control);
+    }
+    if (m_wm->get_window_geometry(press.window_id.value()).has_value()) refresh_chrome(press.window_id.value());
+    set_hover(control_at(x, y));
+}
+
+void DesktopShell::activate_control(uint32_t wid, desktop::DecorationHitRegion control) {
+    if (control == desktop::DecorationHitRegion::CloseButton) {
+        invalidate_window_region(wid);
+        this->remove_running_application(wid);
+        m_wm->destroy_window(wid);
+        return;
+    }
+
+    if (control == desktop::DecorationHitRegion::MinimizeButton) {
+        invalidate_window_region(wid);
+        m_wm->set_window_state(wid, desktop::WindowState::Minimized);
+        invalidate_window_region(wid);
+
+        // Transfer focus if the minimized window was focused
+        std::lock_guard lock(m_mutex);
+        if (m_focused_window.has_value() && m_focused_window.value() == wid) {
+            auto visible_windows = m_wm->get_visible_windows_z_ordered();
+            if (!visible_windows.empty()) {
+                m_focused_window = visible_windows.back();
+                m_wm->focus_window(m_focused_window.value());
+            } else {
+                m_focused_window = std::nullopt;
+            }
+        }
+        return;
+    }
+
+    if (control == desktop::DecorationHitRegion::MaximizeButton) {
+        auto state = m_wm->get_window_state(wid);
+        invalidate_window_region(wid);
+        if (state == desktop::WindowState::Normal) {
+            m_wm->set_window_state(wid, desktop::WindowState::Maximized);
+        } else if (state == desktop::WindowState::Maximized) {
+            m_wm->set_window_state(wid, desktop::WindowState::Normal);
+        }
+        invalidate_window_region(wid);
+        this->focus_window(wid);
+        m_wm->focus_window(wid);
+    }
+}
+
+void DesktopShell::validate_captures() {
+    // A captured window can disappear or change state underneath the pointer (closed by its application, restored from
+    // elsewhere): the interaction it was part of is then over, without activating anything.
+    std::optional<uint32_t> press_window;
+    desktop::WindowState press_state{};
+    std::optional<uint32_t> drag_window;
+    std::optional<uint32_t> resize_window;
+    {
+        std::lock_guard lock(m_mutex);
+        press_window = m_pointer.press.window_id;
+        press_state = m_pointer.press_state;
+        drag_window = m_drag_state.window_id;
+        resize_window = m_resize_state.window_id;
+    }
+    if (!press_window && !drag_window && !resize_window) return; // the common case: nothing captured
+    auto lost = [this](const std::optional<uint32_t>& id, desktop::WindowState expected) {
+        return id.has_value() && (!m_wm->get_window_geometry(id.value()).has_value() || m_wm->get_window_state(id.value()) != expected);
+    };
+    const bool press_lost = lost(press_window, press_state);
+    const bool drag_lost = lost(drag_window, desktop::WindowState::Normal);
+    const bool resize_lost = lost(resize_window, desktop::WindowState::Normal);
+    if (!press_lost && !drag_lost && !resize_lost) return;
+    {
+        std::lock_guard lock(m_mutex);
+        if (press_lost) {
+            m_pointer.press = {};
+            m_pointer.press_inside = false;
+        }
+        if (drag_lost) m_drag_state = DragState{};
+        if (resize_lost) m_resize_state = ResizeState{};
+    }
+    if (press_lost && m_wm->get_window_geometry(press_window.value()).has_value()) refresh_chrome(press_window.value());
+}
+
+void DesktopShell::cancel_interaction() {
+    // Interrupted input (e.g. the host window lost focus, so the release may never arrive): abandon the press without
+    // activating, end a drag or resize where it is, and drop hover feedback.
+    ControlTarget press;
+    ControlTarget hover;
+    {
+        std::lock_guard lock(m_mutex);
+        press = m_pointer.press;
+        hover = m_pointer.hover;
+        m_pointer = ChromePointer{};
+        m_drag_state = DragState{};
+        m_resize_state = ResizeState{};
+    }
+    m_last_mouse_state = 0;
+    m_input_suppressed = true;
+    if (press.window_id.has_value()) refresh_chrome(press.window_id.value());
+    if (hover.window_id.has_value() && hover.window_id != press.window_id) refresh_chrome(hover.window_id.value());
 }
 
 void DesktopShell::invalidate_window_region(uint32_t window_id) {

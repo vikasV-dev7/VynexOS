@@ -57,6 +57,14 @@ void SDL2InputDriver::poll() {
             ev->topic = kTopicInputMouse;
             ev->payload = MouseEvent(pt.x, pt.y, m_mouse_button_state);
             m_event_bus->dispatch_immediate(ev);
+        } else if (event.type == SDL_WINDOWEVENT &&
+                   (event.window.event == SDL_WINDOWEVENT_LEAVE || event.window.event == SDL_WINDOWEVENT_FOCUS_LOST)) {
+            // Losing focus can swallow the button release, so it cancels the interaction; leaving only clears hover.
+            if (event.window.event == SDL_WINDOWEVENT_FOCUS_LOST) m_mouse_button_state = 0;
+            auto ev = std::make_shared<core::Event>();
+            ev->topic = kTopicInputPointer;
+            ev->payload = PointerSignalEvent{event.window.event == SDL_WINDOWEVENT_FOCUS_LOST ? PointerSignal::Cancel : PointerSignal::Left};
+            m_event_bus->dispatch_immediate(ev);
         } else if (event.type == SDL_QUIT) {
             m_logger->info("SDL_QUIT received (Window closed)");
             m_shutdown_requested = true;

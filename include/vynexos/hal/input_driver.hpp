@@ -9,6 +9,17 @@ namespace vynexos::hal {
 /// drivers (publishers) and consumers (e.g. the desktop shell).
 inline constexpr const char* kTopicInputKey = "HAL_INPUT_KEY";
 inline constexpr const char* kTopicInputMouse = "HAL_INPUT_MOUSE";
+inline constexpr const char* kTopicInputPointer = "HAL_INPUT_POINTER";  ///< PointerSignalEvent payloads
+
+/// Pointer happenings that carry no position, published on kTopicInputPointer.
+enum class PointerSignal : uint8_t {
+    Left,   ///< the pointer left the host window: hover feedback should clear (a press in progress continues)
+    Cancel  ///< the interaction was interrupted (e.g. the host window lost focus): abandon any press, drag or resize
+};
+
+struct PointerSignalEvent {
+    PointerSignal signal;
+};
 
 struct KeyEvent {
     uint32_t key_code;

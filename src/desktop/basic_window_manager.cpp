@@ -469,11 +469,14 @@ SceneGraph BasicWindowManager::build_scene() const {
                 win.geometry.width + static_cast<uint32_t>(win.margins.left + win.margins.right),
                 win.geometry.height + static_cast<uint32_t>(win.margins.top + win.margins.bottom)
             };
-            dec_layer.clip = {0, 0, 0, 0};
+            // The invisible resize band is never drawn, so the compositor need not visit it: clip to the visible frame.
+            const Rect frame = layout_of(win).visible_frame;
+            dec_layer.clip = {dec_layer.bounds.x + frame.x, dec_layer.bounds.y + frame.y, frame.width, frame.height};
             dec_layer.opacity = win.opacity;
             dec_layer.visible = win.visible;
             dec_layer.surface = win.decoration_surface;
-            scene.push_back(std::move(dec_layer));
+            // An empty frame has nothing to show (and a zero clip would mean "unclipped" to the compositor).
+            if (dec_layer.clip.width > 0 && dec_layer.clip.height > 0) scene.push_back(std::move(dec_layer));
         }
         
         // Push Content Layer

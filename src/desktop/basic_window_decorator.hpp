@@ -27,11 +27,25 @@ public:
         const DecorationVisualState& visual,
         const WindowTheme& theme) override;
 
+    /// Exact for any region that does not touch the title text (e.g. a control button); refuses regions that do.
+    bool redraw_decoration_region(
+        std::shared_ptr<ISurface> surface,
+        const DecorationLayout& layout,
+        std::string_view title,
+        const DecorationVisualState& visual,
+        const WindowTheme& theme,
+        const Rect& region) override;
+
     WindowMargins get_margins() const override;
     [[nodiscard]] FrameStyle frame_style(WindowState state) const override;
 
 private:
     std::shared_ptr<IWidgetToolkit> m_toolkit;
+
+    /// Draws the frame and controls (everything except the title text), limited to `clip`.
+    void paint_frame(ISurface& surface, const DecorationLayout& layout, const DecorationVisualState& visual, const Rect& clip) const;
+    /// Where the title text may be drawn (empty when there is no room).
+    [[nodiscard]] Rect title_text_box(const DecorationLayout& layout) const;
 };
 
 } // namespace vynexos::desktop

@@ -8,6 +8,8 @@
 //
 // Usage: bench_desktop_frame [--frames N] [--sdl] [--micro-only]
 //        bench_desktop_frame --dump <file.bmp> [--bitmap-text] [--focus-explorer] [--open-launcher] [--maximize-explorer]
+//                            [--hover <minimize|maximize|close>] [--press <minimize|maximize|close>]
+//   --hover/--press  point at (or press and hold) one of the Explorer's title-bar controls before capturing
 //   --micro-only  skip the desktop scenarios and only run the drawing-primitive micro-benchmarks
 //   --dump        render the desktop headlessly and write the compositor's exact output frame (1920x1080) as a BMP;
 //                 --bitmap-text renders it with the legacy 8x8 font for a before/after comparison
@@ -252,6 +254,8 @@ int main(int argc, char** argv) {
     bool focus_explorer = false;      // --focus-explorer: click the Explorer title bar first (active title bar)
     bool open_launcher = false;       // --open-launcher: click the Vynex button first
     bool maximize_explorer = false;   // --maximize-explorer: maximize and focus the Explorer window first
+    const char* hover_control = nullptr;  // --hover <control>: rest the pointer on an Explorer title-bar control
+    const char* press_control = nullptr;  // --press <control>: press and hold an Explorer title-bar control
     for (int i = 1; i < argc; ++i) {
         if (std::strcmp(argv[i], "--micro-only") == 0) micro_only = true;
         if (std::strcmp(argv[i], "--frames") == 0 && i + 1 < argc) frames = std::atoi(argv[++i]);
@@ -261,6 +265,8 @@ int main(int argc, char** argv) {
         if (std::strcmp(argv[i], "--focus-explorer") == 0) focus_explorer = true;
         if (std::strcmp(argv[i], "--open-launcher") == 0) open_launcher = true;
         if (std::strcmp(argv[i], "--maximize-explorer") == 0) maximize_explorer = true;
+        if (std::strcmp(argv[i], "--hover") == 0 && i + 1 < argc) hover_control = argv[++i];
+        if (std::strcmp(argv[i], "--press") == 0 && i + 1 < argc) press_control = argv[++i];
     }
 
 #ifdef NDEBUG
@@ -387,6 +393,22 @@ int main(int argc, char** argv) {
             shell->focus_window(explorer_id);
             compositor->invalidate_region({0, 0, size.width, size.height});
         }
+        if (hover_control != nullptr || press_control != nullptr) {
+            for (int i = 0; i < 5; ++i) run_frame(warm);
+            const auto bounds = wm->get_decorated_window_bounds(explorer_id);
+            const auto geom = wm->get_window_geometry(explorer_id);
+            const auto layout = desktop::calculate_decoration_layout(desktop::make_frame_metrics(
+                wm->get_window_frame_style(explorer_id), bounds, {geom->x, geom->y, geom->width, geom->height}));
+            auto control_centre = [&](const char* name) {
+                const desktop::Rect r = std::strcmp(name, "close") == 0      ? layout.close_button
+                                        : std::strcmp(name, "maximize") == 0 ? layout.maximize_button
+                                                                             : layout.minimize_button;
+                return std::pair<int32_t, int32_t>{bounds.x + r.x + static_cast<int32_t>(r.width / 2), bounds.y + r.y + static_cast<int32_t>(r.height / 2)};
+            };
+            const auto [x, y] = control_centre(press_control != nullptr ? press_control : hover_control);
+            mouse(x, y, 0);
+            if (press_control != nullptr) mouse(x, y, 1); // held: the dump shows the pressed state
+        }
         for (int i = 0; i < 10; ++i) run_frame(warm);
         if (!write_bmp(dump_path, capture->last)) {
             std::fprintf(stderr, "failed to write %s\n", dump_path);
@@ -424,6 +446,27 @@ int main(int argc, char** argv) {
         }
         mouse(500, 180, 0);
         report("drag", p, "File Explorer dragged in a circle (shell input + dirty regions)");
+    }
+
+    // 4. hover: the pointer visits a different title-bar target every frame (worst case for hover feedback)
+    {
+        const auto bounds = wm->get_decorated_window_bounds(explorer_id);
+        const auto geom = wm->get_window_geometry(explorer_id);
+        const auto layout = desktop::calculate_decoration_layout(desktop::make_frame_metrics(
+            wm->get_window_frame_style(explorer_id), bounds, {geom->x, geom->y, geom->width, geom->height}));
+        auto centre = [&](const desktop::Rect& r) {
+            return std::pair<int32_t, int32_t>{bounds.x + r.x + static_cast<int32_t>(r.width / 2), bounds.y + r.y + static_cast<int32_t>(r.height / 2)};
+        };
+        const std::pair<int32_t, int32_t> targets[] = {centre(layout.minimize_button), centre(layout.maximize_button),
+                                                       centre(layout.close_button),
+                                                       {bounds.x + layout.title_bar.x + 200, bounds.y + layout.title_bar.y + 18}};
+        Phases p;
+        for (int i = 0; i < frames; ++i) {
+            const auto& t = targets[static_cast<size_t>(i) % std::size(targets)];
+            mouse(t.first, t.second, 0);
+            run_frame(p);
+        }
+        report("hover", p, "pointer moves between the Explorer's title-bar controls every frame");
     }
 
     run_micro_benchmarks();

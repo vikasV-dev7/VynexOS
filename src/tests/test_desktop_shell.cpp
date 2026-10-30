@@ -696,13 +696,20 @@ void test_maximize_routing() {
     event_bus->publish(click_ev);
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
 
-    assert(wm->get_window_state(win_id) == WindowState::Maximized);
+    assert(wm->get_window_state(win_id) == WindowState::Normal); // controls act on release, not on press
 
-    // Try to drag (click TitleBar)
+    click_ev = std::make_shared<core::Event>();
+    click_ev->topic = "HAL_INPUT_MOUSE";
     click_ev->payload = hal::MouseEvent(max_x, max_y, 0); // Release Maximize button
     event_bus->publish(click_ev);
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
-    
+
+    assert(wm->get_window_state(win_id) == WindowState::Maximized);
+
+    // Try to drag (click TitleBar)
+    click_ev = std::make_shared<core::Event>();
+    click_ev->topic = "HAL_INPUT_MOUSE";
+
     // Click title bar at abs 150, 110 (which is now in the maximized window's title bar, 150, 10 relative)
     click_ev->payload = hal::MouseEvent(150, 10, 1);
     event_bus->publish(click_ev);
