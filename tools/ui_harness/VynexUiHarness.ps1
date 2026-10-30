@@ -251,6 +251,23 @@ function Get-VynexPixel {
     return [pscustomobject]@{ R = [int]$c.R; G = [int]$c.G; B = [int]$c.B }
 }
 
+# A colour token from the design tokens in include/vynexos/desktop/theme.hpp (e.g. 'surface_raised'), read from the
+# source so checks follow the theme instead of copying its values.
+function Get-VynexThemeColor {
+    param([Parameter(Mandatory)][string]$Token)
+    $theme = Join-Path $PSScriptRoot '..\..\include\vynexos\desktop\theme.hpp'
+    $line = Select-String -Path $theme -Pattern ("\b{0}\{{rgb\(0x([0-9A-Fa-f]{{6}})" -f [regex]::Escape($Token)) | Select-Object -First 1
+    if (-not $line) { throw "Theme token '$Token' not found in $theme" }
+    $hex = [Convert]::ToInt32($line.Matches[0].Groups[1].Value, 16)
+    return [pscustomobject]@{ R = ($hex -shr 16) -band 0xFF; G = ($hex -shr 8) -band 0xFF; B = $hex -band 0xFF }
+}
+
+# True when two colours match within a per-channel tolerance (screen capture of a scaled frame can shift a few levels).
+function Test-VynexColorNear {
+    param([Parameter(Mandatory)]$A, [Parameter(Mandatory)]$B, [int]$Tolerance = 6)
+    return ([Math]::Abs($A.R - $B.R) -le $Tolerance) -and ([Math]::Abs($A.G - $B.G) -le $Tolerance) -and ([Math]::Abs($A.B - $B.B) -le $Tolerance)
+}
+
 function Get-VynexLogErrorCount {
     param([Parameter(Mandatory)]$App)
     return @(Select-String -Path $App.Log -Pattern '\[ERROR\]|\[FATAL\]' -ErrorAction SilentlyContinue).Count

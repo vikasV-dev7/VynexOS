@@ -72,10 +72,13 @@ try {
     Write-Host '[4] taskbar'
     $b = Get-VynexWindowBounds $app 5
     Invoke-VynexClick $app $geo ($b.X + 350) ($b.Y - 20)     # focus the Explorer first
-    # Colour fidelity: the focused title bar is defined as blue (50,100,200) by the current theme. If the display path
-    # swapped the red and blue channels it would appear orange instead.
+    # Colour fidelity: a focused title bar is filled with the theme's surface_raised token. Its red and blue channels
+    # differ by more than the tolerance, so a display path that swapped them would fail the second condition.
     $px = Get-VynexPixel $app $geo ($b.X + 250) ($b.Y - 12)
-    Confirm-Vynex $app 'focused title bar renders blue (RGB channel order)' ($px.B -gt ($px.R + 80)) ("pixel R{0} G{1} B{2}" -f $px.R, $px.G, $px.B)
+    $want = Get-VynexThemeColor 'surface_raised'
+    $swapped = [pscustomobject]@{ R = $want.B; G = $want.G; B = $want.R }
+    Confirm-Vynex $app 'focused title bar matches theme token surface_raised (RGB channel order)' ((Test-VynexColorNear $px $want) -and -not (Test-VynexColorNear $px $swapped)) `
+        ("pixel R{0} G{1} B{2}, token R{3} G{4} B{5}" -f $px.R, $px.G, $px.B, $want.R, $want.G, $want.B)
     Invoke-VynexClick $app $geo 330 1060                      # its taskbar entry: focused window minimizes
     Start-Sleep -Milliseconds 1300
     Confirm-Vynex $app 'taskbar click minimizes the focused window' (Test-VynexWindowExcluded $app 5 'Minimized') ''
