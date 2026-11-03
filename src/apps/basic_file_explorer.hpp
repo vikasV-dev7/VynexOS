@@ -32,6 +32,7 @@ public:
     void update(double delta_time_ms) override;
     bool handle_event(const vynexos::core::Event& event) override;
     void render(vynexos::desktop::ISurface& target_surface) override;
+    [[nodiscard]] std::optional<desktop::Rect> take_invalidated_region() override;
     void shutdown() override;
     [[nodiscard]] std::string get_name() const noexcept override;
 
@@ -46,6 +47,10 @@ private:
     bool navigate_to(const core::VirtualPath& path);
     void navigate_up();
 
+    // Change reporting (see IApplication::take_invalidated_region)
+    void invalidate(const desktop::Rect& region);
+    void invalidate_row(size_t row);
+
 private:
     std::shared_ptr<core::IVirtualFileSystem> m_vfs;
     std::shared_ptr<desktop::IWidgetToolkit> m_toolkit;
@@ -54,6 +59,9 @@ private:
     core::VirtualPath m_current_path;
     std::vector<DirectoryEntry> m_entries;
     std::optional<size_t> m_selected_index;
+
+    // Content regions changed since the presentation layer last asked (usually zero to two rows).
+    std::vector<desktop::Rect> m_invalidated;
 };
 
 } // namespace vynexos::apps

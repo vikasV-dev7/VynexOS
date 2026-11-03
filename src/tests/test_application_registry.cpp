@@ -4,9 +4,8 @@
 #include <iostream>
 #include <stdexcept>
 
-// Minimal Mock Event (if not included)
+// Minimal Mock Event (if not included). ISurface comes from application.hpp (via desktop_types.hpp).
 namespace vynexos::core { struct Event {}; }
-namespace vynexos::desktop { class ISurface {}; }
 
 using namespace vynexos::apps;
 

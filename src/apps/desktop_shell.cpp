@@ -3,6 +3,7 @@
 #include "vynexos/hal/input_driver.hpp"
 #include <algorithm>
 #include <array>
+#include <limits>
 
 namespace vynexos::apps {
 
@@ -485,18 +486,64 @@ void DesktopShell::update_frame() {
         }
     }
     
-    // Update and render running applications
+    // Update running applications and bring what they changed to the screen
     {
         std::lock_guard lock(m_mutex);
         for (auto& running_app : m_running_apps) {
             if (running_app.app) {
                 running_app.app->update(16.6); // Transitional constant delta time
                 if (running_app.visible && running_app.surface) {
-                    running_app.app->render(*(running_app.surface));
+                    present_application_content(running_app);
                 }
             }
         }
     }
+}
+
+void DesktopShell::present_application_content(desktop::RunningApplication& app) {
+    const desktop::ISurface& surface = *app.surface;
+    const auto stamp = m_content.find(app.window_id);
+    const bool unpainted = stamp == m_content.end() || stamp->second.surface != &surface || stamp->second.width != surface.width() ||
+                           stamp->second.height != surface.height();
+
+    // Drain what the application reports (bounded, so a misbehaving application cannot stall the frame; anything beyond
+    // the bound is treated as "everything changed").
+    constexpr size_t kMaxRegions = 8;
+    std::array<desktop::Rect, kMaxRegions> regions{};
+    size_t count = 0;
+    bool everything = unpainted;
+    for (size_t taken = 0; taken < 64; ++taken) {
+        const auto region = app.app->take_invalidated_region();
+        if (!region) break;
+        if (count < kMaxRegions) regions[count++] = *region;
+        else everything = true;
+    }
+    if (!everything && count == 0) return; // nothing changed: no rendering, no redraw
+
+    app.app->render(*app.surface);
+    m_content[app.window_id] = ContentStamp{&surface, surface.width(), surface.height()};
+
+    const auto client = m_wm->get_window_geometry(app.window_id);
+    if (!client) return;
+    if (everything) {
+        invalidate_content_region(*client, surface, kWholeContent);
+        return;
+    }
+    for (size_t i = 0; i < count; ++i) invalidate_content_region(*client, surface, regions[i]);
+}
+
+void DesktopShell::invalidate_content_region(const desktop::WindowGeometry& client, const desktop::ISurface& surface, const desktop::Rect& region) {
+    // Content coordinates -> the part inside the content (the client area, as far as the surface covers it) -> screen.
+    const int64_t content_w = std::min<int64_t>(client.width, surface.width());
+    const int64_t content_h = std::min<int64_t>(client.height, surface.height());
+    const int64_t x0 = std::max<int64_t>(region.x, 0);
+    const int64_t y0 = std::max<int64_t>(region.y, 0);
+    const int64_t x1 = std::min<int64_t>(static_cast<int64_t>(region.x) + region.width, content_w);
+    const int64_t y1 = std::min<int64_t>(static_cast<int64_t>(region.y) + region.height, content_h);
+    if (x0 >= x1 || y0 >= y1) return;
+    const int64_t sx = client.x + x0, sy = client.y + y0;
+    if (sx > std::numeric_limits<int32_t>::max() || sy > std::numeric_limits<int32_t>::max()) return; // far off-screen
+    m_compositor->invalidate_region({static_cast<int32_t>(sx), static_cast<int32_t>(sy), static_cast<uint32_t>(x1 - x0), static_cast<uint32_t>(y1 - y0)});
 }
 
 void DesktopShell::add_running_application(desktop::RunningApplication&& app) {
@@ -516,12 +563,14 @@ void DesktopShell::remove_running_application(uint32_t window_id) {
         m_focused_window = std::nullopt; // safely clear focus
     }
     std::erase_if(m_running_apps, [window_id](const auto& app) { return app.window_id == window_id; });
+    m_content.erase(window_id);
 }
 
 void DesktopShell::clear_running_applications() {
     std::lock_guard lock(m_mutex);
     m_focused_window = std::nullopt; // safely clear focus
     m_running_apps.clear();
+    m_content.clear();
 }
 
 size_t DesktopShell::running_application_count() const {

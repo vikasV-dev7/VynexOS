@@ -4,6 +4,12 @@
 
 namespace vynexos::apps {
 
+namespace {
+// List geometry, shared by hit-testing, drawing and change reporting.
+constexpr int32_t kListTop = 50;
+constexpr int32_t kRowHeight = 30;
+} // namespace
+
 // -----------------------------------------------------------------------------
 // DI-Compliant Phase 4.1 Constructor
 // -----------------------------------------------------------------------------
@@ -39,9 +45,9 @@ bool BasicFileExplorer::handle_event(const vynexos::core::Event& event) {
             return true;
         }
         
-        // List entries: starts at y=50, height=30 per entry
-        if (y >= 50) {
-            int row = (y - 50) / 30;
+        // List entries: start at kListTop, kRowHeight per entry
+        if (y >= kListTop) {
+            int row = (y - kListTop) / kRowHeight;
             if (row >= 0 && row < static_cast<int>(m_entries.size())) {
                 if (m_selected_index.has_value() && m_selected_index.value() == static_cast<size_t>(row)) {
                     // Second click: Activation gesture
@@ -49,12 +55,15 @@ bool BasicFileExplorer::handle_event(const vynexos::core::Event& event) {
                         navigate_to(m_entries[static_cast<size_t>(row)].full_path);
                     }
                 } else {
-                    // First click: Select
+                    // First click: Select. Only the previously and newly selected rows look different.
+                    if (m_selected_index.has_value()) invalidate_row(m_selected_index.value());
                     m_selected_index = static_cast<size_t>(row);
+                    invalidate_row(static_cast<size_t>(row));
                 }
                 return true;
             } else {
                 // Click in empty space
+                if (m_selected_index.has_value()) invalidate_row(m_selected_index.value());
                 m_selected_index.reset();
             }
         }
@@ -78,19 +87,19 @@ void BasicFileExplorer::render(vynexos::desktop::ISurface& target_surface) {
     m_toolkit->draw_button(surf_ptr, 10, 10, 40, 30, "Up");
     
     // List
-    int32_t list_y = 50;
+    int32_t list_y = kListTop;
     for (size_t i = 0; i < m_entries.size(); ++i) {
         if (m_selected_index.has_value() && m_selected_index.value() == i) {
             // Highlight selected row
-            m_toolkit->draw_rect(surf_ptr, 10, list_y, width - 20, 30, desktop::Color{100, 100, 180, 255});
+            m_toolkit->draw_rect(surf_ptr, 10, list_y, width - 20, kRowHeight, desktop::Color{100, 100, 180, 255});
         }
-        
+
         const auto& entry = m_entries[i];
         std::string prefix = entry.stat.is_directory ? "[DIR] " : "[FILE] ";
         std::string label = prefix + entry.display_name;
-        
+
         m_toolkit->draw_text(surf_ptr, 20, list_y + 10, label, desktop::Color{200, 200, 200, 255});
-        list_y += 30;
+        list_y += kRowHeight;
     }
     
     // Status bar
@@ -131,7 +140,8 @@ bool BasicFileExplorer::refresh_current_directory() {
         if (b.stat.is_directory && !a.stat.is_directory) return false;
         return a.display_name < b.display_name;
     });
-    
+
+    invalidate(kWholeContent); // new listing, selection cleared, new item count
     return true;
 }
 
@@ -149,6 +159,31 @@ bool BasicFileExplorer::navigate_to(const core::VirtualPath& path) {
 
 void BasicFileExplorer::navigate_up() {
     navigate_to(m_current_path.parent());
+}
+
+std::optional<desktop::Rect> BasicFileExplorer::take_invalidated_region() {
+    if (m_invalidated.empty()) return std::nullopt;
+    const desktop::Rect region = m_invalidated.back();
+    m_invalidated.pop_back();
+    return region;
+}
+
+void BasicFileExplorer::invalidate(const desktop::Rect& region) {
+    if (region.width == 0 || region.height == 0) return;
+    const auto whole = [](const desktop::Rect& r) {
+        return r.x == kWholeContent.x && r.y == kWholeContent.y && r.width == kWholeContent.width && r.height == kWholeContent.height;
+    };
+    if (whole(region)) {
+        m_invalidated.assign(1, region); // supersedes anything smaller
+        return;
+    }
+    if (!m_invalidated.empty() && whole(m_invalidated.front())) return; // already covered
+    m_invalidated.push_back(region);
+}
+
+void BasicFileExplorer::invalidate_row(size_t row) {
+    // The full width of the content: the highlight spans almost all of it, and the shell clamps to the content area.
+    invalidate({0, kListTop + static_cast<int32_t>(row) * kRowHeight, kWholeContent.width, static_cast<uint32_t>(kRowHeight)});
 }
 
 } // namespace vynexos::apps

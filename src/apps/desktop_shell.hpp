@@ -70,6 +70,18 @@ private:
     void sync_window_chrome(const desktop::WindowSnapshot& snapshot);
     void refresh_chrome(uint32_t window_id);
 
+    // Application content reaches the screen only through here: an application's surface is re-rendered, and the
+    // compositor told which parts to redraw, when the application reports a change (IApplication::take_invalidated_region)
+    // or its surface has not been painted yet. The stamp records which surface was last painted for a window.
+    struct ContentStamp {
+        const desktop::ISurface* surface{nullptr};
+        uint32_t width{0};
+        uint32_t height{0};
+    };
+    std::unordered_map<uint32_t, ContentStamp> m_content; // guarded by m_mutex
+    void present_application_content(desktop::RunningApplication& app);
+    void invalidate_content_region(const desktop::WindowGeometry& client, const desktop::ISurface& surface, const desktop::Rect& region);
+
     // Pointer interaction with the title-bar controls (minimize, maximize, close). A press captures the pointer for
     // that control: it shows as pressed only while the pointer is over it, activates on release over it, and is
     // abandoned if the pointer is released elsewhere, the window goes away or changes state, or input is cancelled.
