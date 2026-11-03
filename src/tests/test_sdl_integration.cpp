@@ -1,7 +1,6 @@
 #include <iostream>
-#include <cassert>
+#include "test_check.hpp"
 #include <chrono>
-#include <cassert>
 #include <thread>
 
 #define SDL_MAIN_HANDLED
@@ -124,20 +123,20 @@ void test_burst_event_processing() {
     driver.poll(); // Drain the queue
     
     // Assert exactly 10 events were generated and recorded
-    assert(bus->recorded_mouse_states.size() == 10);
+    CHECK(bus->recorded_mouse_states.size() == 10);
     // Sequence 1
-    assert(bus->recorded_mouse_states[0] == 1); // DOWN
-    assert(bus->recorded_mouse_states[1] == 0); // UP
+    CHECK(bus->recorded_mouse_states[0] == 1); // DOWN
+    CHECK(bus->recorded_mouse_states[1] == 0); // UP
     // Sequence 2
-    assert(bus->recorded_mouse_states[2] == 1); // DOWN
-    assert(bus->recorded_mouse_states[3] == 1); // DOWN
-    assert(bus->recorded_mouse_states[4] == 0); // UP
-    assert(bus->recorded_mouse_states[5] == 0); // UP
+    CHECK(bus->recorded_mouse_states[2] == 1); // DOWN
+    CHECK(bus->recorded_mouse_states[3] == 1); // DOWN
+    CHECK(bus->recorded_mouse_states[4] == 0); // UP
+    CHECK(bus->recorded_mouse_states[5] == 0); // UP
     // Sequence 3
-    assert(bus->recorded_mouse_states[6] == 1); // DOWN
-    assert(bus->recorded_mouse_states[7] == 1); // MOTION
-    assert(bus->recorded_mouse_states[8] == 1); // MOTION
-    assert(bus->recorded_mouse_states[9] == 0); // UP
+    CHECK(bus->recorded_mouse_states[6] == 1); // DOWN
+    CHECK(bus->recorded_mouse_states[7] == 1); // MOTION
+    CHECK(bus->recorded_mouse_states[8] == 1); // MOTION
+    CHECK(bus->recorded_mouse_states[9] == 0); // UP
     if (bus->last_topic != "HAL_INPUT_MOUSE") {
         std::cout << "  -> FAILED: Expected HAL_INPUT_MOUSE topic" << std::endl;
         std::exit(1);
@@ -177,7 +176,7 @@ void test_repeated_focus_changes() {
         wm.focus_window(id2);
         
         auto z_order = wm.get_windows_z_ordered();
-        assert(z_order.back() == id2);
+        CHECK(z_order.back() == id2);
     }
     std::cout << "  -> Passed (No iterator invalidation crashes during focus thrashing)." << std::endl;
 }

@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <array>
 #include <atomic>
-#include <cassert>
+#include "test_check.hpp"
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
@@ -119,10 +119,10 @@ void test_fill_rect_exact() {
         Painter p(s);
         p.fill_rect({5, 5, 10, 10}, kRed);
     }
-    assert(get(s, 5, 5) == (Px{255, 0, 0, 255}));
-    assert(get(s, 14, 14) == (Px{255, 0, 0, 255}));
-    assert(alpha(s, 4, 5) == 0 && alpha(s, 15, 14) == 0 && alpha(s, 5, 4) == 0 && alpha(s, 14, 15) == 0);
-    assert(count_alpha_nonzero(s) == 100);
+    CHECK(get(s, 5, 5) == (Px{255, 0, 0, 255}));
+    CHECK(get(s, 14, 14) == (Px{255, 0, 0, 255}));
+    CHECK(alpha(s, 4, 5) == 0 && alpha(s, 15, 14) == 0 && alpha(s, 5, 4) == 0 && alpha(s, 14, 15) == 0);
+    CHECK(count_alpha_nonzero(s) == 100);
     std::cout << "test_fill_rect_exact passed\n";
 }
 
@@ -134,8 +134,8 @@ void test_fill_rect_bounds_and_degenerate() {
             p.fill_rect({-10, -10, 15, 15}, kRed);
             p.fill_rect({15, 15, 100, 100}, kRed);
         }
-        assert(count_alpha_nonzero(s) == 50);
-        assert(alpha(s, 4, 4) == 255 && alpha(s, 5, 5) == 0 && alpha(s, 15, 15) == 255 && alpha(s, 14, 14) == 0);
+        CHECK(count_alpha_nonzero(s) == 50);
+        CHECK(alpha(s, 4, 4) == 255 && alpha(s, 5, 5) == 0 && alpha(s, 15, 15) == 255 && alpha(s, 14, 14) == 0);
     }
     {
         // Extremes of Rect must not overflow: x + width spans exactly the whole int32 positive half.
@@ -146,7 +146,7 @@ void test_fill_rect_bounds_and_degenerate() {
                          std::numeric_limits<uint32_t>::max()},
                         kRed);
         }
-        assert(count_alpha_nonzero(s) == 400);
+        CHECK(count_alpha_nonzero(s) == 400);
     }
     {
         SoftwareSurface s(20, 20);
@@ -159,7 +159,7 @@ void test_fill_rect_bounds_and_degenerate() {
             p.fill_rect({0, 0, 5, 5}, Color{1, 2, 3, 0});
             p.fill_rect({std::numeric_limits<int32_t>::max(), std::numeric_limits<int32_t>::max(), 10, 10}, kRed);
         }
-        assert(count_alpha_nonzero(s) == 0);
+        CHECK(count_alpha_nonzero(s) == 0);
     }
     std::cout << "test_fill_rect_bounds_and_degenerate passed\n";
 }
@@ -175,7 +175,7 @@ void test_blend_onto_transparent_keeps_colour() {
     }
     // The legacy blend darkened colour by alpha when the destination was transparent. Straight-alpha compositing
     // must keep the colour intact and carry the alpha.
-    assert(get(s, 0, 0) == (Px{255, 0, 0, 128}));
+    CHECK(get(s, 0, 0) == (Px{255, 0, 0, 128}));
     std::cout << "test_blend_onto_transparent_keeps_colour passed\n";
 }
 
@@ -189,9 +189,9 @@ void test_blend_onto_opaque() {
         p.fill_rect({0, 2, 2, 2}, Color{0, 0, 0, 0}); // no-op
     }
     const Px p = get(s, 0, 0);
-    assert(p.r == 255 && near(p.g, 127, 1) && near(p.b, 127, 1) && p.a == 255);
-    assert(get(s, 3, 3) == (Px{0, 0, 0, 255}));
-    assert(get(s, 0, 3) == (Px{255, 255, 255, 255}));
+    CHECK(p.r == 255 && near(p.g, 127, 1) && near(p.b, 127, 1) && p.a == 255);
+    CHECK(get(s, 3, 3) == (Px{0, 0, 0, 255}));
+    CHECK(get(s, 0, 3) == (Px{255, 255, 255, 255}));
     std::cout << "test_blend_onto_opaque passed\n";
 }
 
@@ -205,11 +205,11 @@ void test_blend_translucent_over_translucent() {
         p.fill_rect({1, 0, 1, 1}, Color{255, 0, 0, 128});
     }
     const Px a = get(s, 0, 0);
-    assert(a.r >= 254 && a.g >= 254 && a.b >= 254); // colour must stay white, not drift
-    assert(near(a.a, 192, 1));                      // 128 + 128*(127/255)
+    CHECK(a.r >= 254 && a.g >= 254 && a.b >= 254); // colour must stay white, not drift
+    CHECK(near(a.a, 192, 1));                      // 128 + 128*(127/255)
     const Px b = get(s, 1, 0);
-    assert(near(b.a, 192, 1));
-    assert(near(b.r, 170, 2) && near(b.b, 85, 2) && b.g == 0); // newer (red) layer carries 2/3 of the weight
+    CHECK(near(b.a, 192, 1));
+    CHECK(near(b.r, 170, 2) && near(b.b, 85, 2) && b.g == 0); // newer (red) layer carries 2/3 of the weight
     std::cout << "test_blend_translucent_over_translucent passed\n";
 }
 
@@ -222,13 +222,13 @@ void test_rounded_rect_corners_and_edges() {
         Painter p(s);
         p.fill_rounded_rect({4, 4, 32, 32}, CornerRadii::uniform(8.0f), kWhite);
     }
-    assert(alpha(s, 4, 4) == 0 && alpha(s, 5, 5) == 0); // outside the arc
+    CHECK(alpha(s, 4, 4) == 0 && alpha(s, 5, 5) == 0); // outside the arc
     const int partial = alpha(s, 6, 6);                 // straddles the arc: anti-aliased
-    assert(partial > 100 && partial < 255);
-    assert(alpha(s, 7, 7) == 255);                      // inside the arc
-    assert(alpha(s, 20, 4) == 255 && alpha(s, 4, 20) == 255 && alpha(s, 35, 20) == 255 && alpha(s, 20, 35) == 255);
-    assert(alpha(s, 20, 3) == 0 && alpha(s, 3, 20) == 0 && alpha(s, 36, 20) == 0 && alpha(s, 20, 36) == 0);
-    assert(alpha(s, 20, 20) == 255);
+    CHECK(partial > 100 && partial < 255);
+    CHECK(alpha(s, 7, 7) == 255);                      // inside the arc
+    CHECK(alpha(s, 20, 4) == 255 && alpha(s, 4, 20) == 255 && alpha(s, 35, 20) == 255 && alpha(s, 20, 35) == 255);
+    CHECK(alpha(s, 20, 3) == 0 && alpha(s, 3, 20) == 0 && alpha(s, 36, 20) == 0 && alpha(s, 20, 36) == 0);
+    CHECK(alpha(s, 20, 20) == 255);
     std::cout << "test_rounded_rect_corners_and_edges passed\n";
 }
 
@@ -241,12 +241,12 @@ void test_rounded_rect_symmetry_and_area() {
     for (int y = 0; y < 32; ++y) {
         for (int x = 0; x < 32; ++x) {
             const int a = alpha(s, 4 + x, 4 + y);
-            assert(a == alpha(s, 4 + 31 - x, 4 + y));
-            assert(a == alpha(s, 4 + x, 4 + 31 - y));
+            CHECK(a == alpha(s, 4 + 31 - x, 4 + y));
+            CHECK(a == alpha(s, 4 + x, 4 + 31 - y));
         }
     }
     const double expected = 32.0 * 32.0 - (4.0 - kPi) * 8.0 * 8.0; // square minus four corner voids
-    assert(near_rel(area(s), expected, 0.01));
+    CHECK(near_rel(area(s), expected, 0.01));
     std::cout << "test_rounded_rect_symmetry_and_area passed\n";
 }
 
@@ -254,19 +254,19 @@ void test_rounded_rect_radius_clamp_and_zero() {
     {
         SoftwareSurface s(40, 40);
         { Painter p(s); p.fill_rounded_rect({4, 4, 32, 32}, CornerRadii::uniform(1000.0f), kWhite); }
-        assert(near_rel(area(s), kPi * 16.0 * 16.0, 0.02)); // clamped to half the side: a circle
+        CHECK(near_rel(area(s), kPi * 16.0 * 16.0, 0.02)); // clamped to half the side: a circle
     }
     {
         SoftwareSurface s(60, 24);
         { Painter p(s); p.fill_rounded_rect({4, 4, 40, 16}, CornerRadii::uniform(1000.0f), kWhite); }
-        assert(near_rel(area(s), kPi * 8.0 * 8.0 + 24.0 * 16.0, 0.02)); // pill
+        CHECK(near_rel(area(s), kPi * 8.0 * 8.0 + 24.0 * 16.0, 0.02)); // pill
     }
     {
         SoftwareSurface a(30, 30), b(30, 30);
         { Painter p(a); p.fill_rounded_rect({3, 3, 20, 20}, CornerRadii::uniform(0.0f), kRed); }
         { Painter p(b); p.fill_rect({3, 3, 20, 20}, kRed); }
-        assert(area(a) == area(b));
-        for (int y = 0; y < 30; ++y) for (int x = 0; x < 30; ++x) assert(get(a, x, y) == get(b, x, y));
+        CHECK(area(a) == area(b));
+        for (int y = 0; y < 30; ++y) for (int x = 0; x < 30; ++x) CHECK(get(a, x, y) == get(b, x, y));
     }
     {
         SoftwareSurface s(30, 30);
@@ -275,7 +275,7 @@ void test_rounded_rect_radius_clamp_and_zero() {
             p.fill_rounded_rect({3, 3, 20, 20}, CornerRadii::uniform(-5.0f), kRed);
             p.fill_rounded_rect({3, 3, 20, 20}, CornerRadii::uniform(std::nanf("")), kRed);
         }
-        assert(count_alpha_nonzero(s) == 400); // negative / NaN radii behave as square
+        CHECK(count_alpha_nonzero(s) == 400); // negative / NaN radii behave as square
     }
     std::cout << "test_rounded_rect_radius_clamp_and_zero passed\n";
 }
@@ -286,8 +286,8 @@ void test_rounded_rect_per_corner() {
         Painter p(s);
         p.fill_rounded_rect({4, 4, 32, 32}, CornerRadii::top(10.0f), kWhite);
     }
-    assert(alpha(s, 4, 4) == 0 && alpha(s, 35, 4) == 0); // rounded top corners
-    assert(alpha(s, 4, 35) == 255 && alpha(s, 35, 35) == 255); // square bottom corners
+    CHECK(alpha(s, 4, 4) == 0 && alpha(s, 35, 4) == 0); // rounded top corners
+    CHECK(alpha(s, 4, 35) == 255 && alpha(s, 35, 35) == 255); // square bottom corners
     std::cout << "test_rounded_rect_per_corner passed\n";
 }
 
@@ -298,25 +298,25 @@ void test_stroke_square() {
     {
         SoftwareSurface s(40, 40);
         { Painter p(s); p.stroke_rounded_rect({2, 2, 36, 36}, CornerRadii{}, 1.0f, kWhite); }
-        assert(alpha(s, 2, 2) == 255 && alpha(s, 20, 2) == 255 && alpha(s, 2, 20) == 255 && alpha(s, 37, 37) == 255);
-        assert(alpha(s, 3, 3) == 0 && alpha(s, 20, 20) == 0 && alpha(s, 20, 3) == 0);
-        assert(alpha(s, 20, 1) == 0 && alpha(s, 1, 20) == 0);
+        CHECK(alpha(s, 2, 2) == 255 && alpha(s, 20, 2) == 255 && alpha(s, 2, 20) == 255 && alpha(s, 37, 37) == 255);
+        CHECK(alpha(s, 3, 3) == 0 && alpha(s, 20, 20) == 0 && alpha(s, 20, 3) == 0);
+        CHECK(alpha(s, 20, 1) == 0 && alpha(s, 1, 20) == 0);
         size_t full = 0;
         auto m = s.map_pixels();
         for (size_t i = 3; i < m.size(); i += 4) full += (m[i] == 255);
         s.unmap_pixels();
-        assert(full == 4 * 36 - 4);
+        CHECK(full == 4 * 36 - 4);
     }
     {
         SoftwareSurface s(40, 40);
         { Painter p(s); p.stroke_rounded_rect({2, 2, 36, 36}, CornerRadii{}, 2.0f, kWhite); }
-        assert(alpha(s, 3, 20) == 255 && alpha(s, 4, 20) == 0);
+        CHECK(alpha(s, 3, 20) == 255 && alpha(s, 4, 20) == 0);
     }
     {
         SoftwareSurface s(40, 40);
         { Painter p(s); p.stroke_rounded_rect({2, 2, 36, 36}, CornerRadii{}, 500.0f, kWhite); }
-        assert(count_alpha_nonzero(s) == 36 * 36); // thicker than the shape: solid
-        assert(alpha(s, 20, 20) == 255);
+        CHECK(count_alpha_nonzero(s) == 36 * 36); // thicker than the shape: solid
+        CHECK(alpha(s, 20, 20) == 255);
     }
     std::cout << "test_stroke_square passed\n";
 }
@@ -324,12 +324,12 @@ void test_stroke_square() {
 void test_stroke_rounded() {
     SoftwareSurface s(60, 60);
     { Painter p(s); p.stroke_rounded_rect({4, 4, 52, 52}, CornerRadii::uniform(8.0f), 1.5f, kWhite); }
-    assert(alpha(s, 30, 30) == 0); // interior untouched
-    assert(alpha(s, 4, 4) == 0);   // outside the rounded corner
+    CHECK(alpha(s, 30, 30) == 0); // interior untouched
+    CHECK(alpha(s, 4, 4) == 0);   // outside the rounded corner
     const double perimeter = 2.0 * ((52 - 16) + (52 - 16)) + 2.0 * kPi * 8.0;
-    assert(near_rel(area(s), perimeter * 1.5, 0.06));
+    CHECK(near_rel(area(s), perimeter * 1.5, 0.06));
     // Mirror symmetry of the ring.
-    for (int y = 0; y < 52; ++y) assert(alpha(s, 4 + y, 4) == alpha(s, 4 + y, 4 + 51) && alpha(s, 4, 4 + y) == alpha(s, 4 + 51, 4 + y));
+    for (int y = 0; y < 52; ++y) CHECK(alpha(s, 4 + y, 4) == alpha(s, 4 + y, 4 + 51) && alpha(s, 4, 4 + y) == alpha(s, 4 + 51, 4 + y));
     std::cout << "test_stroke_rounded passed\n";
 }
 
@@ -339,15 +339,15 @@ void test_stroke_rounded() {
 void test_circle() {
     SoftwareSurface s(41, 41);
     { Painter p(s); p.fill_circle(20.5f, 20.5f, 10.0f, kWhite); }
-    assert(alpha(s, 20, 20) == 255);
-    assert(alpha(s, 20, 5) == 0 && alpha(s, 5, 20) == 0);
-    assert(near_rel(area(s), kPi * 100.0, 0.01));
-    for (int y = 0; y < 41; ++y) for (int x = 0; x < 41; ++x) assert(alpha(s, x, y) == alpha(s, 40 - x, y) && alpha(s, x, y) == alpha(s, x, 40 - y));
+    CHECK(alpha(s, 20, 20) == 255);
+    CHECK(alpha(s, 20, 5) == 0 && alpha(s, 5, 20) == 0);
+    CHECK(near_rel(area(s), kPi * 100.0, 0.01));
+    for (int y = 0; y < 41; ++y) for (int x = 0; x < 41; ++x) CHECK(alpha(s, x, y) == alpha(s, 40 - x, y) && alpha(s, x, y) == alpha(s, x, 40 - y));
 
     // Centre on a pixel corner: the four surrounding pixels are identical.
     SoftwareSurface c(20, 20);
     { Painter p(c); p.fill_circle(10.0f, 10.0f, 4.0f, kWhite); }
-    assert(alpha(c, 9, 9) == alpha(c, 10, 9) && alpha(c, 9, 9) == alpha(c, 9, 10) && alpha(c, 9, 9) == alpha(c, 10, 10));
+    CHECK(alpha(c, 9, 9) == alpha(c, 10, 9) && alpha(c, 9, 9) == alpha(c, 9, 10) && alpha(c, 9, 9) == alpha(c, 10, 10));
 
     // Degenerate input draws nothing and does not crash.
     SoftwareSurface d(20, 20);
@@ -361,23 +361,23 @@ void test_circle() {
         p.fill_circle(1e9f, 1e9f, 5.0f, kWhite);
         p.fill_circle(10, 10, 5.0f, Color{1, 2, 3, 0});
     }
-    assert(count_alpha_nonzero(d) == 0);
+    CHECK(count_alpha_nonzero(d) == 0);
 
     // A huge circle that covers the surface completes quickly and fills it.
     SoftwareSurface big(20, 20);
     { Painter p(big); p.fill_circle(10, 10, 1e7f, kWhite); }
-    assert(count_alpha_nonzero(big) == 400);
+    CHECK(count_alpha_nonzero(big) == 400);
     std::cout << "test_circle passed\n";
 }
 
 void test_stroke_circle() {
     SoftwareSurface s(41, 41);
     { Painter p(s); p.stroke_circle(20.5f, 20.5f, 10.0f, 2.0f, kWhite); }
-    assert(alpha(s, 20, 20) == 0); // hole
-    assert(near_rel(area(s), kPi * (100.0 - 64.0), 0.03));
+    CHECK(alpha(s, 20, 20) == 0); // hole
+    CHECK(near_rel(area(s), kPi * (100.0 - 64.0), 0.03));
     SoftwareSurface t(41, 41);
     { Painter p(t); p.stroke_circle(20.5f, 20.5f, 10.0f, 500.0f, kWhite); } // thicker than radius: solid disc
-    assert(near_rel(area(t), kPi * 100.0, 0.01));
+    CHECK(near_rel(area(t), kPi * 100.0, 0.01));
     std::cout << "test_stroke_circle passed\n";
 }
 
@@ -385,33 +385,33 @@ void test_line() {
     {
         SoftwareSurface s(40, 20);
         { Painter p(s); p.draw_line(2.0f, 10.5f, 30.0f, 10.5f, 1.0f, kWhite); }
-        for (int x = 3; x < 29; ++x) assert(alpha(s, x, 10) == 255);
-        for (int x = 0; x < 40; ++x) assert(alpha(s, x, 9) == 0 && alpha(s, x, 11) == 0);
-        assert(alpha(s, 1, 10) > 0 && alpha(s, 1, 10) < 255); // round cap, anti-aliased
-        assert(alpha(s, 0, 10) == 0 && alpha(s, 31, 10) == 0);
+        for (int x = 3; x < 29; ++x) CHECK(alpha(s, x, 10) == 255);
+        for (int x = 0; x < 40; ++x) CHECK(alpha(s, x, 9) == 0 && alpha(s, x, 11) == 0);
+        CHECK(alpha(s, 1, 10) > 0 && alpha(s, 1, 10) < 255); // round cap, anti-aliased
+        CHECK(alpha(s, 0, 10) == 0 && alpha(s, 31, 10) == 0);
     }
     {
         SoftwareSurface s(40, 20);
         { Painter p(s); p.draw_line(2.0f, 10.0f, 30.0f, 10.0f, 2.0f, kWhite); }
-        assert(alpha(s, 15, 9) == 255 && alpha(s, 15, 10) == 255 && alpha(s, 15, 8) == 0 && alpha(s, 15, 11) == 0);
+        CHECK(alpha(s, 15, 9) == 255 && alpha(s, 15, 10) == 255 && alpha(s, 15, 8) == 0 && alpha(s, 15, 11) == 0);
     }
     {
         SoftwareSurface s(30, 30);
         { Painter p(s); p.draw_line(2.0f, 2.0f, 17.0f, 17.0f, 1.0f, kWhite); }
-        assert(alpha(s, 9, 9) == 255);
-        for (int y = 0; y < 30; ++y) for (int x = 0; x < 30; ++x) assert(alpha(s, x, y) == alpha(s, y, x)); // symmetric under transpose
+        CHECK(alpha(s, 9, 9) == 255);
+        for (int y = 0; y < 30; ++y) for (int x = 0; x < 30; ++x) CHECK(alpha(s, x, y) == alpha(s, y, x)); // symmetric under transpose
     }
     {
         SoftwareSurface s(30, 30);
         { Painter p(s); p.draw_line(15.0f, 15.0f, 15.0f, 15.0f, 4.0f, kWhite); } // zero length -> round dot
-        assert(near_rel(area(s), kPi * 4.0, 0.06));
+        CHECK(near_rel(area(s), kPi * 4.0, 0.06));
     }
     {
         SoftwareSurface s(40, 20); // a line that is enormous in both directions is clipped, not iterated
         { Painter p(s); p.draw_line(-1e6f, 10.5f, 1e6f, 10.5f, 1.0f, kWhite); }
         size_t full = 0;
         for (int x = 0; x < 40; ++x) full += (alpha(s, x, 10) == 255);
-        assert(full == 40);
+        CHECK(full == 40);
     }
     {
         SoftwareSurface s(20, 20);
@@ -423,7 +423,7 @@ void test_line() {
             p.draw_line(1, 1, std::numeric_limits<float>::infinity(), 18, 2.0f, kWhite);
             p.draw_line(1, 1, 18, 18, std::nanf(""), kWhite);
         }
-        assert(count_alpha_nonzero(s) == 0);
+        CHECK(count_alpha_nonzero(s) == 0);
     }
     std::cout << "test_line passed\n";
 }
@@ -435,16 +435,16 @@ void test_linear_gradient() {
     const LinearGradient g_plain{Color{255, 255, 255, 255}, Color{0, 0, 0, 255}, true, false};
     SoftwareSurface s(8, 64);
     { Painter p(s); p.fill_gradient({0, 0, 8, 64}, g_plain); }
-    assert(get(s, 3, 0).r >= 252);
-    assert(get(s, 3, 63).r <= 3);
-    assert(near(get(s, 3, 32).r, 127, 3));
+    CHECK(get(s, 3, 0).r >= 252);
+    CHECK(get(s, 3, 63).r <= 3);
+    CHECK(near(get(s, 3, 32).r, 127, 3));
     int prev = 256;
     for (int y = 0; y < 64; ++y) {
         const Px p = get(s, 3, y);
-        assert(p.r == p.g && p.g == p.b && p.a == 255);
-        assert(p.r <= prev);
+        CHECK(p.r == p.g && p.g == p.b && p.a == 255);
+        CHECK(p.r <= prev);
         prev = p.r;
-        for (int x = 1; x < 8; ++x) assert(get(s, x, y) == get(s, 0, y)); // no horizontal variation without dither
+        for (int x = 1; x < 8; ++x) CHECK(get(s, x, y) == get(s, 0, y)); // no horizontal variation without dither
     }
 
     // Dithering is deterministic, stays within one level of the plain gradient, and varies across a row.
@@ -455,25 +455,25 @@ void test_linear_gradient() {
     bool varies = false;
     for (int y = 0; y < 64; ++y) {
         for (int x = 0; x < 8; ++x) {
-            assert(get(d1, x, y) == get(d2, x, y));
-            assert(near(get(d1, x, y).r, get(s, x, y).r, 1));
+            CHECK(get(d1, x, y) == get(d2, x, y));
+            CHECK(near(get(d1, x, y).r, get(s, x, y).r, 1));
             if (get(d1, x, y).r != get(d1, 0, y).r) varies = true;
         }
     }
-    assert(varies);
+    CHECK(varies);
 
     // Horizontal direction.
     const LinearGradient g_h{Color{0, 0, 0, 255}, Color{255, 255, 255, 255}, false, false};
     SoftwareSurface h(64, 4);
     { Painter p(h); p.fill_gradient({0, 0, 64, 4}, g_h); }
-    assert(get(h, 0, 1).r <= 3 && get(h, 63, 1).r >= 252);
-    assert(get(h, 10, 0) == get(h, 10, 3));
+    CHECK(get(h, 0, 1).r <= 3 && get(h, 63, 1).r >= 252);
+    CHECK(get(h, 10, 0) == get(h, 10, 3));
 
     // A constant colour is never disturbed by dithering.
     const LinearGradient flat{Color{40, 50, 60, 255}, Color{40, 50, 60, 255}, true, true};
     SoftwareSurface f(8, 8);
     { Painter p(f); p.fill_gradient({0, 0, 8, 8}, flat); }
-    for (int y = 0; y < 8; ++y) for (int x = 0; x < 8; ++x) assert(get(f, x, y) == (Px{40, 50, 60, 255}));
+    for (int y = 0; y < 8; ++y) for (int x = 0; x < 8; ++x) CHECK(get(f, x, y) == (Px{40, 50, 60, 255}));
     std::cout << "test_linear_gradient passed\n";
 }
 
@@ -483,10 +483,10 @@ void test_gradient_to_transparent_has_no_grey_fringe() {
     { Painter p(s); p.fill_gradient({0, 0, 4, 64}, g); }
     for (int y = 0; y < 64; ++y) {
         const Px p = get(s, 1, y);
-        if (p.a > 0) assert(p.r >= 254 && p.g >= 254 && p.b >= 254); // colour is preserved while alpha fades
+        if (p.a > 0) CHECK(p.r >= 254 && p.g >= 254 && p.b >= 254); // colour is preserved while alpha fades
     }
-    assert(near(get(s, 1, 32).a, 127, 4));
-    assert(get(s, 1, 0).a >= 250 && get(s, 1, 63).a <= 4);
+    CHECK(near(get(s, 1, 32).a, 127, 4));
+    CHECK(get(s, 1, 0).a >= 250 && get(s, 1, 63).a <= 4);
     std::cout << "test_gradient_to_transparent_has_no_grey_fringe passed\n";
 }
 
@@ -494,24 +494,24 @@ void test_rounded_gradient() {
     const LinearGradient g{Color{200, 0, 0, 255}, Color{0, 0, 200, 255}, true, false};
     SoftwareSurface s(40, 40);
     { Painter p(s); p.fill_rounded_rect({4, 4, 32, 32}, CornerRadii::uniform(8.0f), g); }
-    assert(alpha(s, 4, 4) == 0);
-    assert(get(s, 20, 5).r > 180 && get(s, 20, 5).b < 20);
-    assert(get(s, 20, 34).b > 180 && get(s, 20, 34).r < 20);
+    CHECK(alpha(s, 4, 4) == 0);
+    CHECK(get(s, 20, 5).r > 180 && get(s, 20, 5).b < 20);
+    CHECK(get(s, 20, 34).b > 180 && get(s, 20, 34).r < 20);
     std::cout << "test_rounded_gradient passed\n";
 }
 
 void test_radial_gradient() {
     SoftwareSurface s(41, 41);
     { Painter p(s); p.fill_radial_gradient(20.5f, 20.5f, 20.0f, Color{255, 255, 255, 255}, Color{255, 255, 255, 0}, false); }
-    assert(alpha(s, 20, 20) >= 250);
-    assert(alpha(s, 0, 0) == 0 && alpha(s, 40, 40) == 0); // beyond the radius: untouched
-    assert(near(alpha(s, 30, 20), 134, 8));                // dist 9.5 -> ~52% of the way out
+    CHECK(alpha(s, 20, 20) >= 250);
+    CHECK(alpha(s, 0, 0) == 0 && alpha(s, 40, 40) == 0); // beyond the radius: untouched
+    CHECK(near(alpha(s, 30, 20), 134, 8));                // dist 9.5 -> ~52% of the way out
     int prev = 256;
     for (int x = 20; x < 41; ++x) {
         const int a = alpha(s, x, 20);
-        assert(a <= prev);
+        CHECK(a <= prev);
         prev = a;
-        if (a > 0) assert(get(s, x, 20).r >= 254);
+        if (a > 0) CHECK(get(s, x, 20).r >= 254);
     }
     std::cout << "test_radial_gradient passed\n";
 }
@@ -536,49 +536,49 @@ void test_clipping() {
     {
         Painter p(s);
         const Rect base = p.clip_bounds();
-        assert(base.x == 0 && base.y == 0 && base.width == 30 && base.height == 30);
-        assert(p.push_clip({10, 10, 10, 10}));
+        CHECK(base.x == 0 && base.y == 0 && base.width == 30 && base.height == 30);
+        CHECK(p.push_clip({10, 10, 10, 10}));
         draw_everything(p);
     }
-    assert(count_alpha_nonzero_outside(s, 10, 10, 20, 20) == 0);
-    assert(count_alpha_nonzero(s) > 50);
+    CHECK(count_alpha_nonzero_outside(s, 10, 10, 20, 20) == 0);
+    CHECK(count_alpha_nonzero(s) > 50);
 
     // Nested clips intersect; popping restores the outer clip.
     SoftwareSurface n(30, 30);
     {
         Painter p(n);
-        assert(p.push_clip({10, 10, 10, 10}));
-        assert(p.push_clip({15, 15, 20, 20}));
+        CHECK(p.push_clip({10, 10, 10, 10}));
+        CHECK(p.push_clip({15, 15, 20, 20}));
         const Rect inner = p.clip_bounds();
-        assert(inner.x == 15 && inner.y == 15 && inner.width == 5 && inner.height == 5);
+        CHECK(inner.x == 15 && inner.y == 15 && inner.width == 5 && inner.height == 5);
         p.fill_rect({0, 0, 30, 30}, kWhite);
         p.pop_clip();
         const Rect outer = p.clip_bounds();
-        assert(outer.x == 10 && outer.width == 10);
+        CHECK(outer.x == 10 && outer.width == 10);
         p.fill_rect({0, 0, 30, 30}, kRed); // now fills the 10x10 clip (over the inner 5x5 white)
         p.pop_clip();
         p.pop_clip(); // popping the base clip is a harmless no-op
-        assert(p.clip_bounds().width == 30);
+        CHECK(p.clip_bounds().width == 30);
     }
-    assert(count_alpha_nonzero(n) == 100);
-    assert(get(n, 17, 17) == (Px{255, 0, 0, 255}));
+    CHECK(count_alpha_nonzero(n) == 100);
+    CHECK(get(n, 17, 17) == (Px{255, 0, 0, 255}));
 
     // Empty clip: nothing is drawn.
     SoftwareSurface e(30, 30);
     {
         Painter p(e);
-        assert(p.push_clip({100, 100, 5, 5})); // disjoint from the surface
+        CHECK(p.push_clip({100, 100, 5, 5})); // disjoint from the surface
         draw_everything(p);
     }
-    assert(count_alpha_nonzero(e) == 0);
+    CHECK(count_alpha_nonzero(e) == 0);
 
     // A clip that extends past the surface is trimmed to it.
     SoftwareSurface t(30, 30);
     {
         Painter p(t);
-        assert(p.push_clip({-10, -10, 25, 25}));
+        CHECK(p.push_clip({-10, -10, 25, 25}));
         const Rect c = p.clip_bounds();
-        assert(c.x == 0 && c.y == 0 && c.width == 15 && c.height == 15);
+        CHECK(c.x == 0 && c.y == 0 && c.width == 15 && c.height == 15);
     }
 
     // Stack depth is bounded; ClipScope pops exactly what it pushed.
@@ -587,20 +587,20 @@ void test_clipping() {
         Painter p(d);
         size_t pushed = 0;
         while (p.push_clip({0, 0, 30, 30})) ++pushed;
-        assert(pushed == Painter::kMaxClipDepth - 1);
+        CHECK(pushed == Painter::kMaxClipDepth - 1);
         {
             Painter::ClipScope scope(p, {0, 0, 5, 5});
-            assert(!scope.pushed());
+            CHECK(!scope.pushed());
         }
         for (size_t i = 0; i < pushed; ++i) p.pop_clip();
         {
             Painter::ClipScope scope(p, {0, 0, 5, 5});
-            assert(scope.pushed());
+            CHECK(scope.pushed());
             p.fill_rect({0, 0, 30, 30}, kWhite);
         }
-        assert(p.clip_bounds().width == 30);
+        CHECK(p.clip_bounds().width == 30);
     }
-    assert(count_alpha_nonzero(d) == 25);
+    CHECK(count_alpha_nonzero(d) == 25);
     std::cout << "test_clipping passed\n";
 }
 
@@ -616,13 +616,13 @@ void test_coverage_mask() {
         const uint8_t cov[6] = {0, 128, 255, 255, 0, 64};
         SoftwareSurface s(6, 4);
         { Painter p(s); p.draw_coverage_mask(1, 1, 3, 2, cov, 3, kWhite); }
-        assert(get(s, 1, 1) == (Px{0, 0, 0, 0}));
-        assert(get(s, 2, 1) == (Px{255, 255, 255, 128}));
-        assert(get(s, 3, 1) == (Px{255, 255, 255, 255}));
-        assert(get(s, 1, 2) == (Px{255, 255, 255, 255}));
-        assert(get(s, 2, 2) == (Px{0, 0, 0, 0}));
-        assert(get(s, 3, 2) == (Px{255, 255, 255, 64}));
-        assert(count_alpha_nonzero(s) == 4);
+        CHECK(get(s, 1, 1) == (Px{0, 0, 0, 0}));
+        CHECK(get(s, 2, 1) == (Px{255, 255, 255, 128}));
+        CHECK(get(s, 3, 1) == (Px{255, 255, 255, 255}));
+        CHECK(get(s, 1, 2) == (Px{255, 255, 255, 255}));
+        CHECK(get(s, 2, 2) == (Px{0, 0, 0, 0}));
+        CHECK(get(s, 3, 2) == (Px{255, 255, 255, 64}));
+        CHECK(count_alpha_nonzero(s) == 4);
     }
     // A translucent colour multiplies with the coverage; onto an opaque background it blends.
     {
@@ -635,8 +635,8 @@ void test_coverage_mask() {
         }
         const Px a = get(s, 0, 0);
         const Px b = get(s, 1, 0);
-        assert(a.a == 255 && near(a.r, 128, 1) && near(a.b, 127, 1)); // alpha 128 over blue
-        assert(b.a == 255 && near(b.r, 64, 1) && near(b.b, 191, 1));  // alpha 64 over blue
+        CHECK(a.a == 255 && near(a.r, 128, 1) && near(a.b, 127, 1)); // alpha 128 over blue
+        CHECK(b.a == 255 && near(b.r, 64, 1) && near(b.b, 191, 1));  // alpha 64 over blue
     }
     // Stride larger than the width: the gap bytes are never read.
     {
@@ -644,28 +644,28 @@ void test_coverage_mask() {
         const uint8_t cov[10] = {10, 20, 99, 99, 99, 30, 40, 99, 99, 99};
         SoftwareSurface s(5, 3);
         { Painter p(s); p.draw_coverage_mask(0, 0, 2, 2, cov, 5, kWhite); }
-        assert(alpha(s, 0, 0) == 10 && alpha(s, 1, 0) == 20 && alpha(s, 0, 1) == 30 && alpha(s, 1, 1) == 40);
-        assert(count_alpha_nonzero(s) == 4); // nothing from the gaps leaked in
-        assert(alpha(s, 2, 0) == 0 && alpha(s, 2, 1) == 0);
+        CHECK(alpha(s, 0, 0) == 10 && alpha(s, 1, 0) == 20 && alpha(s, 0, 1) == 30 && alpha(s, 1, 1) == 40);
+        CHECK(count_alpha_nonzero(s) == 4); // nothing from the gaps leaked in
+        CHECK(alpha(s, 2, 0) == 0 && alpha(s, 2, 1) == 0);
     }
     // Clipping to the surface (origin partly outside) and to the clip stack: rows and columns stay aligned.
     {
         const uint8_t cov[9] = {1, 2, 3, 4, 5, 6, 7, 8, 9};
         SoftwareSurface s(4, 4);
         { Painter p(s); p.draw_coverage_mask(-1, -1, 3, 3, cov, 3, kWhite); } // only mask cells (1,1)..(2,2) land on the surface
-        assert(alpha(s, 0, 0) == 5 && alpha(s, 1, 0) == 6 && alpha(s, 0, 1) == 8 && alpha(s, 1, 1) == 9);
-        assert(count_alpha_nonzero(s) == 4);
+        CHECK(alpha(s, 0, 0) == 5 && alpha(s, 1, 0) == 6 && alpha(s, 0, 1) == 8 && alpha(s, 1, 1) == 9);
+        CHECK(count_alpha_nonzero(s) == 4);
 
         SoftwareSurface c(6, 6);
         {
             Painter p(c);
-            assert(p.push_clip({2, 2, 2, 2}));
+            CHECK(p.push_clip({2, 2, 2, 2}));
             p.draw_coverage_mask(0, 0, 6, 1, cov, 9, kWhite); // row outside the clip: nothing
             const uint8_t big[16] = {200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200};
             p.draw_coverage_mask(1, 1, 4, 4, big, 4, kWhite);
         }
-        assert(count_alpha_nonzero(c) == 4);
-        assert(alpha(c, 2, 2) == 200 && alpha(c, 3, 3) == 200 && alpha(c, 1, 1) == 0 && alpha(c, 4, 4) == 0);
+        CHECK(count_alpha_nonzero(c) == 4);
+        CHECK(alpha(c, 2, 2) == 200 && alpha(c, 3, 3) == 200 && alpha(c, 1, 1) == 0 && alpha(c, 4, 4) == 0);
     }
     // Invalid arguments draw nothing.
     {
@@ -682,7 +682,7 @@ void test_coverage_mask() {
             p.draw_coverage_mask(0, std::numeric_limits<int32_t>::max(), 4, 4, cov, 4, kWhite);
             p.draw_coverage_mask(100, 100, 4, 4, cov, 4, kWhite);   // entirely off-surface
         }
-        assert(count_alpha_nonzero(s) == 0);
+        CHECK(count_alpha_nonzero(s) == 0);
     }
     // Randomised comparison against a reference built from the (already tested) fill_rect, with poison bytes in the
     // stride gaps and after the mask: any over-read would put visible pixels where the reference has none.
@@ -734,7 +734,7 @@ void test_coverage_mask() {
             for (size_t i = 0; same && i < pa.size(); ++i) same = std::abs(int{pa[i]} - int{pe[i]}) <= 1;
             actual.unmap_pixels();
             expected.unmap_pixels();
-            assert(same);
+            CHECK(same);
         }
     }
     std::cout << "test_coverage_mask passed\n";
@@ -746,49 +746,49 @@ void test_shadow() {
 
     SoftwareSurface s(120, 100);
     { Painter p(s); p.draw_shadow(box, CornerRadii::uniform(8.0f), spec); }
-    assert(alpha(s, 60, 50) == 0);  // cut out: the box interior is untouched
-    assert(alpha(s, 0, 0) == 0);    // far away
-    assert(alpha(s, 10, 50) == 0);  // beyond the blur band on the left
+    CHECK(alpha(s, 60, 50) == 0);  // cut out: the box interior is untouched
+    CHECK(alpha(s, 0, 0) == 0);    // far away
+    CHECK(alpha(s, 10, 50) == 0);  // beyond the blur band on the left
     int prev = 256;
     int peak = 0;
     for (int y = 70; y < 100; ++y) { // walking away from the box's lower edge
         const int a = alpha(s, 60, y);
-        assert(a <= prev);
-        assert(a <= 200);
+        CHECK(a <= prev);
+        CHECK(a <= 200);
         peak = std::max(peak, a);
         prev = a;
     }
-    assert(peak > 120);              // visible just below the box
-    assert(alpha(s, 60, 99) == 0);   // faded out by the bottom
+    CHECK(peak > 120);              // visible just below the box
+    CHECK(alpha(s, 60, 99) == 0);   // faded out by the bottom
     // Offset (0, +6) pushes the shadow down: more mass below the box than above it.
     double below = 0, above = 0;
     for (int x = 30; x < 90; ++x) {
         for (int y = 70; y < 100; ++y) below += alpha(s, x, y);
         for (int y = 0; y < 30; ++y) above += alpha(s, x, y);
     }
-    assert(below > above * 1.5);
+    CHECK(below > above * 1.5);
 
     // Without the cut-out, the interior carries the shadow too.
     SoftwareSurface filled(120, 100);
     { Painter p(filled); p.draw_shadow(box, CornerRadii::uniform(8.0f), spec, false); }
-    assert(alpha(filled, 60, 50) >= 190);
+    CHECK(alpha(filled, 60, 50) >= 190);
 
     // With no offset the shadow is mirror-symmetric (within one level of float error).
     SoftwareSurface sym(120, 100);
     { Painter p(sym); p.draw_shadow(box, CornerRadii::uniform(8.0f), ShadowSpec{12.0f, 0, 0, 0, Color{0, 0, 0, 200}}); }
-    for (int y = 0; y < 100; ++y) for (int x = 0; x < 120; ++x) assert(near(alpha(sym, x, y), alpha(sym, 119 - x, y), 1));
+    for (int y = 0; y < 100; ++y) for (int x = 0; x < 120; ++x) CHECK(near(alpha(sym, x, y), alpha(sym, 119 - x, y), 1));
 
     // Hard shadow (blur 0) with an offset leaves an L-shaped sliver of exactly the peak alpha.
     SoftwareSurface hard(120, 100);
     { Painter p(hard); p.draw_shadow(box, CornerRadii{}, ShadowSpec{0.0f, 4, 4, 0, Color{0, 0, 0, 200}}); }
-    assert(alpha(hard, 92, 50) == 200 && alpha(hard, 94, 50) == 0); // right sliver: x in [90,94)
-    assert(alpha(hard, 60, 72) == 200 && alpha(hard, 60, 74) == 0); // bottom sliver
-    assert(alpha(hard, 60, 50) == 0);
+    CHECK(alpha(hard, 92, 50) == 200 && alpha(hard, 94, 50) == 0); // right sliver: x in [90,94)
+    CHECK(alpha(hard, 60, 72) == 200 && alpha(hard, 60, 74) == 0); // bottom sliver
+    CHECK(alpha(hard, 60, 50) == 0);
 
     // Spread grows the shape.
     SoftwareSurface spread(120, 100);
     { Painter p(spread); p.draw_shadow(box, CornerRadii{}, ShadowSpec{0.0f, 0, 0, 4, Color{0, 0, 0, 200}}); }
-    assert(alpha(spread, 92, 50) == 200 && alpha(spread, 94, 50) == 0);
+    CHECK(alpha(spread, 92, 50) == 200 && alpha(spread, 94, 50) == 0);
 
     // Degenerate input: no change, no crash.
     SoftwareSurface d(60, 60);
@@ -897,7 +897,7 @@ void fuzz_painter(GuardedSurface& surface, uint64_t seed, int iterations) {
         }
         if (!surface.guards_intact()) {
             std::cout << "  guard bytes corrupted at iteration " << i << " (op " << rng.next() % 12 << ")\n";
-            assert(false);
+            CHECK(false);
         }
     }
 }
@@ -909,19 +909,19 @@ void test_bounds_safety_fuzz() {
         for (int round = 0; round < 3; ++round) {
             GuardedSurface s(w, h);
             fuzz_painter(s, seed++, 1500);
-            assert(s.guards_intact());
+            CHECK(s.guards_intact());
         }
     }
 
     // Surfaces the painter must refuse rather than trust.
-    { GuardedSurface zero(0, 0); Painter p(zero); draw_everything(p); assert(zero.guards_intact()); }
+    { GuardedSurface zero(0, 0); Painter p(zero); draw_everything(p); CHECK(zero.guards_intact()); }
     { GuardedSurface zero_w(0, 10); Painter p(zero_w); draw_everything(p); }
     {
         LyingSurface liar; // claims 100x100 but maps 16 bytes
         Painter p(liar);
         draw_everything(p);
-        assert(p.width() == 0 && p.height() == 0);
-        for (uint8_t b : liar.m_buf) assert(b == 0);
+        CHECK(p.width() == 0 && p.height() == 0);
+        for (uint8_t b : liar.m_buf) CHECK(b == 0);
     }
     std::cout << "test_bounds_safety_fuzz passed\n";
 }
@@ -936,10 +936,10 @@ void test_no_heap_allocation_while_drawing() {
     g_count_allocs = true;
     {
         auto probe = std::make_unique<std::vector<int>>(16);
-        assert(!probe->empty());
+        CHECK(!probe->empty());
     }
     g_count_allocs = false;
-    assert(g_alloc_count >= 2);
+    CHECK(g_alloc_count >= 2);
 
     g_alloc_count = 0;
     g_count_allocs = true;
@@ -958,7 +958,7 @@ void test_no_heap_allocation_while_drawing() {
     }
     g_count_allocs = false;
     if (g_alloc_count != 0) std::cout << "  unexpected heap allocations: " << g_alloc_count.load() << "\n";
-    assert(g_alloc_count == 0);
+    CHECK(g_alloc_count == 0);
     std::cout << "test_no_heap_allocation_while_drawing passed\n";
 }
 
@@ -974,16 +974,16 @@ void test_toolkit_draw_rect_compatibility() {
     toolkit.draw_rect(surface, 2, 2, 10, 10, Color{10, 220, 90, 77});
     const float alpha_f = 77 / 255.0f;
     const Px blended = get(*surface, 5, 5);
-    assert(near(blended.r, static_cast<int>(10 * alpha_f + 200 * (1 - alpha_f)), 1));
-    assert(near(blended.g, static_cast<int>(220 * alpha_f + 100 * (1 - alpha_f)), 1));
-    assert(near(blended.b, static_cast<int>(90 * alpha_f + 50 * (1 - alpha_f)), 1));
-    assert(blended.a == 255);
-    assert(get(*surface, 15, 15) == (Px{200, 100, 50, 255}));
+    CHECK(near(blended.r, static_cast<int>(10 * alpha_f + 200 * (1 - alpha_f)), 1));
+    CHECK(near(blended.g, static_cast<int>(220 * alpha_f + 100 * (1 - alpha_f)), 1));
+    CHECK(near(blended.b, static_cast<int>(90 * alpha_f + 50 * (1 - alpha_f)), 1));
+    CHECK(blended.a == 255);
+    CHECK(get(*surface, 15, 15) == (Px{200, 100, 50, 255}));
 
     // Onto a transparent surface (decorations): the colour is no longer darkened.
     auto deco = std::make_shared<SoftwareSurface>(8, 8);
     toolkit.draw_rect(deco, 0, 0, 4, 4, Color{200, 100, 50, 128});
-    assert(get(*deco, 1, 1) == (Px{200, 100, 50, 128}));
+    CHECK(get(*deco, 1, 1) == (Px{200, 100, 50, 128}));
 
     // Wild arguments and null surfaces are safe.
     toolkit.draw_rect(nullptr, 0, 0, 5, 5, kWhite);
@@ -997,23 +997,23 @@ void test_toolkit_extended_drawing() {
     BasicWidgetToolkit toolkit;
     auto s = std::make_shared<SoftwareSurface>(60, 60);
     toolkit.draw_rounded_rect(s, {4, 4, 52, 52}, CornerRadii::uniform(10.0f), kWhite);
-    assert(alpha(*s, 4, 4) == 0 && alpha(*s, 30, 30) == 255);
+    CHECK(alpha(*s, 4, 4) == 0 && alpha(*s, 30, 30) == 255);
 
     auto b = std::make_shared<SoftwareSurface>(60, 60);
     toolkit.draw_rounded_border(b, {4, 4, 52, 52}, CornerRadii::uniform(10.0f), 1.0f, kWhite);
-    assert(alpha(*b, 30, 30) == 0 && alpha(*b, 30, 4) == 255);
+    CHECK(alpha(*b, 30, 30) == 0 && alpha(*b, 30, 4) == 255);
 
     auto g = std::make_shared<SoftwareSurface>(60, 60);
     toolkit.draw_gradient_rect(g, {0, 0, 60, 60}, CornerRadii{}, LinearGradient{kWhite, Color{0, 0, 0, 255}, true, false});
-    assert(get(*g, 5, 1).r > get(*g, 5, 58).r);
+    CHECK(get(*g, 5, 1).r > get(*g, 5, 58).r);
 
     auto sh = std::make_shared<SoftwareSurface>(100, 100);
     toolkit.draw_shadow(sh, {30, 30, 40, 40}, CornerRadii::uniform(6.0f), ShadowSpec{10, 0, 4, 0, Color{0, 0, 0, 180}});
-    assert(alpha(*sh, 50, 50) == 0 && alpha(*sh, 50, 73) > 0);
+    CHECK(alpha(*sh, 50, 50) == 0 && alpha(*sh, 50, 73) > 0);
 
     // The toolkit exposes the design tokens.
-    assert(&toolkit.theme() == &default_theme());
-    assert(same(toolkit.theme().colors.accent, rgb(0x22C7DC)));
+    CHECK(&toolkit.theme() == &default_theme());
+    CHECK(same(toolkit.theme().colors.accent, rgb(0x22C7DC)));
     toolkit.draw_rounded_rect(nullptr, {0, 0, 5, 5}, CornerRadii::uniform(2.0f), kWhite);
     toolkit.draw_shadow(nullptr, {0, 0, 5, 5}, CornerRadii{}, ShadowSpec{});
     std::cout << "test_toolkit_extended_drawing passed\n";
@@ -1039,25 +1039,25 @@ void test_legacy_toolkit_fallbacks() {
     auto s = std::make_shared<SoftwareSurface>(10, 10);
 
     legacy.draw_rounded_rect(s, {3, 4, 20, 10}, CornerRadii::uniform(5.0f), Color{1, 2, 3, 255});
-    assert(legacy.rects.size() == 1);
-    assert(legacy.rects[0].x == 3 && legacy.rects[0].y == 4 && legacy.rects[0].w == 20 && legacy.rects[0].h == 10);
+    CHECK(legacy.rects.size() == 1);
+    CHECK(legacy.rects[0].x == 3 && legacy.rects[0].y == 4 && legacy.rects[0].w == 20 && legacy.rects[0].h == 10);
 
     legacy.rects.clear();
     legacy.draw_rounded_border(s, {0, 0, 20, 20}, CornerRadii::uniform(5.0f), 2.0f, kWhite);
-    assert(legacy.rects.size() == 4);
+    CHECK(legacy.rects.size() == 4);
     legacy.rects.clear();
     legacy.draw_rounded_border(s, {0, 0, 3, 3}, CornerRadii{}, 2.0f, kWhite); // too small for a hollow border
-    assert(legacy.rects.size() == 1);
+    CHECK(legacy.rects.size() == 1);
 
     legacy.rects.clear();
     legacy.draw_gradient_rect(s, {0, 0, 5, 5}, CornerRadii{}, LinearGradient{Color{9, 8, 7, 255}, Color{0, 0, 0, 255}, true, true});
-    assert(legacy.rects.size() == 1 && same(legacy.rects[0].c, Color{9, 8, 7, 255}));
+    CHECK(legacy.rects.size() == 1 && same(legacy.rects[0].c, Color{9, 8, 7, 255}));
 
     legacy.rects.clear();
     legacy.draw_shadow(s, {0, 0, 5, 5}, CornerRadii{}, ShadowSpec{8, 0, 0, 0, Color{0, 0, 0, 100}});
-    assert(legacy.rects.empty()); // shadows are optional decoration
+    CHECK(legacy.rects.empty()); // shadows are optional decoration
 
-    assert(&legacy.theme() == &default_theme());
+    CHECK(&legacy.theme() == &default_theme());
     std::cout << "test_legacy_toolkit_fallbacks passed\n";
 }
 

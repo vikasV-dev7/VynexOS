@@ -178,3 +178,33 @@ add_test(NAME MemoryFileSystemTests COMMAND test_memory_file_system)
 add_test(NAME ApplicationRegistryTests COMMAND test_application_registry)
 add_test(NAME ApplicationIntegrationTests COMMAND test_application_integration)
 add_test(NAME BasicFileExplorerTests COMMAND test_basic_file_explorer)
+
+# --- Test mechanism: self-tests and source hygiene ------------------------------------------------------------------------
+# CHECK() (test_check.hpp) must fail on a false condition and evaluate its argument in every configuration, NDEBUG included.
+# The two *Detects* tests pass only when the process exits non-zero (WILL_FAIL), so a CHECK that stopped working would fail them.
+add_executable(test_check_selftest test_check_selftest.cpp)
+add_test(NAME CheckMechanismPasses COMMAND test_check_selftest --pass)
+add_test(NAME CheckMechanismDetectsFalseCondition COMMAND test_check_selftest --fail)
+add_test(NAME CheckMechanismDetectsFalseAfterSideEffect COMMAND test_check_selftest --fail-side-effect)
+set_tests_properties(CheckMechanismDetectsFalseCondition CheckMechanismDetectsFalseAfterSideEffect PROPERTIES WILL_FAIL TRUE)
+# Test sources must not use assert() (it vanishes under NDEBUG).
+add_test(NAME TestSourcesHaveNoAssert COMMAND ${CMAKE_COMMAND} -DTEST_DIR=${CMAKE_CURRENT_SOURCE_DIR} -P ${PROJECT_SOURCE_DIR}/cmake/check_no_assert.cmake)
+
+# --- Timeouts -------------------------------------------------------------------------------------------------------------
+# Every test has an explicit timeout so a hung or crash-stalled test fails instead of blocking CTest (its default is 25 min).
+# Slower tests are listed here (seconds); every other registered test gets the 120 s default below. Measured: the slowest are
+# SDLIntegrationTests (~50 s, real window) and ChromeInteractionTests (~37 s in Debug).
+if(TEST SDLIntegrationTests)
+    set_tests_properties(SDLIntegrationTests PROPERTIES TIMEOUT 300)
+endif()
+set_tests_properties(ChromeInteractionTests PROPERTIES TIMEOUT 180)
+get_directory_property(_vynex_tests TESTS)
+if(NOT _vynex_tests)
+    message(FATAL_ERROR "cannot enumerate the registered tests to assign timeouts")
+endif()
+foreach(_vynex_test IN LISTS _vynex_tests)
+    get_test_property(${_vynex_test} TIMEOUT _vynex_timeout)
+    if(NOT _vynex_timeout)
+        set_tests_properties(${_vynex_test} PROPERTIES TIMEOUT 120)
+    endif()
+endforeach()

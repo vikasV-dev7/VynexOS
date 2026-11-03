@@ -1,5 +1,5 @@
 #include <iostream>
-#include <cassert>
+#include "test_check.hpp"
 #include <memory>
 #include "vynexos/desktop/widget_toolkit.hpp"
 #include "../desktop/basic_widget_toolkit.hpp"
@@ -18,14 +18,14 @@ void test_rect_drawing() {
     auto map = surface->map_pixels();
     // Verify pixel at 10,10 is red
     size_t idx = (10 * 100 + 10) * 4;
-    assert(map[idx] == 255);
-    assert(map[idx+1] == 0);
-    assert(map[idx+2] == 0);
-    assert(map[idx+3] == 255);
+    CHECK(map[idx] == 255);
+    CHECK(map[idx+1] == 0);
+    CHECK(map[idx+2] == 0);
+    CHECK(map[idx+3] == 255);
     
     // Verify pixel at 9,9 is empty (0)
     size_t idx_out = (9 * 100 + 9) * 4;
-    assert(map[idx_out] == 0);
+    CHECK(map[idx_out] == 0);
     surface->unmap_pixels();
     
     std::cout << "test_rect_drawing passed\n";
@@ -48,9 +48,9 @@ void test_alpha_rect_drawing() {
     uint8_t g = mapped[idx+1];
     uint8_t b = mapped[idx+2];
     
-    assert(r == 255);
-    assert(g > 0 && g < 255);
-    assert(b > 0 && b < 255);
+    CHECK(r == 255);
+    CHECK(g > 0 && g < 255);
+    CHECK(b > 0 && b < 255);
     
     surface->unmap_pixels();
     std::cout << "test_alpha_rect_drawing passed\n";
@@ -66,10 +66,10 @@ void test_panel_drawing() {
     auto mapped = surface->map_pixels();
     size_t idx = (10 * 100 + 10) * 4;
     // {45, 45, 45, 255} over {0,0,0,0} = {45, 45, 45, 255}
-    assert(mapped[idx] == 45);
-    assert(mapped[idx+1] == 45);
-    assert(mapped[idx+2] == 45);
-    assert(mapped[idx+3] == 255);
+    CHECK(mapped[idx] == 45);
+    CHECK(mapped[idx+1] == 45);
+    CHECK(mapped[idx+2] == 45);
+    CHECK(mapped[idx+3] == 255);
     surface->unmap_pixels();
     
     std::cout << "test_panel_drawing passed\n";

@@ -4,7 +4,7 @@
 #include "vynexos/core/event_bus.hpp"
 #include "vynexos/hal/input_driver.hpp"
 #include "../apps/basic_file_explorer.hpp"
-#include <cassert>
+#include "test_check.hpp"
 #include <iostream>
 #include <map>
 
@@ -63,13 +63,13 @@ void test_initialization() {
     apps::BasicFileExplorer explorer(vfs, toolkit);
     
     bool ok = explorer.initialize();
-    assert(ok);
+    CHECK(ok);
     (void)ok;
-    assert(explorer.get_current_path().as_string() == "/");
-    assert(explorer.get_entries().size() == 2);
+    CHECK(explorer.get_current_path().as_string() == "/");
+    CHECK(explorer.get_entries().size() == 2);
     // Because dirs are sorted alphabetically:
-    assert(explorer.get_entries()[0].display_name == "bin");
-    assert(explorer.get_entries()[1].display_name == "home");
+    CHECK(explorer.get_entries()[0].display_name == "bin");
+    CHECK(explorer.get_entries()[1].display_name == "home");
     std::cout << "test_initialization passed\n";
 }
 
@@ -83,7 +83,7 @@ void test_navigation_into_directory() {
     auto toolkit = std::make_shared<MockWidgetToolkit>();
     apps::BasicFileExplorer explorer(vfs, toolkit);
     bool ok = explorer.initialize();
-    assert(ok);
+    CHECK(ok);
     (void)ok;
     
     core::Event ev;
@@ -97,9 +97,9 @@ void test_navigation_into_directory() {
     ev.payload = hal::MouseEvent(20, 65, 0);
     explorer.handle_event(ev);
     
-    assert(explorer.get_selected_index().has_value());
-    assert(explorer.get_selected_index().value() == 0);
-    assert(explorer.get_current_path().as_string() == "/");
+    CHECK(explorer.get_selected_index().has_value());
+    CHECK(explorer.get_selected_index().value() == 0);
+    CHECK(explorer.get_current_path().as_string() == "/");
     
     // Simulate second click on "home" (activate)
     ev.payload = hal::MouseEvent(20, 65, 1);
@@ -109,12 +109,12 @@ void test_navigation_into_directory() {
     ev.payload = hal::MouseEvent(20, 65, 0);
     explorer.handle_event(ev);
     
-    assert(explorer.get_current_path().as_string() == "/home");
-    assert(explorer.get_entries().size() == 1);
-    assert(explorer.get_entries()[0].display_name == "user");
+    CHECK(explorer.get_current_path().as_string() == "/home");
+    CHECK(explorer.get_entries().size() == 1);
+    CHECK(explorer.get_entries()[0].display_name == "user");
     
     // Selection should be reset
-    assert(!explorer.get_selected_index().has_value());
+    CHECK(!explorer.get_selected_index().has_value());
     std::cout << "test_navigation_into_directory passed\n";
 }
 
@@ -127,7 +127,7 @@ void test_navigation_to_parent() {
     auto toolkit = std::make_shared<MockWidgetToolkit>();
     apps::BasicFileExplorer explorer(vfs, toolkit);
     bool ok = explorer.initialize();
-    assert(ok);
+    CHECK(ok);
     (void)ok;
     
     core::Event ev;
@@ -143,7 +143,7 @@ void test_navigation_to_parent() {
     ev.payload = hal::MouseEvent(20, 65, 0);
     explorer.handle_event(ev);
     
-    assert(explorer.get_current_path().as_string() == "/home");
+    CHECK(explorer.get_current_path().as_string() == "/home");
     
     // Click "Up" button (x:10-50, y:10-40)
     ev.payload = hal::MouseEvent(20, 25, 1);
@@ -151,7 +151,7 @@ void test_navigation_to_parent() {
     ev.payload = hal::MouseEvent(20, 25, 0);
     explorer.handle_event(ev);
     
-    assert(explorer.get_current_path().as_string() == "/");
+    CHECK(explorer.get_current_path().as_string() == "/");
     std::cout << "test_navigation_to_parent passed\n";
 }
 
@@ -163,7 +163,7 @@ void test_select_file_no_navigate() {
     auto toolkit = std::make_shared<MockWidgetToolkit>();
     apps::BasicFileExplorer explorer(vfs, toolkit);
     bool ok = explorer.initialize();
-    assert(ok);
+    CHECK(ok);
     (void)ok;
     
     core::Event ev;
@@ -173,15 +173,15 @@ void test_select_file_no_navigate() {
     // First click selects
     explorer.handle_event(ev);
     
-    assert(explorer.get_selected_index().has_value());
-    assert(explorer.get_selected_index().value() == 0);
-    assert(explorer.get_current_path().as_string() == "/");
+    CHECK(explorer.get_selected_index().has_value());
+    CHECK(explorer.get_selected_index().value() == 0);
+    CHECK(explorer.get_current_path().as_string() == "/");
     
     // Second click should NOT navigate because it's a file
     explorer.handle_event(ev);
     
-    assert(explorer.get_current_path().as_string() == "/");
-    assert(explorer.get_selected_index().value() == 0);
+    CHECK(explorer.get_current_path().as_string() == "/");
+    CHECK(explorer.get_selected_index().value() == 0);
     std::cout << "test_select_file_no_navigate passed\n";
 }
 
@@ -193,11 +193,11 @@ void test_invalid_navigation() {
     auto toolkit = std::make_shared<MockWidgetToolkit>();
     apps::BasicFileExplorer explorer(vfs, toolkit);
     bool ok = explorer.initialize();
-    assert(ok);
+    CHECK(ok);
     (void)ok;
     
     // The initialize will try to stat "ghost_dir", which fails, so it won't be in the entries!
-    assert(explorer.get_entries().size() == 0);
+    CHECK(explorer.get_entries().size() == 0);
     std::cout << "test_invalid_navigation passed\n";
 }
 

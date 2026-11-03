@@ -2,7 +2,7 @@
 // on every side and corner, negative coordinates, explicit clips that reach off-screen, zero-sized and inconsistent
 // rectangles and surfaces. The compositor's output is compared, over the whole framebuffer, with an independent reference
 // that computes every pixel with 64-bit bounds checks. Source surfaces carry guard bytes; Debug builds also check the CRT
-// heap. Checks use CHECK (below), which is active in every build configuration, including Release with NDEBUG.
+// heap. Checks use CHECK (test_check.hpp), which is active in every build configuration, including Release with NDEBUG.
 #include <algorithm>
 #include <cstdint>
 #include <cstdio>
@@ -31,21 +31,15 @@
 #include "vynexos/desktop/decoration_layout.hpp"
 #include "vynexos/hal/input_driver.hpp"
 
+#include "test_check.hpp"
+
 using namespace vynexos;
 using namespace vynexos::desktop;
 
 namespace {
 
-std::string g_context; // what the current check is about, printed on failure
-
-#define CHECK(cond)                                                                                                   \
-    do {                                                                                                              \
-        if (!(cond)) {                                                                                                \
-            std::fprintf(stderr, "CHECK failed: %s\n  at %s:%d\n  context: %s\n", #cond, __FILE__, __LINE__, g_context.c_str()); \
-            std::fflush(stderr);                                                                                      \
-            std::exit(1);                                                                                             \
-        }                                                                                                             \
-    } while (0)
+// What the current check is about, printed by a failing CHECK.
+std::string& g_context = vynex_test::context();
 
 void check_heap() {
 #if defined(_MSC_VER) && defined(_DEBUG)

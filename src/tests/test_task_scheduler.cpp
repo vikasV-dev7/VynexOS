@@ -4,7 +4,7 @@
 #include <atomic>
 #include <thread>
 #include <vector>
-#include <cassert>
+#include "test_check.hpp"
 #include <chrono>
 
 using namespace vynexos::core;
@@ -35,7 +35,7 @@ void run_concurrency_tests() {
                     bool accepted = scheduler.enqueue([&counter](const ExecutionContext&) {
                         counter.fetch_add(1, std::memory_order_relaxed);
                     });
-                    assert(accepted && "Enqueue must not fail during active testing phase.");
+                    CHECK(accepted && "Enqueue must not fail during active testing phase.");
                     (void)accepted; // Explicitly discard after assertion to silence [[nodiscard]] warnings in Release mode
                 }
             });
@@ -45,7 +45,7 @@ void run_concurrency_tests() {
         
         scheduler.shutdown();
         
-        assert(counter.load() == 40000 && "Execution Guarantee failed!");
+        CHECK(counter.load() == 40000 && "Execution Guarantee failed!");
         std::cout << "[PASS] Multiple Producers & Execution Guarantee\n";
     }
 
@@ -85,9 +85,9 @@ void run_concurrency_tests() {
         int accepted = success_enqueue_count.load();
         int rejected = rejected_count.load();
         
-        assert(executed == accepted && "Active Shutdown Drain failed!");
-        assert(rejected > 0 && "Rejection Verification failed (no tasks were rejected)!");
-        assert(executed + rejected == 40000 && "Total tasks mismatch!");
+        CHECK(executed == accepted && "Active Shutdown Drain failed!");
+        CHECK(rejected > 0 && "Rejection Verification failed (no tasks were rejected)!");
+        CHECK(executed + rejected == 40000 && "Total tasks mismatch!");
         
         std::cout << "[PASS] Active Shutdown & Rejection Verification\n";
     }

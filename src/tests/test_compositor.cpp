@@ -1,5 +1,5 @@
 #include <iostream>
-#include <cassert>
+#include "test_check.hpp"
 #include <memory>
 #include "vynexos/desktop/compositor.hpp"
 #include "../desktop/basic_compositor.hpp"
@@ -34,11 +34,11 @@ void test_software_surface() {
     BasicCompositor compositor(display, logger);
 
     auto surface = compositor.create_surface(100, 100);
-    assert(surface->width() == 100);
-    assert(surface->height() == 100);
+    CHECK(surface->width() == 100);
+    CHECK(surface->height() == 100);
 
     auto pixels = surface->map_pixels();
-    assert(pixels.size() == 100 * 100 * 4);
+    CHECK(pixels.size() == 100 * 100 * 4);
     
     // Write something
     pixels[0] = 255;
@@ -81,11 +81,11 @@ void test_alpha_blending() {
     scene.push_back({ {0, 0, 100, 100}, {0, 0, 1920, 1080}, 1.0f, true, surface_fg });
 
     auto res = compositor.render_frame(scene);
-    assert(res.has_value());
+    CHECK(res.has_value());
 
     const auto& frame = display->last_frame;
-    assert(frame.width == 1920);
-    assert(frame.height == 1080);
+    CHECK(frame.width == 1920);
+    CHECK(frame.height == 1080);
     
     // Pixel at 0,0 should be ~50% red, ~50% green
     uint8_t r = frame.pixels[0];
@@ -93,10 +93,10 @@ void test_alpha_blending() {
     uint8_t b = frame.pixels[2];
     uint8_t a = frame.pixels[3];
     
-    assert(r > 0 && r < 255);
-    assert(g > 0 && g < 255);
-    assert(b == 0);
-    assert(a == 255);
+    CHECK(r > 0 && r < 255);
+    CHECK(g > 0 && g < 255);
+    CHECK(b == 0);
+    CHECK(a == 255);
     
     std::cout << "test_alpha_blending passed\n";
 }
@@ -114,7 +114,7 @@ void test_compositor_memory_stability() {
     // Validate it doesn't crash or leak heap memory endlessly
     for (int i = 0; i < 600; i++) {
         auto res = compositor.render_frame(scene);
-        assert(res.has_value());
+        CHECK(res.has_value());
     }
     
     std::cout << "test_compositor_memory_stability passed (600 frames rendered cleanly)\n";

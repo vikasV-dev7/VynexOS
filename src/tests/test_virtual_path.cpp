@@ -1,78 +1,78 @@
 #include "vynexos/core/virtual_path.hpp"
-#include <cassert>
+#include "test_check.hpp"
 #include <iostream>
 
 using namespace vynexos::core;
 
 void test_normal_paths() {
     VirtualPath p1("/");
-    assert(p1.is_absolute());
-    assert(p1.is_root());
-    assert(p1.as_string() == "/");
+    CHECK(p1.is_absolute());
+    CHECK(p1.is_root());
+    CHECK(p1.as_string() == "/");
 
     VirtualPath p2("/usr/bin");
-    assert(p2.is_absolute());
-    assert(!p2.is_root());
-    assert(p2.as_string() == "/usr/bin");
-    assert(p2.filename() == "bin");
+    CHECK(p2.is_absolute());
+    CHECK(!p2.is_root());
+    CHECK(p2.as_string() == "/usr/bin");
+    CHECK(p2.filename() == "bin");
 
     VirtualPath p3("home/user");
-    assert(!p3.is_absolute());
-    assert(p3.as_string() == "home/user");
+    CHECK(!p3.is_absolute());
+    CHECK(p3.as_string() == "home/user");
 }
 
 void test_normalization() {
     VirtualPath p1("/usr//bin");
-    assert(p1.as_string() == "/usr/bin");
+    CHECK(p1.as_string() == "/usr/bin");
 
     VirtualPath p2("/usr/./bin");
-    assert(p2.as_string() == "/usr/bin");
+    CHECK(p2.as_string() == "/usr/bin");
 
     VirtualPath p3("/usr/bin/..");
-    assert(p3.as_string() == "/usr");
+    CHECK(p3.as_string() == "/usr");
 
     VirtualPath p4("./folder");
-    assert(p4.as_string() == "folder");
+    CHECK(p4.as_string() == "folder");
 
     VirtualPath p5("../folder");
-    assert(p5.as_string() == "../folder");
+    CHECK(p5.as_string() == "../folder");
 
     VirtualPath p6("/../folder");
-    assert(p6.as_string() == "/folder"); // Traversing above root stays at root
+    CHECK(p6.as_string() == "/folder"); // Traversing above root stays at root
 }
 
 void test_edge_cases() {
     VirtualPath p1("");
-    assert(p1.is_empty());
-    assert(p1.as_string() == "");
+    CHECK(p1.is_empty());
+    CHECK(p1.as_string() == "");
 
     VirtualPath p2("///");
-    assert(p2.as_string() == "/");
-    assert(p2.is_root());
+    CHECK(p2.as_string() == "/");
+    CHECK(p2.is_root());
 
     VirtualPath p3("/a/");
-    assert(p3.as_string() == "/a");
+    CHECK(p3.as_string() == "/a");
 
     VirtualPath p4("a/b/c");
-    assert(p4.parent().as_string() == "a/b");
+    CHECK(p4.parent().as_string() == "a/b");
 
     VirtualPath p5("file.txt");
-    assert(p5.extension() == ".txt");
+    CHECK(p5.extension() == ".txt");
     
     VirtualPath p6(".hidden");
-    assert(p6.extension() == ""); // Not an extension
+    CHECK(p6.extension() == ""); // Not an extension
     
     VirtualPath p7("a.b.c");
-    assert(p7.extension() == ".c");
+    CHECK(p7.extension() == ".c");
 }
 
 void test_equality() {
     VirtualPath p1("/usr/bin");
     VirtualPath p2("/usr/./bin/");
-    assert(p1 == p2);
+    CHECK(p1 == p2);
 
     VirtualPath p3("/usr");
-    assert(p1 != p3);
+    CHECK(p1 != p3);
 }
 
 int main() {

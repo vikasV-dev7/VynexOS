@@ -1,5 +1,5 @@
 #include <array>
-#include <cassert>
+#include "test_check.hpp"
 #include <cstdint>
 #include <iostream>
 #include <memory>
@@ -77,7 +77,7 @@ void test_render_matches_table_for_all_printable() {
     for (int c = 0x20; c <= 0x7E; ++c) {
         const auto rendered = render_glyph(toolkit, static_cast<char>(c));
         const auto expected = decode_table(static_cast<char>(c));
-        assert(rendered == expected);
+        CHECK(rendered == expected);
     }
     std::cout << "test_render_matches_table_for_all_printable passed\n";
 }
@@ -87,7 +87,7 @@ void test_known_glyph_golden() {
     // 'A' in the public-domain font8x8 table: 0C 1E 33 33 3F 33 33 00 (bit 0 = leftmost pixel).
     const Bitmap golden_A{"..##....", ".####...", "##..##..", "##..##..",
                           "######..", "##..##..", "##..##..", "........"};
-    assert(render_glyph(toolkit, 'A') == golden_A);
+    CHECK(render_glyph(toolkit, 'A') == golden_A);
     std::cout << "test_known_glyph_golden passed\n";
 }
 
@@ -105,11 +105,11 @@ void test_printable_glyphs_present_and_distinct() {
     }
     for (char c : blanks) std::cout << "  BLANK glyph: '" << c << "'\n";
     for (char c : duplicates) std::cout << "  DUPLICATE glyph: '" << c << "'\n";
-    assert(blanks.empty());
-    assert(duplicates.empty());
+    CHECK(blanks.empty());
+    CHECK(duplicates.empty());
 
     // Space is blank, as it should be.
-    assert(is_blank(render_glyph(toolkit, ' ')));
+    CHECK(is_blank(render_glyph(toolkit, ' ')));
     std::cout << "test_printable_glyphs_present_and_distinct passed\n";
 }
 
@@ -131,7 +131,7 @@ void test_symmetric_glyphs_are_not_mirrored_or_corrupt() {
                 }
             }
         }
-        assert(max_col >= min_col);
+        CHECK(max_col >= min_col);
         for (const auto& r : bm) {
             for (int col = min_col; col <= max_col; ++col) {
                 const int mirror = max_col - (col - min_col);
@@ -139,7 +139,7 @@ void test_symmetric_glyphs_are_not_mirrored_or_corrupt() {
                     std::cout << "  glyph '" << c << "' is not symmetric:\n";
                     for (const auto& rr : bm) std::cout << "    " << rr << '\n';
                 }
-                assert(r[static_cast<size_t>(col)] == r[static_cast<size_t>(mirror)]);
+                CHECK(r[static_cast<size_t>(col)] == r[static_cast<size_t>(mirror)]);
             }
         }
     }
@@ -157,7 +157,7 @@ void test_text_advance_and_clipping() {
         for (int col = 0; col < 16; ++col) {
             const bool on = px[(static_cast<size_t>(row) * 16 + static_cast<size_t>(col)) * 4 + 3] != 0;
             const bool expected = a[static_cast<size_t>(row)][static_cast<size_t>(col % 8)] == '#';
-            assert(on == expected);
+            CHECK(on == expected);
         }
     }
     surface->unmap_pixels();

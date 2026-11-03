@@ -1,6 +1,6 @@
 // Window chrome: frame layout invariants, icon drawing, decorator pixels and window-manager hit testing.
 #include <algorithm>
-#include <cassert>
+#include "test_check.hpp"
 #include <cstdint>
 #include <iostream>
 #include <memory>
@@ -69,8 +69,8 @@ DecorationLayout layout_for(const FrameStyle& style, uint32_t client_w, uint32_t
 
 void test_layout_invariants() {
     const FrameStyle normal = style_for(WindowState::Normal);
-    assert(normal.margins.top == 42 && normal.margins.bottom == 7 && normal.margins.left == 7 && normal.margins.right == 7);
-    assert(normal.resize_inset == 6);
+    CHECK(normal.margins.top == 42 && normal.margins.bottom == 7 && normal.margins.left == 7 && normal.margins.right == 7);
+    CHECK(normal.resize_inset == 6);
 
     uint32_t last_count = 0;
     for (uint32_t client_w = 0; client_w <= 600; client_w += 3) {
@@ -79,35 +79,35 @@ void test_layout_invariants() {
         const uint32_t h = 200 + 49;
         const Rect bounds{0, 0, w, h};
 
-        assert(contains(bounds, l.visible_frame));
-        assert(contains(l.visible_frame, l.title_bar));
-        assert(contains(bounds, l.client_area));
-        assert(l.client_area.x == 7 && l.client_area.y == 42 && l.client_area.width == client_w);
+        CHECK(contains(bounds, l.visible_frame));
+        CHECK(contains(l.visible_frame, l.title_bar));
+        CHECK(contains(bounds, l.client_area));
+        CHECK(l.client_area.x == 7 && l.client_area.y == 42 && l.client_area.width == client_w);
 
         const Rect buttons[3] = {l.minimize_button, l.maximize_button, l.close_button};
         uint32_t count = 0;
         for (const Rect& b : buttons) {
             if (b.width == 0) continue;
             ++count;
-            assert(contains(l.title_bar, b));
-            assert(b.width == 28 && b.height == 28);
-            assert(!overlap(b, l.top_left_resize) && !overlap(b, l.top_right_resize));
-            assert(!overlap(b, l.top_border) && !overlap(b, l.left_border) && !overlap(b, l.right_border));
+            CHECK(contains(l.title_bar, b));
+            CHECK(b.width == 28 && b.height == 28);
+            CHECK(!overlap(b, l.top_left_resize) && !overlap(b, l.top_right_resize));
+            CHECK(!overlap(b, l.top_border) && !overlap(b, l.left_border) && !overlap(b, l.right_border));
         }
-        assert(!overlap(l.minimize_button, l.maximize_button));
-        assert(!overlap(l.maximize_button, l.close_button));
-        if (l.minimize_button.width > 0) assert(l.minimize_button.x < l.maximize_button.x && l.maximize_button.x < l.close_button.x);
+        CHECK(!overlap(l.minimize_button, l.maximize_button));
+        CHECK(!overlap(l.maximize_button, l.close_button));
+        if (l.minimize_button.width > 0) CHECK(l.minimize_button.x < l.maximize_button.x && l.maximize_button.x < l.close_button.x);
         // Narrower windows never gain buttons back (close is kept longest).
-        if (client_w > 0) assert(count >= last_count || client_w < 40);
+        if (client_w > 0) CHECK(count >= last_count || client_w < 40);
         last_count = count;
-        if (count == 3) assert(l.close_button.x + 28 + 8 == l.title_bar.x + static_cast<int32_t>(l.title_bar.width));
+        if (count == 3) CHECK(l.close_button.x + 28 + 8 == l.title_bar.x + static_cast<int32_t>(l.title_bar.width));
     }
     // Wide enough: all three, the close button is last and right aligned.
     const DecorationLayout wide = layout_for(normal, 600, 300);
-    assert(wide.minimize_button.width > 0 && wide.maximize_button.width > 0 && wide.close_button.width > 0);
+    CHECK(wide.minimize_button.width > 0 && wide.maximize_button.width > 0 && wide.close_button.width > 0);
     // Very narrow: only close remains (or none), never minimize without close.
     const DecorationLayout narrow = layout_for(normal, 30, 100);
-    assert(narrow.minimize_button.width == 0 && narrow.maximize_button.width == 0);
+    CHECK(narrow.minimize_button.width == 0 && narrow.maximize_button.width == 0);
     std::cout << "test_layout_invariants passed\n";
 }
 
@@ -125,17 +125,17 @@ void test_resize_ring_tiles_the_edge() {
     for (int32_t y = 0; y < h; ++y) {
         for (int32_t x = 0; x < w; ++x) {
             const bool on_ring = x < ring || y < ring || x >= w - ring || y >= h - ring;
-            if (on_ring) assert(in_any(x, y));
+            if (on_ring) CHECK(in_any(x, y));
             // Corner squares reach inward along both edges but stay clear of the middle of the window.
-            if (x >= 2 * ring && y >= 2 * ring && x < w - 2 * ring && y < h - 2 * ring) assert(!in_any(x, y));
+            if (x >= 2 * ring && y >= 2 * ring && x < w - 2 * ring && y < h - 2 * ring) CHECK(!in_any(x, y));
         }
     }
 
     const FrameStyle max = style_for(WindowState::Maximized);
     const DecorationLayout m = layout_for(max, 800, 600);
-    assert(m.visible_frame.x == 0 && m.visible_frame.y == 0 && m.visible_frame.width == 800 && m.visible_frame.height == 636);
-    assert(m.top_border.height == 0 && m.left_border.width == 0 && m.right_border.width == 0 && m.bottom_border.height == 0);
-    assert(m.title_bar.height == 36);
+    CHECK(m.visible_frame.x == 0 && m.visible_frame.y == 0 && m.visible_frame.width == 800 && m.visible_frame.height == 636);
+    CHECK(m.top_border.height == 0 && m.left_border.width == 0 && m.right_border.width == 0 && m.bottom_border.height == 0);
+    CHECK(m.title_bar.height == 36);
     std::cout << "test_resize_ring_tiles_the_edge passed\n";
 }
 
@@ -195,17 +195,17 @@ void test_icons() {
         Painter p(s);
         draw_icon(p, icons[i], box, Color{255, 255, 255, 255});
         const Ink ink = ink_in(s, box);
-        assert(ink.any);
+        CHECK(ink.any);
         // Every glyph is centred in its box (within a pixel) and stays on the 16 px design grid.
         const int cx2 = ink.x0 + ink.x1 + 1;
         const int cy2 = ink.y0 + ink.y1 + 1;
-        assert(std::abs(cx2 - 28) <= 3);
-        if (icons[i] != IconId::Minimize) assert(std::abs(cy2 - 28) <= 3);
-        assert(ink.x1 - ink.x0 + 1 <= 16 && ink.y1 - ink.y0 + 1 <= 16);
+        CHECK(std::abs(cx2 - 28) <= 3);
+        if (icons[i] != IconId::Minimize) CHECK(std::abs(cy2 - 28) <= 3);
+        CHECK(ink.x1 - ink.x0 + 1 <= 16 && ink.y1 - ink.y0 + 1 <= 16);
         rendered[i] = bytes_of(s);
     }
     for (int i = 0; i < 4; ++i)
-        for (int j = i + 1; j < 4; ++j) assert(rendered[i] != rendered[j]);
+        for (int j = i + 1; j < 4; ++j) CHECK(rendered[i] != rendered[j]);
     std::cout << "test_icons passed\n";
 }
 
@@ -237,22 +237,22 @@ void test_decorator_focus_states() {
 
     Chrome f = draw_chrome("Files", focused);
     Chrome i = draw_chrome("Files", inactive);
-    assert(bytes_of(*f.surface) != bytes_of(*i.surface));
+    CHECK(bytes_of(*f.surface) != bytes_of(*i.surface));
 
     // The invisible resize band carries no pixels: the outermost 6 px ring is fully transparent.
     const int32_t w = static_cast<int32_t>(f.surface->width());
     const int32_t h = static_cast<int32_t>(f.surface->height());
     for (int32_t k = 0; k < 6; ++k) {
-        assert(alpha_at(*f.surface, k, h / 2) == 0);
-        assert(alpha_at(*f.surface, w - 1 - k, h / 2) == 0);
-        assert(alpha_at(*f.surface, w / 2, k) == 0);
-        assert(alpha_at(*f.surface, w / 2, h - 1 - k) == 0);
+        CHECK(alpha_at(*f.surface, k, h / 2) == 0);
+        CHECK(alpha_at(*f.surface, w - 1 - k, h / 2) == 0);
+        CHECK(alpha_at(*f.surface, w / 2, k) == 0);
+        CHECK(alpha_at(*f.surface, w / 2, h - 1 - k) == 0);
     }
     // Just inside the band is the 1 px border.
-    assert(alpha_at(*f.surface, 6, h / 2) == 255);
-    assert(alpha_at(*f.surface, w / 2, 6) == 255);
+    CHECK(alpha_at(*f.surface, 6, h / 2) == 255);
+    CHECK(alpha_at(*f.surface, w / 2, 6) == 255);
     // Top corners are rounded: the frame's own corner pixel is not fully covered.
-    assert(alpha_at(*f.surface, 6, 6) < 255);
+    CHECK(alpha_at(*f.surface, 6, 6) < 255);
 
     // The focused border differs from the inactive border (accent tint).
     auto border_px = [&](SoftwareSurface& s) {
@@ -262,7 +262,7 @@ void test_decorator_focus_states() {
         s.unmap_pixels();
         return px;
     };
-    assert(border_px(*f.surface) != border_px(*i.surface));
+    CHECK(border_px(*f.surface) != border_px(*i.surface));
     std::cout << "test_decorator_focus_states passed\n";
 }
 
@@ -275,21 +275,21 @@ void test_decorator_controls_and_title() {
     const Rect title_region{c.layout.title_bar.x, c.layout.title_bar.y, static_cast<uint32_t>(c.layout.minimize_button.x - c.layout.title_bar.x),
                             c.layout.title_bar.height - 1};
     const Ink title = ink_in(*c.surface, title_region, 120);
-    assert(title.any);
-    assert(title.x0 >= c.layout.title_bar.x + 8);
-    assert(title.x1 < c.layout.minimize_button.x - 4);
-    assert(title.y0 >= c.layout.title_bar.y + 6 && title.y1 < c.layout.title_bar.y + static_cast<int32_t>(c.layout.title_bar.height) - 6);
+    CHECK(title.any);
+    CHECK(title.x0 >= c.layout.title_bar.x + 8);
+    CHECK(title.x1 < c.layout.minimize_button.x - 4);
+    CHECK(title.y0 >= c.layout.title_bar.y + 6 && title.y1 < c.layout.title_bar.y + static_cast<int32_t>(c.layout.title_bar.height) - 6);
 
     // Each control has an icon.
-    for (const Rect& b : {c.layout.minimize_button, c.layout.maximize_button, c.layout.close_button}) assert(ink_in(*c.surface, b, 120).any);
+    for (const Rect& b : {c.layout.minimize_button, c.layout.maximize_button, c.layout.close_button}) CHECK(ink_in(*c.surface, b, 120).any);
 
     // Maximize shows the restore glyph when maximized.
     DecorationVisualState maxed;
     maxed.focused = true;
     maxed.state = WindowState::Maximized;
     Chrome m = draw_chrome("Files", maxed, 800, 400);
-    assert(alpha_at(*m.surface, 0, 0) == 255 || alpha_at(*m.surface, 0, 0) > 0); // flush: no transparent band in the corner
-    assert(m.layout.visible_frame.x == 0 && m.layout.visible_frame.y == 0);
+    CHECK(alpha_at(*m.surface, 0, 0) == 255 || alpha_at(*m.surface, 0, 0) > 0); // flush: no transparent band in the corner
+    CHECK(m.layout.visible_frame.x == 0 && m.layout.visible_frame.y == 0);
 
     DecorationVisualState normal_vs = vs;
     Chrome n = draw_chrome("Files", normal_vs, 800, 400);
@@ -299,7 +299,7 @@ void test_decorator_controls_and_title() {
         draw_icon(pn, IconId::Maximize, {0, 0, 28, 28}, Color{255, 255, 255, 255});
         draw_icon(pm, IconId::Restore, {0, 0, 28, 28}, Color{255, 255, 255, 255});
     }
-    assert(bytes_of(glyph_n) != bytes_of(glyph_m));
+    CHECK(bytes_of(glyph_n) != bytes_of(glyph_m));
     (void)n;
 
     // Hover and pressed states are visible and distinct.
@@ -310,8 +310,8 @@ void test_decorator_controls_and_title() {
     Chrome rest = draw_chrome("Files", vs, 300, 200);
     Chrome hov = draw_chrome("Files", hover, 300, 200);
     Chrome prs = draw_chrome("Files", press, 300, 200);
-    assert(bytes_of(*rest.surface) != bytes_of(*hov.surface));
-    assert(bytes_of(*hov.surface) != bytes_of(*prs.surface));
+    CHECK(bytes_of(*rest.surface) != bytes_of(*hov.surface));
+    CHECK(bytes_of(*hov.surface) != bytes_of(*prs.surface));
     std::cout << "test_decorator_controls_and_title passed\n";
 }
 
@@ -345,7 +345,7 @@ void test_hit_testing_all_edges_and_corners() {
     Rig r;
     const uint32_t a = r.add("A", {300, 200, 400, 300});
     const Rect d = r.wm.get_decorated_window_bounds(a);
-    assert(d.x == 293 && d.y == 158 && d.width == 414 && d.height == 349);
+    CHECK(d.x == 293 && d.y == 158 && d.width == 414 && d.height == 349);
 
     struct Probe {
         int32_t dx, dy;
@@ -360,30 +360,30 @@ void test_hit_testing_all_edges_and_corners() {
     };
     for (const Probe& p : probes) {
         const auto hit = r.wm.get_resize_handle_at(d.x + p.dx, d.y + p.dy);
-        assert(hit.has_value());
-        assert(hit->window_id == a);
-        assert(hit->edge == p.edge);
-        assert(r.wm.get_window_at(d.x + p.dx, d.y + p.dy) == a); // over the empty desktop the band belongs to A, not the wallpaper
+        CHECK(hit.has_value());
+        CHECK(hit->window_id == a);
+        CHECK(hit->edge == p.edge);
+        CHECK(r.wm.get_window_at(d.x + p.dx, d.y + p.dy) == a); // over the empty desktop the band belongs to A, not the wallpaper
     }
 
     // Beyond the band is the desktop again.
-    assert(r.wm.get_window_at(d.x - 1, d.y + h / 2) == r.wallpaper);
-    assert(!r.wm.get_resize_handle_at(d.x - 1, d.y + h / 2).has_value());
+    CHECK(r.wm.get_window_at(d.x - 1, d.y + h / 2) == r.wallpaper);
+    CHECK(!r.wm.get_resize_handle_at(d.x - 1, d.y + h / 2).has_value());
     // The client area and the title bar are not resize zones.
-    assert(!r.wm.get_resize_handle_at(500, 400).has_value());
-    assert(!r.wm.get_resize_handle_at(d.x + w / 2, d.y + 20).has_value());
-    assert(r.wm.get_decoration_hit_region(a, d.x + w / 2, d.y + 20) == DecorationHitRegion::TitleBar);
-    assert(r.wm.get_decoration_hit_region(a, d.x + 2, d.y + h / 2) == DecorationHitRegion::Border);
+    CHECK(!r.wm.get_resize_handle_at(500, 400).has_value());
+    CHECK(!r.wm.get_resize_handle_at(d.x + w / 2, d.y + 20).has_value());
+    CHECK(r.wm.get_decoration_hit_region(a, d.x + w / 2, d.y + 20) == DecorationHitRegion::TitleBar);
+    CHECK(r.wm.get_decoration_hit_region(a, d.x + 2, d.y + h / 2) == DecorationHitRegion::Border);
 
     // Controls.
     const DecorationLayout l = calculate_decoration_layout(make_frame_metrics(r.wm.get_window_frame_style(a), d, {300, 200, 400, 300}));
     auto centre = [&](const Rect& b) { return std::pair{d.x + b.x + static_cast<int32_t>(b.width) / 2, d.y + b.y + static_cast<int32_t>(b.height) / 2}; };
     auto [cx, cy] = centre(l.close_button);
-    assert(r.wm.get_decoration_hit_region(a, cx, cy) == DecorationHitRegion::CloseButton);
+    CHECK(r.wm.get_decoration_hit_region(a, cx, cy) == DecorationHitRegion::CloseButton);
     std::tie(cx, cy) = centre(l.maximize_button);
-    assert(r.wm.get_decoration_hit_region(a, cx, cy) == DecorationHitRegion::MaximizeButton);
+    CHECK(r.wm.get_decoration_hit_region(a, cx, cy) == DecorationHitRegion::MaximizeButton);
     std::tie(cx, cy) = centre(l.minimize_button);
-    assert(r.wm.get_decoration_hit_region(a, cx, cy) == DecorationHitRegion::MinimizeButton);
+    CHECK(r.wm.get_decoration_hit_region(a, cx, cy) == DecorationHitRegion::MinimizeButton);
     std::cout << "test_hit_testing_all_edges_and_corners passed\n";
 }
 
@@ -393,14 +393,14 @@ void test_layer_semantics_for_the_wallpaper() {
     const Rect d = r.wm.get_decorated_window_bounds(a);
     const int32_t px = d.x + 2, py = d.y + 180;
 
-    assert(r.wm.get_window_layer(r.wallpaper) == WindowLayer::Desktop);
-    assert(r.wm.get_window_layer(a) == WindowLayer::Normal);
-    assert(r.wm.get_resize_handle_at(px, py).has_value());
+    CHECK(r.wm.get_window_layer(r.wallpaper) == WindowLayer::Desktop);
+    CHECK(r.wm.get_window_layer(a) == WindowLayer::Normal);
+    CHECK(r.wm.get_resize_handle_at(px, py).has_value());
 
     // If the wallpaper were an ordinary window, its visible pixels would win over A's invisible band.
     r.wm.set_window_layer(r.wallpaper, WindowLayer::Normal);
-    assert(r.wm.get_window_at(px, py) == r.wallpaper);
-    assert(!r.wm.get_resize_handle_at(px, py).has_value());
+    CHECK(r.wm.get_window_at(px, py) == r.wallpaper);
+    CHECK(!r.wm.get_resize_handle_at(px, py).has_value());
     std::cout << "test_layer_semantics_for_the_wallpaper passed\n";
 }
 
@@ -415,9 +415,9 @@ void test_band_never_steals_from_neighbours_or_panels() {
     const int32_t probe_x = da.x + 2;
     const int32_t probe_y = da.y + 180;
     const Rect db = r.wm.get_decorated_window_bounds(b);
-    assert(probe_x >= db.x + 6 && probe_x < db.x + static_cast<int32_t>(db.width) - 6); // inside B's visible frame
-    assert(r.wm.get_window_at(probe_x, probe_y) == b);
-    assert(!r.wm.get_resize_handle_at(probe_x, probe_y).has_value() || r.wm.get_resize_handle_at(probe_x, probe_y)->window_id == b);
+    CHECK(probe_x >= db.x + 6 && probe_x < db.x + static_cast<int32_t>(db.width) - 6); // inside B's visible frame
+    CHECK(r.wm.get_window_at(probe_x, probe_y) == b);
+    CHECK(!r.wm.get_resize_handle_at(probe_x, probe_y).has_value() || r.wm.get_resize_handle_at(probe_x, probe_y)->window_id == b);
 
     // A panel (undecorated, full width) lies over A's bottom band: the panel wins.
     Rig p;
@@ -428,9 +428,9 @@ void test_band_never_steals_from_neighbours_or_panels() {
     p.wm.focus_window(c); // C is above the panel in z-order
     const Rect dc = p.wm.get_decorated_window_bounds(c);
     const int32_t band_y = dc.y + static_cast<int32_t>(dc.height) - 2; // inside C's bottom band, over the taskbar
-    assert(band_y >= 1032);
-    assert(p.wm.get_window_at(dc.x + 100, band_y) == task);
-    assert(!p.wm.get_resize_handle_at(dc.x + 100, band_y).has_value() || p.wm.get_resize_handle_at(dc.x + 100, band_y)->window_id == task);
+    CHECK(band_y >= 1032);
+    CHECK(p.wm.get_window_at(dc.x + 100, band_y) == task);
+    CHECK(!p.wm.get_resize_handle_at(dc.x + 100, band_y).has_value() || p.wm.get_resize_handle_at(dc.x + 100, band_y)->window_id == task);
     std::cout << "test_band_never_steals_from_neighbours_or_panels passed\n";
 }
 
@@ -443,32 +443,32 @@ void test_maximized_is_flush_and_restores() {
 
     r.wm.set_window_state(a, WindowState::Maximized);
     const auto margins = r.wm.get_window_margins(a);
-    assert(margins.top == 36 && margins.left == 0 && margins.right == 0 && margins.bottom == 0);
+    CHECK(margins.top == 36 && margins.left == 0 && margins.right == 0 && margins.bottom == 0);
     const auto geom = r.wm.get_window_geometry(a);
-    assert(geom->x == 0 && geom->y == 36 && geom->width == 1920 && geom->height == 996);
+    CHECK(geom->x == 0 && geom->y == 36 && geom->width == 1920 && geom->height == 996);
     const Rect d = r.wm.get_decorated_window_bounds(a);
-    assert(d.x == 0 && d.y == 0 && d.width == 1920 && d.height == 1032);
+    CHECK(d.x == 0 && d.y == 0 && d.width == 1920 && d.height == 1032);
 
     // No resize band anywhere on a maximized window; the panel below it still owns its own pixels.
-    for (int32_t x : {0, 1, 960, 1919}) assert(!r.wm.get_resize_handle_at(x, 500).has_value());
-    assert(!r.wm.get_resize_handle_at(960, 0).has_value());
-    assert(!r.wm.get_resize_handle_at(960, 1031).has_value());
-    assert(r.wm.get_window_at(960, 1040) == task);
-    assert(r.wm.get_window_at(960, 1031) == a);
+    for (int32_t x : {0, 1, 960, 1919}) CHECK(!r.wm.get_resize_handle_at(x, 500).has_value());
+    CHECK(!r.wm.get_resize_handle_at(960, 0).has_value());
+    CHECK(!r.wm.get_resize_handle_at(960, 1031).has_value());
+    CHECK(r.wm.get_window_at(960, 1040) == task);
+    CHECK(r.wm.get_window_at(960, 1031) == a);
 
     // Minimize and restore through Maximized keeps the work-area fit.
     r.wm.set_window_state(a, WindowState::Minimized);
     r.wm.set_window_state(a, WindowState::Maximized);
     const auto geom2 = r.wm.get_window_geometry(a);
-    assert(geom2->x == 0 && geom2->y == 36 && geom2->width == 1920 && geom2->height == 996);
+    CHECK(geom2->x == 0 && geom2->y == 36 && geom2->width == 1920 && geom2->height == 996);
 
     // Restore: margins and geometry return.
     r.wm.set_window_state(a, WindowState::Normal);
     const auto m2 = r.wm.get_window_margins(a);
-    assert(m2.top == 42 && m2.left == 7 && m2.right == 7 && m2.bottom == 7);
+    CHECK(m2.top == 42 && m2.left == 7 && m2.right == 7 && m2.bottom == 7);
     const auto g3 = r.wm.get_window_geometry(a);
-    assert(g3->x == 300 && g3->y == 200 && g3->width == 400 && g3->height == 300);
-    assert(r.wm.get_resize_handle_at(293 + 2, 358).has_value());
+    CHECK(g3->x == 300 && g3->y == 200 && g3->width == 400 && g3->height == 300);
+    CHECK(r.wm.get_resize_handle_at(293 + 2, 358).has_value());
     std::cout << "test_maximized_is_flush_and_restores passed\n";
 }
 
@@ -477,12 +477,12 @@ void test_legacy_windows_keep_original_behaviour() {
     const uint32_t id = r.wm.create_window("Legacy", {100, 100, 200, 100});
     r.wm.set_window_surface(id, std::make_shared<SoftwareSurface>(8, 8));
     const auto m = r.wm.get_window_margins(id);
-    assert(m.top == 0 && m.left == 0);
+    CHECK(m.top == 0 && m.left == 0);
     const auto s = r.wm.get_window_frame_style(id);
-    assert(s.resize_inset == 0 && s.border_thickness == 5);
+    CHECK(s.resize_inset == 0 && s.border_thickness == 5);
     // Original behaviour: a 5 px border inside the bounds is the resize zone.
-    assert(r.wm.get_resize_handle_at(102, 150)->edge == ResizeEdge::Left);
-    assert(!r.wm.get_resize_handle_at(150, 150).has_value());
+    CHECK(r.wm.get_resize_handle_at(102, 150)->edge == ResizeEdge::Left);
+    CHECK(!r.wm.get_resize_handle_at(150, 150).has_value());
     std::cout << "test_legacy_windows_keep_original_behaviour passed\n";
 }
 

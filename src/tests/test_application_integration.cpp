@@ -5,7 +5,7 @@
 #include "vynexos/desktop/compositor.hpp"
 #include "vynexos/desktop/display_abstraction.hpp"
 #include <span>
-#include <cassert>
+#include "test_check.hpp"
 #include <iostream>
 
 using namespace vynexos;
@@ -57,7 +57,7 @@ void test_registration() {
     } catch (...) {
         caught = true;
     }
-    assert(caught); // Duplicate registration must throw
+    CHECK(caught); // Duplicate registration must throw
     
     std::cout << "test_registration passed\n";
 }
@@ -77,27 +77,28 @@ void test_lifecycle() {
         return std::make_unique<MockApp>();
     });
     
-    assert(registry.launch("app1"));
+    const bool launched = registry.launch("app1");
+    CHECK(launched);
     auto running = registry.get_running_applications();
-    assert(running.size() == 1);
+    CHECK(running.size() == 1);
     
     auto* mock_app = static_cast<MockApp*>(running[0]);
-    assert(mock_app->initialized_calls == 1);
-    assert(mock_app->start_calls == 1);
+    CHECK(mock_app->initialized_calls == 1);
+    CHECK(mock_app->start_calls == 1);
     
     mock_app->update(16.6);
-    assert(mock_app->update_calls == 1);
+    CHECK(mock_app->update_calls == 1);
     
     DummySurface surf;
     mock_app->render(surf);
-    assert(mock_app->render_calls == 1);
+    CHECK(mock_app->render_calls == 1);
     
     core::Event ev;
     mock_app->handle_event(ev);
-    assert(mock_app->event_calls == 1);
+    CHECK(mock_app->event_calls == 1);
     
     registry.terminate(mock_app);
-    assert(registry.get_running_applications().empty());
+    CHECK(registry.get_running_applications().empty());
     
     // shutdown happens during terminate
     // Note: mock_app pointer is dangling after terminate, but we can't test shutdown_calls easily here 

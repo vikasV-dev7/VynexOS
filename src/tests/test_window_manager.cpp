@@ -1,5 +1,5 @@
 #include <iostream>
-#include <cassert>
+#include "test_check.hpp"
 #include <memory>
 #include <algorithm>
 #include <vector>
@@ -33,7 +33,7 @@ void test_scene_compilation() {
     
     // They don't have surfaces yet, so scene should be empty
     auto scene1 = wm.build_scene();
-    assert(scene1.empty());
+    CHECK(scene1.empty());
     
     // Submit native surfaces
     auto surf1 = std::make_shared<vynexos::desktop::SoftwareSurface>(100, 100);
@@ -43,22 +43,22 @@ void test_scene_compilation() {
     wm.set_window_surface(w2, surf2);
     
     auto scene2 = wm.build_scene();
-    assert(scene2.size() == 2);
+    CHECK(scene2.size() == 2);
     
     // Z-order: bottom to top
     // create_window pushes to front (Wait, check implementation: basic_window_manager.cpp pushes back)
     // The implementation pushes back by default.
     // So w1 is at index 0, w2 is at index 1.
-    assert(scene2[0].bounds.width == 100);
-    assert(scene2[1].bounds.width == 200);
+    CHECK(scene2[0].bounds.width == 100);
+    CHECK(scene2[1].bounds.width == 200);
     
     // Focus w1, which moves it to the top (back of z_order)
     wm.focus_window(w1);
     
     auto scene3 = wm.build_scene();
-    assert(scene3.size() == 2);
-    assert(scene3[0].bounds.width == 200);
-    assert(scene3[1].bounds.width == 100);
+    CHECK(scene3.size() == 2);
+    CHECK(scene3[0].bounds.width == 200);
+    CHECK(scene3[1].bounds.width == 100);
     
     std::cout << "test_scene_compilation passed\n";
 }
@@ -79,7 +79,7 @@ void test_stress_focus_transitions() {
         window_ids.push_back(id);
     }
     
-    assert(wm.get_windows_z_ordered().size() == 10);
+    CHECK(wm.get_windows_z_ordered().size() == 10);
     
     // Simulate rapid, random focus events
     for (int i = 0; i < 10000; i++) {
@@ -90,14 +90,14 @@ void test_stress_focus_transitions() {
     auto final_z_order = wm.get_windows_z_ordered();
     
     // Validate exactly one of each window exists in the Z-order
-    assert(final_z_order.size() == 10);
+    CHECK(final_z_order.size() == 10);
     for (uint32_t id : window_ids) {
-        assert(std::count(final_z_order.begin(), final_z_order.end(), id) == 1);
+        CHECK(std::count(final_z_order.begin(), final_z_order.end(), id) == 1);
     }
     
     // Check missing windows
     auto scene = wm.build_scene();
-    assert(scene.size() == 10);
+    CHECK(scene.size() == 10);
     
     std::cout << "test_stress_focus_transitions passed\n";
 }
@@ -115,17 +115,17 @@ void test_resize_constraints() {
     wm.resize_window(w1, 50, 20);
     
     auto geom = wm.get_window_geometry(w1);
-    assert(geom.has_value());
-    assert(geom->width == 100);
-    assert(geom->height == 50);
+    CHECK(geom.has_value());
+    CHECK(geom->width == 100);
+    CHECK(geom->height == 50);
     
     // Attempt set_window_geometry
     wm.set_window_geometry(w1, {20, 20, 10, 10});
     geom = wm.get_window_geometry(w1);
-    assert(geom->x == 20);
-    assert(geom->y == 20);
-    assert(geom->width == 100);
-    assert(geom->height == 50);
+    CHECK(geom->x == 20);
+    CHECK(geom->y == 20);
+    CHECK(geom->width == 100);
+    CHECK(geom->height == 50);
     
     std::cout << "test_resize_constraints passed\n";
 }
@@ -141,19 +141,19 @@ void test_resize_hit_testing() {
     
     // Test Top Left
     auto hit1 = wm.get_resize_handle_at(10, 10);
-    assert(hit1.has_value() && hit1->window_id == w1 && hit1->edge == ResizeEdge::TopLeft);
+    CHECK(hit1.has_value() && hit1->window_id == w1 && hit1->edge == ResizeEdge::TopLeft);
     
     // Test Bottom Right
     auto hit2 = wm.get_resize_handle_at(205, 205);
-    assert(hit2.has_value() && hit2->window_id == w1 && hit2->edge == ResizeEdge::BottomRight);
+    CHECK(hit2.has_value() && hit2->window_id == w1 && hit2->edge == ResizeEdge::BottomRight);
     
     // Test interior
     auto hit3 = wm.get_resize_handle_at(100, 100);
-    assert(!hit3.has_value());
+    CHECK(!hit3.has_value());
     
     // Test Right
     auto hit4 = wm.get_resize_handle_at(205, 100);
-    assert(hit4.has_value() && hit4->window_id == w1 && hit4->edge == ResizeEdge::Right);
+    CHECK(hit4.has_value() && hit4->window_id == w1 && hit4->edge == ResizeEdge::Right);
     
     std::cout << "test_resize_hit_testing passed\n";
 }
@@ -171,29 +171,29 @@ void test_taskbar_enumeration() {
     
     // Check enumeration order is 1, 2, 3
     auto snaps = wm.get_window_snapshots();
-    assert(snaps.size() == 3);
-    assert(snaps[0].window_id == w1);
-    assert(snaps[1].window_id == w2);
-    assert(snaps[2].window_id == w3);
+    CHECK(snaps.size() == 3);
+    CHECK(snaps[0].window_id == w1);
+    CHECK(snaps[1].window_id == w2);
+    CHECK(snaps[2].window_id == w3);
     
     // Focus w1, which changes Z-order
     wm.focus_window(w1);
-    assert(wm.get_active_window() == w1);
+    CHECK(wm.get_active_window() == w1);
     
     // Verify creation order remains unchanged
     auto snaps2 = wm.get_window_snapshots();
-    assert(snaps2.size() == 3);
-    assert(snaps2[0].window_id == w1);
-    assert(snaps2[1].window_id == w2);
-    assert(snaps2[2].window_id == w3);
+    CHECK(snaps2.size() == 3);
+    CHECK(snaps2[0].window_id == w1);
+    CHECK(snaps2[1].window_id == w2);
+    CHECK(snaps2[2].window_id == w3);
     
     // Destroy w2
     wm.destroy_window(w2);
     
     auto snaps3 = wm.get_window_snapshots();
-    assert(snaps3.size() == 2);
-    assert(snaps3[0].window_id == w1);
-    assert(snaps3[1].window_id == w3);
+    CHECK(snaps3.size() == 2);
+    CHECK(snaps3[0].window_id == w1);
+    CHECK(snaps3[1].window_id == w3);
     
     std::cout << "test_taskbar_enumeration passed\n";
 }
@@ -211,33 +211,33 @@ void test_window_maximization() {
     
     // Maximize
     wm.set_window_state(w1, WindowState::Maximized);
-    assert(wm.get_window_state(w1) == WindowState::Maximized);
+    CHECK(wm.get_window_state(w1) == WindowState::Maximized);
     
     auto geom = wm.get_window_geometry(w1);
-    assert(geom->width == 1920);
-    assert(geom->height == 1040);
-    assert(geom->x == 0);
-    assert(geom->y == 0);
+    CHECK(geom->width == 1920);
+    CHECK(geom->height == 1040);
+    CHECK(geom->x == 0);
+    CHECK(geom->y == 0);
     
     // Restore
     wm.set_window_state(w1, WindowState::Normal);
-    assert(wm.get_window_state(w1) == WindowState::Normal);
+    CHECK(wm.get_window_state(w1) == WindowState::Normal);
     
     geom = wm.get_window_geometry(w1);
-    assert(geom->width == 200);
-    assert(geom->height == 200);
-    assert(geom->x == 10);
-    assert(geom->y == 10);
+    CHECK(geom->width == 200);
+    CHECK(geom->height == 200);
+    CHECK(geom->x == 10);
+    CHECK(geom->y == 10);
     
     // Maximize then Minimize then Restore
     wm.set_window_state(w1, WindowState::Maximized);
     wm.set_window_state(w1, WindowState::Minimized);
-    assert(wm.get_window_state(w1) == WindowState::Minimized);
+    CHECK(wm.get_window_state(w1) == WindowState::Minimized);
     
     wm.set_window_state(w1, WindowState::Normal);
-    assert(wm.get_window_state(w1) == WindowState::Normal);
+    CHECK(wm.get_window_state(w1) == WindowState::Normal);
     geom = wm.get_window_geometry(w1);
-    assert(geom->width == 200); // Should restore to original normal geometry!
+    CHECK(geom->width == 200); // Should restore to original normal geometry!
     
     std::cout << "test_window_maximization passed\n";
 }

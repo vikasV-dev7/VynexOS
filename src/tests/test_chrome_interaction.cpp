@@ -1,7 +1,7 @@
 // Window chrome interaction: hover and pressed feedback, pointer capture with release-based activation, cancellation,
 // surface reuse with partial repaints, and the compositor's handling of decoration layers.
 #include <algorithm>
-#include <cassert>
+#include "test_check.hpp"
 #include <cstdint>
 #include <iostream>
 #include <memory>
@@ -243,20 +243,22 @@ void test_partial_repaint_matches_full_redraw() {
                         const auto before = pixels_of(*live);
                         const Rect r1 = Rig::control_rect(layout, from);
                         const Rect r2 = Rig::control_rect(layout, to);
-                        assert(decorator.redraw_decoration_region(live, layout, "File Explorer", b, WindowTheme{}, r1));
-                        assert(decorator.redraw_decoration_region(live, layout, "File Explorer", b, WindowTheme{}, r2));
+                        const bool repainted_first = decorator.redraw_decoration_region(live, layout, "File Explorer", b, WindowTheme{}, r1);
+                        CHECK(repainted_first);
+                        const bool repainted_second = decorator.redraw_decoration_region(live, layout, "File Explorer", b, WindowTheme{}, r2);
+                        CHECK(repainted_second);
 
                         auto fresh = std::make_shared<SoftwareSurface>(w, h);
                         decorator.draw_decorations(fresh, layout, "File Explorer", b, WindowTheme{});
                         const auto after = pixels_of(*live);
-                        assert(after == pixels_of(*fresh)); // identical to drawing everything again
+                        CHECK(after == pixels_of(*fresh)); // identical to drawing everything again
 
                         // ...and nothing outside the two control rectangles was touched.
                         for (uint32_t y = 0; y < h; ++y) {
                             for (uint32_t x = 0; x < w; ++x) {
                                 if (inside(r1, static_cast<int32_t>(x), static_cast<int32_t>(y)) || inside(r2, static_cast<int32_t>(x), static_cast<int32_t>(y))) continue;
                                 const size_t i = (static_cast<size_t>(y) * w + x) * 4;
-                                assert(std::equal(before.begin() + static_cast<std::ptrdiff_t>(i), before.begin() + static_cast<std::ptrdiff_t>(i + 4),
+                                CHECK(std::equal(before.begin() + static_cast<std::ptrdiff_t>(i), before.begin() + static_cast<std::ptrdiff_t>(i + 4),
                                                   after.begin() + static_cast<std::ptrdiff_t>(i)));
                             }
                         }
@@ -269,12 +271,14 @@ void test_partial_repaint_matches_full_redraw() {
         auto live = std::make_shared<SoftwareSurface>(w, h);
         decorator.draw_decorations(live, layout, "File Explorer", DecorationVisualState{}, WindowTheme{});
         const auto untouched = pixels_of(*live);
-        assert(!decorator.redraw_decoration_region(live, layout, "File Explorer", DecorationVisualState{}, WindowTheme{},
-                                                   {layout.title_bar.x + 20, layout.title_bar.y, 40, layout.title_bar.height}));
-        assert(pixels_of(*live) == untouched); // a refused region leaves the surface as it was
+        const bool repainted_title = decorator.redraw_decoration_region(live, layout, "File Explorer", DecorationVisualState{}, WindowTheme{},
+                                                                          {layout.title_bar.x + 20, layout.title_bar.y, 40, layout.title_bar.height});
+        CHECK(!repainted_title);
+        CHECK(pixels_of(*live) == untouched); // a refused region leaves the surface as it was
         // A region entirely off the surface is trivially done.
-        assert(decorator.redraw_decoration_region(live, layout, "File Explorer", DecorationVisualState{}, WindowTheme{}, {-50, -50, 10, 10}));
-        assert(pixels_of(*live) == untouched);
+        const bool repainted_off_surface = decorator.redraw_decoration_region(live, layout, "File Explorer", DecorationVisualState{}, WindowTheme{}, {-50, -50, 10, 10});
+        CHECK(repainted_off_surface);
+        CHECK(pixels_of(*live) == untouched);
     }
     std::cout << "test_partial_repaint_matches_full_redraw passed\n";
 }
@@ -285,48 +289,48 @@ void test_partial_repaint_matches_full_redraw() {
 void test_hover_transitions() {
     Rig r;
     const uint32_t a = r.alpha;
-    assert(r.chrome_is(a, H::None, H::None));
+    CHECK(r.chrome_is(a, H::None, H::None));
     const auto chrome = r.chrome(a);
 
     const auto [mx, my] = r.centre(a, H::MinimizeButton);
     r.mouse(mx, my, 0);
-    assert(r.chrome_is(a, H::MinimizeButton, H::None));
-    assert(r.chrome(a) == chrome);                                  // same surface, repainted in place
-    assert(r.compositor->surfaces_created == 0);
-    assert(r.invalidated_only({r.screen_rect(a, H::MinimizeButton)})); // only the control itself is redrawn on screen
-    assert(r.any_non_cursor_invalidation());
+    CHECK(r.chrome_is(a, H::MinimizeButton, H::None));
+    CHECK(r.chrome(a) == chrome);                                  // same surface, repainted in place
+    CHECK(r.compositor->surfaces_created == 0);
+    CHECK(r.invalidated_only({r.screen_rect(a, H::MinimizeButton)})); // only the control itself is redrawn on screen
+    CHECK(r.any_non_cursor_invalidation());
 
     // Moving within the same control changes nothing at all.
     r.settle();
     r.mouse(mx + 2, my + 1, 0);
-    assert(!r.any_non_cursor_invalidation());
+    CHECK(!r.any_non_cursor_invalidation());
 
     // Minimize -> maximize: the old control returns to normal, the new one lights up; only those two are touched.
     r.settle();
     const auto [xx, xy] = r.centre(a, H::MaximizeButton);
     r.mouse(xx, xy, 0);
-    assert(r.chrome_is(a, H::MaximizeButton, H::None));
-    assert(r.invalidated_only({r.screen_rect(a, H::MinimizeButton), r.screen_rect(a, H::MaximizeButton)}));
+    CHECK(r.chrome_is(a, H::MaximizeButton, H::None));
+    CHECK(r.invalidated_only({r.screen_rect(a, H::MinimizeButton), r.screen_rect(a, H::MaximizeButton)}));
 
     // Close has its own (danger) hover look.
     const auto [cx, cy] = r.centre(a, H::CloseButton);
     r.mouse(cx, cy, 0);
-    assert(r.chrome_is(a, H::CloseButton, H::None));
+    CHECK(r.chrome_is(a, H::CloseButton, H::None));
 
     // Leaving the controls restores the original pixels exactly.
     r.settle();
     const auto [tx, ty] = r.title_point(a);
     r.mouse(tx, ty, 0);
-    assert(r.chrome_is(a, H::None, H::None));
-    assert(r.invalidated_only({r.screen_rect(a, H::CloseButton)}));
+    CHECK(r.chrome_is(a, H::None, H::None));
+    CHECK(r.invalidated_only({r.screen_rect(a, H::CloseButton)}));
 
     // So does the pointer leaving the host window.
     r.mouse(mx, my, 0);
-    assert(r.chrome_is(a, H::MinimizeButton, H::None));
+    CHECK(r.chrome_is(a, H::MinimizeButton, H::None));
     r.pointer_signal(hal::PointerSignal::Left);
-    assert(r.chrome_is(a, H::None, H::None));
+    CHECK(r.chrome_is(a, H::None, H::None));
 
-    assert(r.compositor->surfaces_created == 0);
+    CHECK(r.compositor->surfaces_created == 0);
     std::cout << "test_hover_transitions passed\n";
 }
 
@@ -335,18 +339,18 @@ void test_hover_moves_between_windows_and_respects_stacking() {
     const auto [amx, amy] = r.centre(r.alpha, H::MinimizeButton);
     const auto [bcx, bcy] = r.centre(r.beta, H::CloseButton);
     r.mouse(amx, amy, 0);
-    assert(r.chrome_is(r.alpha, H::MinimizeButton, H::None));
+    CHECK(r.chrome_is(r.alpha, H::MinimizeButton, H::None));
     r.mouse(bcx, bcy, 0);
-    assert(r.chrome_is(r.alpha, H::None, H::None)); // the previous window lets go
-    assert(r.chrome_is(r.beta, H::CloseButton, H::None));
+    CHECK(r.chrome_is(r.alpha, H::None, H::None)); // the previous window lets go
+    CHECK(r.chrome_is(r.beta, H::CloseButton, H::None));
 
     // A window stacked on top hides the controls beneath it from the pointer.
     r.mouse(10, 10, 0);
     r.wm->move_window(r.beta, 500, 300); // Beta now covers the right end of Alpha's title bar, controls included
     r.shell->update_frame();
-    assert(r.wm->get_window_at(amx, amy) == r.beta);
+    CHECK(r.wm->get_window_at(amx, amy) == r.beta);
     r.mouse(amx, amy, 0);
-    assert(r.chrome_is(r.alpha, H::None, H::None));
+    CHECK(r.chrome_is(r.alpha, H::None, H::None));
     std::cout << "test_hover_moves_between_windows_and_respects_stacking passed\n";
 }
 
@@ -359,32 +363,32 @@ void test_press_shows_pressed_and_release_activates() {
     const auto [cx, cy] = r.centre(a, H::CloseButton);
     r.mouse(cx, cy, 0);
     r.mouse(cx, cy, 1);
-    assert(r.wm->get_window_geometry(a).has_value()); // nothing happens on press...
-    assert(r.chrome_is(a, H::CloseButton, H::CloseButton));
-    assert(r.invalidated_only({r.screen_rect(a, H::CloseButton)}));
+    CHECK(r.wm->get_window_geometry(a).has_value()); // nothing happens on press...
+    CHECK(r.chrome_is(a, H::CloseButton, H::CloseButton));
+    CHECK(r.invalidated_only({r.screen_rect(a, H::CloseButton)}));
     r.mouse(cx, cy, 0);
-    assert(!r.wm->get_window_geometry(a).has_value()); // ...the release over the same control closes the window
+    CHECK(!r.wm->get_window_geometry(a).has_value()); // ...the release over the same control closes the window
 
     // Minimize and maximize behave the same way.
     Rig m;
     const auto [mx, my] = m.centre(m.alpha, H::MinimizeButton);
     m.mouse(mx, my, 1);
-    assert(m.wm->get_window_state(m.alpha) == WindowState::Normal);
-    assert(m.chrome_is(m.alpha, H::MinimizeButton, H::MinimizeButton));
+    CHECK(m.wm->get_window_state(m.alpha) == WindowState::Normal);
+    CHECK(m.chrome_is(m.alpha, H::MinimizeButton, H::MinimizeButton));
     m.mouse(mx, my, 0);
-    assert(m.wm->get_window_state(m.alpha) == WindowState::Minimized);
+    CHECK(m.wm->get_window_state(m.alpha) == WindowState::Minimized);
 
     Rig x;
     const auto [xx, xy] = x.centre(x.alpha, H::MaximizeButton);
     x.mouse(xx, xy, 1);
-    assert(x.wm->get_window_state(x.alpha) == WindowState::Normal);
+    CHECK(x.wm->get_window_state(x.alpha) == WindowState::Normal);
     x.mouse(xx, xy, 0);
-    assert(x.wm->get_window_state(x.alpha) == WindowState::Maximized);
-    assert(x.shell->focused_window() == x.alpha); // maximizing still focuses the window, as before
+    CHECK(x.wm->get_window_state(x.alpha) == WindowState::Maximized);
+    CHECK(x.shell->focused_window() == x.alpha); // maximizing still focuses the window, as before
     // Restore from the same place (the button is now the restore button of the maximized frame).
     const auto [rx, ry] = x.centre(x.alpha, H::MaximizeButton);
     x.click(rx, ry);
-    assert(x.wm->get_window_state(x.alpha) == WindowState::Normal);
+    CHECK(x.wm->get_window_state(x.alpha) == WindowState::Normal);
     std::cout << "test_press_shows_pressed_and_release_activates passed\n";
 }
 
@@ -394,29 +398,29 @@ void test_leaving_the_control_cancels_and_reentering_rearms() {
     const auto [mx, my] = r.centre(a, H::MinimizeButton);
     const auto [tx, ty] = r.title_point(a);
     r.mouse(mx, my, 1);
-    assert(r.chrome_is(a, H::MinimizeButton, H::MinimizeButton));
+    CHECK(r.chrome_is(a, H::MinimizeButton, H::MinimizeButton));
 
     r.mouse(tx, ty, 1); // dragged off the control: shown normal, still captured
-    assert(r.chrome_is(a, H::None, H::None));
-    assert(r.bounds(a).x == 293); // a press that began on a control never turns into a window drag
+    CHECK(r.chrome_is(a, H::None, H::None));
+    CHECK(r.bounds(a).x == 293); // a press that began on a control never turns into a window drag
 
     r.mouse(mx, my, 1); // back over it: pressed again
-    assert(r.chrome_is(a, H::MinimizeButton, H::MinimizeButton));
+    CHECK(r.chrome_is(a, H::MinimizeButton, H::MinimizeButton));
 
     r.mouse(tx, ty, 1);
     r.mouse(tx, ty, 0); // released elsewhere: nothing happens
-    assert(r.wm->get_window_state(a) == WindowState::Normal);
-    assert(r.chrome_is(a, H::None, H::None));
+    CHECK(r.wm->get_window_state(a) == WindowState::Normal);
+    CHECK(r.chrome_is(a, H::None, H::None));
 
     // Releasing over a DIFFERENT control of the same window does not activate either of them.
     const auto [cx, cy] = r.centre(a, H::CloseButton);
     r.mouse(mx, my, 1);
     r.mouse(cx, cy, 1);
-    assert(r.chrome_is(a, H::None, H::None)); // capture: the close button gets no hover while minimize holds the pointer
+    CHECK(r.chrome_is(a, H::None, H::None)); // capture: the close button gets no hover while minimize holds the pointer
     r.mouse(cx, cy, 0);
-    assert(r.wm->get_window_geometry(a).has_value());
-    assert(r.wm->get_window_state(a) == WindowState::Normal);
-    assert(r.chrome_is(a, H::CloseButton, H::None)); // after the release, hover resumes under the pointer
+    CHECK(r.wm->get_window_geometry(a).has_value());
+    CHECK(r.wm->get_window_state(a) == WindowState::Normal);
+    CHECK(r.chrome_is(a, H::CloseButton, H::None)); // after the release, hover resumes under the pointer
     std::cout << "test_leaving_the_control_cancels_and_reentering_rearms passed\n";
 }
 
@@ -426,10 +430,10 @@ void test_capture_ignores_other_windows() {
     const auto [bcx, bcy] = r.centre(r.beta, H::CloseButton);
     r.mouse(amx, amy, 1);
     r.mouse(bcx, bcy, 1);
-    assert(r.chrome_is(r.beta, H::None, H::None)); // no hover feedback on another window during capture
+    CHECK(r.chrome_is(r.beta, H::None, H::None)); // no hover feedback on another window during capture
     r.mouse(bcx, bcy, 0);
-    assert(r.wm->get_window_geometry(r.beta).has_value()); // and no activation there
-    assert(r.wm->get_window_state(r.alpha) == WindowState::Normal);
+    CHECK(r.wm->get_window_geometry(r.beta).has_value()); // and no activation there
+    CHECK(r.wm->get_window_state(r.alpha) == WindowState::Normal);
     std::cout << "test_capture_ignores_other_windows passed\n";
 }
 
@@ -442,18 +446,18 @@ void test_cancel_signal_abandons_press_without_activating() {
     const auto [cx, cy] = r.centre(a, H::CloseButton);
     r.mouse(cx, cy, 1);
     r.pointer_signal(hal::PointerSignal::Cancel); // e.g. the host window lost focus mid-press
-    assert(r.chrome_is(a, H::None, H::None));
+    CHECK(r.chrome_is(a, H::None, H::None));
 
     // The button may still be down when focus returns, and the release can arrive over the control: neither acts.
     r.mouse(cx, cy, 1);
-    assert(r.chrome_is(a, H::None, H::None));
+    CHECK(r.chrome_is(a, H::None, H::None));
     r.mouse(cx, cy, 0);
-    assert(r.wm->get_window_geometry(a).has_value());
+    CHECK(r.wm->get_window_geometry(a).has_value());
 
     // Afterwards the pointer works normally again.
-    assert(r.chrome_is(a, H::CloseButton, H::None));
+    CHECK(r.chrome_is(a, H::CloseButton, H::None));
     r.click(cx, cy);
-    assert(!r.wm->get_window_geometry(a).has_value());
+    CHECK(!r.wm->get_window_geometry(a).has_value());
     std::cout << "test_cancel_signal_abandons_press_without_activating passed\n";
 }
 
@@ -463,10 +467,10 @@ void test_cancel_signal_ends_drag_and_resize() {
     const auto [tx, ty] = r.title_point(a);
     r.mouse(tx, ty, 1);
     r.mouse(tx + 40, ty + 30, 1);
-    assert(r.wm->get_window_geometry(a)->x == 340); // dragging works...
+    CHECK(r.wm->get_window_geometry(a)->x == 340); // dragging works...
     r.pointer_signal(hal::PointerSignal::Cancel);
     r.mouse(tx + 200, ty + 100, 1);
-    assert(r.wm->get_window_geometry(a)->x == 340); // ...and stops where it was when cancelled
+    CHECK(r.wm->get_window_geometry(a)->x == 340); // ...and stops where it was when cancelled
     r.mouse(tx + 200, ty + 100, 0);
 
     // Resize from the right edge, then cancel.
@@ -474,10 +478,10 @@ void test_cancel_signal_ends_drag_and_resize() {
     const int32_t ex = b.x + static_cast<int32_t>(b.width) - 3, ey = b.y + static_cast<int32_t>(b.height / 2);
     r.mouse(ex, ey, 1);
     r.mouse(ex + 50, ey, 1);
-    assert(r.wm->get_window_geometry(a)->width == 550);
+    CHECK(r.wm->get_window_geometry(a)->width == 550);
     r.pointer_signal(hal::PointerSignal::Cancel);
     r.mouse(ex + 150, ey, 1);
-    assert(r.wm->get_window_geometry(a)->width == 550);
+    CHECK(r.wm->get_window_geometry(a)->width == 550);
     r.mouse(ex + 150, ey, 0);
     std::cout << "test_cancel_signal_ends_drag_and_resize passed\n";
 }
@@ -491,10 +495,10 @@ void test_window_change_during_press_interrupts_it() {
         r.wm->destroy_window(r.alpha);
         r.mouse(mx, my, 1);
         r.mouse(mx, my, 0); // must not touch anything (and must not crash)
-        assert(r.wm->get_window_geometry(r.beta).has_value());
+        CHECK(r.wm->get_window_geometry(r.beta).has_value());
         const auto [bx, by] = r.centre(r.beta, H::MinimizeButton);
         r.mouse(bx, by, 0);
-        assert(r.chrome_is(r.beta, H::MinimizeButton, H::None)); // the pointer is free again
+        CHECK(r.chrome_is(r.beta, H::MinimizeButton, H::None)); // the pointer is free again
     }
     // Changed state from elsewhere while the close button is held: the release is ignored.
     {
@@ -503,7 +507,7 @@ void test_window_change_during_press_interrupts_it() {
         r.mouse(cx, cy, 1);
         r.wm->set_window_state(r.alpha, WindowState::Maximized);
         r.mouse(cx, cy, 0);
-        assert(r.wm->get_window_geometry(r.alpha).has_value());
+        CHECK(r.wm->get_window_geometry(r.alpha).has_value());
     }
     std::cout << "test_window_change_during_press_interrupts_it passed\n";
 }
@@ -518,14 +522,14 @@ void test_drag_resize_focus_still_work() {
     r.mouse(tx, ty, 1);
     r.mouse(tx + 25, ty + 15, 1);
     r.mouse(tx + 25, ty + 15, 0);
-    assert(r.wm->get_window_geometry(a)->x == 325 && r.wm->get_window_geometry(a)->y == 315);
-    assert(r.shell->focused_window() == a);
+    CHECK(r.wm->get_window_geometry(a)->x == 325 && r.wm->get_window_geometry(a)->y == 315);
+    CHECK(r.shell->focused_window() == a);
 
     const auto [btx, bty] = r.title_point(r.beta);
     r.click(btx, bty);
-    assert(r.shell->focused_window() == r.beta);
-    assert(r.chrome_is(a, H::None, H::None, /*focused=*/false));
-    assert(r.chrome_is(r.beta, H::None, H::None, /*focused=*/true));
+    CHECK(r.shell->focused_window() == r.beta);
+    CHECK(r.chrome_is(a, H::None, H::None, /*focused=*/false));
+    CHECK(r.chrome_is(r.beta, H::None, H::None, /*focused=*/true));
     std::cout << "test_drag_resize_focus_still_work passed\n";
 }
 
@@ -538,8 +542,8 @@ void test_surface_reuse_and_no_redundant_redraws() {
     // A whole session of ordinary interaction: hovering, pressing, cancelling, focusing, re-clicking a focused window.
     const auto [tx, ty] = r.title_point(a);
     r.click(tx, ty);                         // focus Alpha: its chrome is redrawn (focus look), in the same surface
-    assert(r.chrome(a) == chrome_a);
-    assert(r.chrome_is(a, H::None, H::None, /*focused=*/true));
+    CHECK(r.chrome(a) == chrome_a);
+    CHECK(r.chrome_is(a, H::None, H::None, /*focused=*/true));
     for (const H c : {H::MinimizeButton, H::MaximizeButton, H::CloseButton}) {
         const auto [x, y] = r.centre(a, c);
         r.mouse(x, y, 0);
@@ -551,20 +555,20 @@ void test_surface_reuse_and_no_redundant_redraws() {
     r.click(btx, bty);
     r.click(tx, ty);
     r.shell->update_frame();
-    assert(r.compositor->surfaces_created == 0); // not one new surface
-    assert(r.chrome(a) == chrome_a && r.chrome(r.beta) == chrome_b);
+    CHECK(r.compositor->surfaces_created == 0); // not one new surface
+    CHECK(r.chrome(a) == chrome_a && r.chrome(r.beta) == chrome_b);
 
     // Clicking the title bar of the window that already has focus repaints nothing.
     r.settle();
     r.click(tx, ty);
     r.shell->update_frame();
-    assert(!r.any_non_cursor_invalidation());
+    CHECK(!r.any_non_cursor_invalidation());
 
     // Only a new size needs a new surface (maximize changes the frame size).
     const auto [xx, xy] = r.centre(a, H::MaximizeButton);
     r.click(xx, xy);
-    assert(r.wm->get_window_state(a) == WindowState::Maximized);
-    assert(r.compositor->surfaces_created == 1);
+    CHECK(r.wm->get_window_state(a) == WindowState::Maximized);
+    CHECK(r.compositor->surfaces_created == 1);
     std::cout << "test_surface_reuse_and_no_redundant_redraws passed\n";
 }
 
@@ -580,17 +584,17 @@ void test_decoration_layer_is_clipped_to_the_visible_frame() {
     for (const auto& layer : r.wm->build_scene()) {
         if (layer.window_id == a && same_rect(layer.bounds, b)) {
             found = true;
-            assert(same_rect(layer.clip, Rect{b.x + frame.x, b.y + frame.y, frame.width, frame.height}));
-            assert(frame.x == 6 && frame.width == b.width - 12); // the 6 px band is outside the clip
+            CHECK(same_rect(layer.clip, Rect{b.x + frame.x, b.y + frame.y, frame.width, frame.height}));
+            CHECK(frame.x == 6 && frame.width == b.width - 12); // the 6 px band is outside the clip
         }
     }
-    assert(found);
+    CHECK(found);
     // Maximized windows have no band: the clip is the whole frame.
     r.wm->set_window_state(a, WindowState::Maximized);
     r.shell->update_frame();
     const Rect mb = r.bounds(a);
     for (const auto& layer : r.wm->build_scene()) {
-        if (layer.window_id == a && same_rect(layer.bounds, mb)) assert(same_rect(layer.clip, mb));
+        if (layer.window_id == a && same_rect(layer.bounds, mb)) CHECK(same_rect(layer.clip, mb));
     }
     std::cout << "test_decoration_layer_is_clipped_to_the_visible_frame passed\n";
 }
@@ -629,7 +633,8 @@ void test_span_blending_matches_per_pixel_blending() {
     scene[1].bounds = {40, 25, w, h};
     scene[1].clip = {45, 27, w - 9, h - 4}; // clipped, so runs start and end mid-row
     scene[1].surface = top;
-    assert(compositor.render_frame(scene).has_value());
+    const auto rendered = compositor.render_frame(scene);
+    CHECK(rendered.has_value());
     const auto& fb = display->last;
 
     // Reference: the original per-pixel rule, applied naively.
@@ -658,7 +663,7 @@ void test_span_blending_matches_per_pixel_blending() {
     };
     blend(bottom, scene[0].bounds, {0, 0, fb.width, fb.height});
     blend(top, scene[1].bounds, scene[1].clip);
-    assert(fb.pixels == ref);
+    CHECK(fb.pixels == ref);
     std::cout << "test_span_blending_matches_per_pixel_blending passed\n";
 }
 

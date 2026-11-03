@@ -1,5 +1,5 @@
 #include <vynexos/core/memory_file_system.hpp>
-#include <cassert>
+#include "test_check.hpp"
 #include <iostream>
 #include <vector>
 
@@ -9,17 +9,20 @@ void test_basic_creation() {
     MemoryFileSystem vfs;
     
     // Root exists
-    assert(vfs.exists("/"));
+    CHECK(vfs.exists("/"));
     auto stat = vfs.stat("/");
-    assert(stat.has_value() && stat->is_directory);
+    CHECK(stat.has_value() && stat->is_directory);
     
     // Create directory
-    assert(vfs.create_directory("/usr"));
-    assert(vfs.create_directory("/usr/bin"));
-    assert(vfs.exists("/usr/bin"));
+    const bool created_usr = vfs.create_directory("/usr");
+    CHECK(created_usr);
+    const bool created_bin = vfs.create_directory("/usr/bin");
+    CHECK(created_bin);
+    CHECK(vfs.exists("/usr/bin"));
     
     // Can't create directory if parent missing
-    assert(!vfs.create_directory("/missing/dir"));
+    const bool created_orphan = vfs.create_directory("/missing/dir");
+    CHECK(!created_orphan);
 }
 
 void test_file_operations() {
@@ -28,27 +31,29 @@ void test_file_operations() {
     
     // Create file
     auto handle = vfs.create("/home/user.txt");
-    assert(handle != nullptr);
+    CHECK(handle != nullptr);
     
     std::vector<uint8_t> data = { 'H', 'e', 'l', 'l', 'o' };
-    assert(handle->write(std::span(data)) == 5);
+    const std::size_t written = handle->write(std::span(data));
+    CHECK(written == 5);
     handle.reset(); // Close file
     
     // Stat file
     auto stat = vfs.stat("/home/user.txt");
-    assert(stat.has_value());
-    assert(!stat->is_directory);
-    assert(stat->size_bytes == 5);
+    CHECK(stat.has_value());
+    CHECK(!stat->is_directory);
+    CHECK(stat->size_bytes == 5);
     
     // Open existing
     auto read_handle = vfs.open("/home/user.txt");
-    assert(read_handle != nullptr);
-    assert(read_handle->size() == 5);
+    CHECK(read_handle != nullptr);
+    CHECK(read_handle->size() == 5);
     read_handle.reset();
     
     // Remove file
-    assert(vfs.remove("/home/user.txt"));
-    assert(!vfs.exists("/home/user.txt"));
+    const bool removed = vfs.remove("/home/user.txt");
+    CHECK(removed);
+    CHECK(!vfs.exists("/home/user.txt"));
 }
 
 void test_directory_listing() {
@@ -59,7 +64,7 @@ void test_directory_listing() {
     auto h2 = vfs.create("/etc/passwd");
     
     auto listing = vfs.list_directory("/etc");
-    assert(listing.size() == 3);
+    CHECK(listing.size() == 3);
     
     bool has_config = false, has_hosts = false, has_passwd = false;
     for (const auto& item : listing) {
@@ -67,13 +72,15 @@ void test_directory_listing() {
         if (item == "hosts") has_hosts = true;
         if (item == "passwd") has_passwd = true;
     }
-    assert(has_config && has_hosts && has_passwd);
+    CHECK(has_config && has_hosts && has_passwd);
     
     // Cannot remove non-empty directory
-    assert(!vfs.remove("/etc"));
+    const bool removed_non_empty = vfs.remove("/etc");
+    CHECK(!removed_non_empty);
     
     // Can remove empty directory
-    assert(vfs.remove("/etc/config"));
+    const bool removed_empty_dir = vfs.remove("/etc/config");
+    CHECK(removed_empty_dir);
 }
 
 void test_path_normalization_usage() {
@@ -83,9 +90,10 @@ void test_path_normalization_usage() {
     h.reset();
     
     // Path normalization should work properly through VirtualPath integration
-    assert(vfs.exists("/usr/../usr/./test.bin"));
-    assert(vfs.remove("/usr/../usr/./test.bin"));
-    assert(!vfs.exists("/usr/test.bin"));
+    CHECK(vfs.exists("/usr/../usr/./test.bin"));
+    const bool removed_normalised = vfs.remove("/usr/../usr/./test.bin");
+    CHECK(removed_normalised);
+    CHECK(!vfs.exists("/usr/test.bin"));
 }
 
 int main() {

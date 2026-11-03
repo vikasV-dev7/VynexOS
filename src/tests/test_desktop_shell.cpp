@@ -1,5 +1,5 @@
 #include <iostream>
-#include <cassert>
+#include "test_check.hpp"
 #include <memory>
 #include <string>
 #include <vector>
@@ -44,30 +44,30 @@ void test_desktop_shell_rendering() {
     shell.launch();
     
     auto z_order = wm->get_windows_z_ordered();
-    assert(z_order.size() == 3); // Wallpaper, Taskbar, Launcher
+    CHECK(z_order.size() == 3); // Wallpaper, Taskbar, Launcher
     
     auto scene = wm->build_scene();
-    assert(scene.size() == 2);
-    assert(scene[0].surface != nullptr);
-    assert(scene[1].surface != nullptr);
+    CHECK(scene.size() == 2);
+    CHECK(scene[0].surface != nullptr);
+    CHECK(scene[1].surface != nullptr);
     
     // Draw the shell
     shell.update_frame();
     
     // Re-verify that drawing happened correctly natively
     auto wall_map = scene[0].surface->map_pixels();
-    assert(wall_map[0] == 30); // Wallpaper dark grey R
-    assert(wall_map[1] == 30); // Wallpaper dark grey G
-    assert(wall_map[2] == 30); // Wallpaper dark grey B
+    CHECK(wall_map[0] == 30); // Wallpaper dark grey R
+    CHECK(wall_map[1] == 30); // Wallpaper dark grey G
+    CHECK(wall_map[2] == 30); // Wallpaper dark grey B
     scene[0].surface->unmap_pixels();
     
     auto task_map = scene[1].surface->map_pixels();
     // Verify panel background color {45, 45, 45, 255} over {0, 0, 0, 0}
     // Result = 45
-    assert(task_map[0] == 45); // R
-    assert(task_map[1] == 45); // G
-    assert(task_map[2] == 45); // B
-    assert(task_map[3] == 255); // A
+    CHECK(task_map[0] == 45); // R
+    CHECK(task_map[1] == 45); // G
+    CHECK(task_map[2] == 45); // B
+    CHECK(task_map[3] == 255); // A
     scene[1].surface->unmap_pixels();
     
     // Launcher is initially invisible
@@ -76,7 +76,7 @@ void test_desktop_shell_rendering() {
         return current_scene.size() == 3; // Wallpaper, Taskbar, Launcher (if visible)
     };
     
-    assert(!verify_launcher());
+    CHECK(!verify_launcher());
     
     // Simulate valid click on Launcher button bounding box
     auto click_event = std::make_shared<core::Event>();
@@ -87,7 +87,7 @@ void test_desktop_shell_rendering() {
     // Yield to let TaskScheduler process it
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
     
-    assert(verify_launcher()); // Should now be visible
+    CHECK(verify_launcher()); // Should now be visible
     
     // Simulate release
     auto release1 = std::make_shared<core::Event>();
@@ -104,7 +104,7 @@ void test_desktop_shell_rendering() {
     
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
     
-    assert(!verify_launcher()); // Should be hidden again
+    CHECK(!verify_launcher()); // Should be hidden again
     
     std::cout << "test_desktop_shell_rendering passed\n";
 }
@@ -150,17 +150,17 @@ void test_runtime_ownership() {
     running_app.visible = true;
     
     shell.add_running_application(std::move(running_app));
-    assert(shell.running_application_count() == 1);
+    CHECK(shell.running_application_count() == 1);
     
     // Update frame should dispatch update and render
     shell.update_frame();
     
-    assert(app_ptr->updated);
-    assert(app_ptr->rendered);
+    CHECK(app_ptr->updated);
+    CHECK(app_ptr->rendered);
     
     // Test cleanup
     shell.clear_running_applications();
-    assert(shell.running_application_count() == 0);
+    CHECK(shell.running_application_count() == 0);
     
     std::cout << "test_runtime_ownership passed\n";
 }
@@ -191,8 +191,8 @@ void test_hidden_applications_are_not_rendered() {
     
     shell.update_frame();
     
-    assert(app_ptr->updated);   // Should still update
-    assert(!app_ptr->rendered); // Should NOT render
+    CHECK(app_ptr->updated);   // Should still update
+    CHECK(!app_ptr->rendered); // Should NOT render
     
     std::cout << "test_hidden_applications_are_not_rendered passed\n";
 }
@@ -225,8 +225,8 @@ void test_focus_routing() {
     wm->set_window_surface(win_id, running_app.surface);
     shell.add_running_application(std::move(running_app));
     
-    assert(!shell.focused_window().has_value());
-    assert(shell.focused_application() == nullptr);
+    CHECK(!shell.focused_window().has_value());
+    CHECK(shell.focused_application() == nullptr);
     
     // Click on empty space
     auto click_empty = std::make_shared<core::Event>();
@@ -242,8 +242,8 @@ void test_focus_routing() {
     event_bus->publish(release_empty);
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
     
-    assert(!shell.focused_window().has_value()); // Should remain unfocused or clear focus
-    assert(!shell.has_focus());
+    CHECK(!shell.focused_window().has_value()); // Should remain unfocused or clear focus
+    CHECK(!shell.has_focus());
     
     // Click on the app window (150, 150 is within 100,100 -> 500,400)
     auto click_app = std::make_shared<core::Event>();
@@ -252,12 +252,12 @@ void test_focus_routing() {
     event_bus->publish(click_app);
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
     
-    assert(shell.focused_window().has_value());
-    assert(shell.has_focus());
-    assert(shell.focused_window().value() == win_id);
-    assert(shell.focused_application() != nullptr);
-    assert(shell.focused_application()->focused == true);
-    assert(app_ptr->event_handled);
+    CHECK(shell.focused_window().has_value());
+    CHECK(shell.has_focus());
+    CHECK(shell.focused_window().value() == win_id);
+    CHECK(shell.focused_application() != nullptr);
+    CHECK(shell.focused_application()->focused == true);
+    CHECK(app_ptr->event_handled);
     app_ptr->event_handled = false; // Reset
     
     // Release before clicking again
@@ -270,12 +270,12 @@ void test_focus_routing() {
     // Click on already focused window should not change runtime state negatively
     event_bus->publish(click_app);
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
-    assert(shell.has_focus());
-    assert(shell.focused_window().value() == win_id);
+    CHECK(shell.has_focus());
+    CHECK(shell.focused_window().value() == win_id);
     
     // Keyboard event should be routed to focused app
     // The topic must be the exact one published by the real input drivers.
-    assert(std::string(hal::kTopicInputKey) == "HAL_INPUT_KEY");
+    CHECK(std::string(hal::kTopicInputKey) == "HAL_INPUT_KEY");
 
     // Earlier mouse clicks were also routed to the app; clear that state so the keyboard
     // assertions below can only be satisfied by keyboard events.
@@ -288,27 +288,27 @@ void test_focus_routing() {
     wrong_topic_ev->payload = hal::KeyEvent(65, true);
     event_bus->publish(wrong_topic_ev);
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
-    assert(!app_ptr->event_handled);
+    CHECK(!app_ptr->event_handled);
 
     auto key_ev = std::make_shared<core::Event>();
     key_ev->topic = hal::kTopicInputKey;
     key_ev->payload = hal::KeyEvent(65, true);
     event_bus->publish(key_ev);
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
-    assert(app_ptr->event_handled);
-    assert(app_ptr->last_topic == hal::kTopicInputKey);
+    CHECK(app_ptr->event_handled);
+    CHECK(app_ptr->last_topic == hal::kTopicInputKey);
     app_ptr->event_handled = false; // Reset
     
     // Test that destroying focused application clears focus safely
     shell.remove_running_application(win_id);
-    assert(!shell.has_focus());
-    assert(!shell.focused_window().has_value());
-    assert(shell.running_application_count() == 0);
+    CHECK(!shell.has_focus());
+    CHECK(!shell.focused_window().has_value());
+    CHECK(shell.running_application_count() == 0);
     
     // Keyboard event should NOT be routed if no focus
     event_bus->publish(key_ev);
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
-    assert(!app_ptr->event_handled);
+    CHECK(!app_ptr->event_handled);
     
     std::cout << "test_focus_routing passed\n";
 }
@@ -347,7 +347,7 @@ void test_drag_routing() {
     event_bus->publish(click_ev);
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
     
-    assert(shell.focused_window().has_value() && shell.focused_window().value() == win_id);
+    CHECK(shell.focused_window().has_value() && shell.focused_window().value() == win_id);
     
     // 2. Mouse Move (Below threshold, should not trigger move)
     auto move_small = std::make_shared<core::Event>();
@@ -357,7 +357,7 @@ void test_drag_routing() {
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
     
     auto geom_before = wm->get_window_geometry(win_id).value();
-    assert(geom_before.x == 100 && geom_before.y == 100);
+    CHECK(geom_before.x == 100 && geom_before.y == 100);
     
     // 3. Mouse Move (Above threshold, should trigger capture and move)
     auto move_large = std::make_shared<core::Event>();
@@ -370,7 +370,7 @@ void test_drag_routing() {
     if (!(geom_after.x == 150 && geom_after.y == 200)) {
         printf("FAILED! geom_after.x=%d, geom_after.y=%d\n", geom_after.x, geom_after.y);
     }
-    assert(geom_after.x == 150 && geom_after.y == 200); // 100+50, 100+100
+    CHECK(geom_after.x == 150 && geom_after.y == 200); // 100+50, 100+100
     
     // 4. Mouse Move Outside Window (Pointer Capture test)
     auto move_out = std::make_shared<core::Event>();
@@ -381,8 +381,8 @@ void test_drag_routing() {
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
     
     auto geom_out = wm->get_window_geometry(win_id).value();
-    assert(geom_out.x == 750 && geom_out.y == 820); // 100+650, 100+720
-    assert(app_ptr->event_handled == true); // Pointer captured, event still routed!
+    CHECK(geom_out.x == 750 && geom_out.y == 820); // 100+650, 100+720
+    CHECK(app_ptr->event_handled == true); // Pointer captured, event still routed!
     
     // 5. Mouse Release
     auto release_ev = std::make_shared<core::Event>();
@@ -399,7 +399,7 @@ void test_drag_routing() {
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
     
     auto geom_final = wm->get_window_geometry(win_id).value();
-    assert(geom_final.x == 750 && geom_final.y == 820); // Should not change
+    CHECK(geom_final.x == 750 && geom_final.y == 820); // Should not change
     
     std::cout << "test_drag_routing passed\n";
 }
@@ -439,7 +439,7 @@ void test_resize_routing() {
     event_bus->publish(click_ev);
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
     
-    assert(shell.focused_window().has_value() && shell.focused_window().value() == win_id);
+    CHECK(shell.focused_window().has_value() && shell.focused_window().value() == win_id);
     
     // 2. Mouse Move (Below threshold, should not trigger resize)
     auto move_small = std::make_shared<core::Event>();
@@ -449,7 +449,7 @@ void test_resize_routing() {
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
     
     auto geom_before = wm->get_window_geometry(win_id).value();
-    assert(geom_before.width == 400);
+    CHECK(geom_before.width == 400);
     
     // 3. Mouse Move (Above threshold, should trigger capture and resize)
     auto move_large = std::make_shared<core::Event>();
@@ -459,9 +459,9 @@ void test_resize_routing() {
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
     
     auto geom_after = wm->get_window_geometry(win_id).value();
-    assert(geom_after.width == 450); // 400+50
-    assert(geom_after.height == 300); // Unchanged
-    assert(geom_after.x == 100);
+    CHECK(geom_after.width == 450); // 400+50
+    CHECK(geom_after.height == 300); // Unchanged
+    CHECK(geom_after.x == 100);
     
     // 4. Test TopLeft corner resize
     // Release
@@ -486,10 +486,10 @@ void test_resize_routing() {
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
     
     auto geom_final = wm->get_window_geometry(win_id).value();
-    assert(geom_final.x == 120); // 100+20
-    assert(geom_final.y == 120); // 100+20
-    assert(geom_final.width == 430); // 450 - 20
-    assert(geom_final.height == 280); // 300 - 20
+    CHECK(geom_final.x == 120); // 100+20
+    CHECK(geom_final.y == 120); // 100+20
+    CHECK(geom_final.width == 430); // 450 - 20
+    CHECK(geom_final.height == 280); // 300 - 20
     
     std::cout << "test_resize_routing passed\n";
 }
@@ -524,18 +524,18 @@ void test_window_state_management() {
     shell.add_running_application(std::move(running_app));
     
     // Assert Initial State
-    assert(wm->get_window_state(win_id) == WindowState::Normal);
+    CHECK(wm->get_window_state(win_id) == WindowState::Normal);
     
     // Give focus
     shell.focus_window(win_id);
-    assert(shell.focused_window().has_value() && shell.focused_window().value() == win_id);
+    CHECK(shell.focused_window().has_value() && shell.focused_window().value() == win_id);
     
     // Click the centre of the minimize button, wherever the frame layout puts it.
     const auto frame = wm->get_window_frame_style(win_id);
     const auto dec_bounds = wm->get_decorated_window_bounds(win_id);
     const auto layout = desktop::calculate_decoration_layout(
         desktop::make_frame_metrics(frame, dec_bounds, desktop::Rect{100, 100, 400, 300}));
-    assert(layout.minimize_button.width > 0);
+    CHECK(layout.minimize_button.width > 0);
     const int32_t min_x = dec_bounds.x + layout.minimize_button.x + static_cast<int32_t>(layout.minimize_button.width) / 2;
     const int32_t min_y = dec_bounds.y + layout.minimize_button.y + static_cast<int32_t>(layout.minimize_button.height) / 2;
 
@@ -552,12 +552,12 @@ void test_window_state_management() {
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
     
     // Verify window is Minimized
-    assert(wm->get_window_state(win_id) == WindowState::Minimized);
+    CHECK(wm->get_window_state(win_id) == WindowState::Minimized);
     
     // Verify scene graph does NOT contain the minimized window content/decorations
     auto scene = wm->build_scene();
     for (const auto& layer : scene) {
-        assert(layer.window_id != win_id); // The window should be omitted completely
+        CHECK(layer.window_id != win_id); // The window should be omitted completely
     }
     
     // Verify focus was removed or transferred (in this case, only Taskbar/Wallpaper exist)
@@ -565,12 +565,12 @@ void test_window_state_management() {
     // Wallpaper and Taskbar have window IDs. Taskbar is highest Z order of remaining.
     // So focused window should not be win_id anymore.
     if (shell.focused_window().has_value()) {
-        assert(shell.focused_window().value() != win_id);
+        CHECK(shell.focused_window().value() != win_id);
     }
     
     // Restore window via API
     wm->set_window_state(win_id, WindowState::Normal);
-    assert(wm->get_window_state(win_id) == WindowState::Normal);
+    CHECK(wm->get_window_state(win_id) == WindowState::Normal);
     
     // Verify scene graph HAS the window again
     auto scene_after = wm->build_scene();
@@ -581,7 +581,7 @@ void test_window_state_management() {
             break;
         }
     }
-    assert(found);
+    CHECK(found);
     
     std::cout << "test_window_state_management passed\n";
 }
@@ -621,11 +621,11 @@ void test_taskbar_routing() {
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
     
     // Check if window is focused
-    assert(shell.focused_window().has_value() && shell.focused_window().value() == win_id);
+    CHECK(shell.focused_window().has_value() && shell.focused_window().value() == win_id);
     
     // Minimize the window
     wm->set_window_state(win_id, WindowState::Minimized);
-    assert(wm->get_window_state(win_id) == WindowState::Minimized);
+    CHECK(wm->get_window_state(win_id) == WindowState::Minimized);
     
     // Release first click
     click_ev->payload = hal::MouseEvent(150, 1060, 0);
@@ -638,7 +638,7 @@ void test_taskbar_routing() {
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
     
     // Should be restored
-    assert(wm->get_window_state(win_id) == WindowState::Normal);
+    CHECK(wm->get_window_state(win_id) == WindowState::Normal);
     
     // Release second click
     click_ev->payload = hal::MouseEvent(150, 1060, 0);
@@ -651,7 +651,7 @@ void test_taskbar_routing() {
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
     
     // Should be minimized again
-    assert(wm->get_window_state(win_id) == WindowState::Minimized);
+    CHECK(wm->get_window_state(win_id) == WindowState::Minimized);
     
     std::cout << "test_taskbar_routing passed\n";
 }
@@ -686,7 +686,7 @@ void test_maximize_routing() {
     const auto dec_bounds = wm->get_decorated_window_bounds(win_id);
     const auto layout = desktop::calculate_decoration_layout(
         desktop::make_frame_metrics(wm->get_window_frame_style(win_id), dec_bounds, desktop::Rect{100, 100, 400, 300}));
-    assert(layout.maximize_button.width > 0);
+    CHECK(layout.maximize_button.width > 0);
     const int32_t max_x = dec_bounds.x + layout.maximize_button.x + static_cast<int32_t>(layout.maximize_button.width) / 2;
     const int32_t max_y = dec_bounds.y + layout.maximize_button.y + static_cast<int32_t>(layout.maximize_button.height) / 2;
 
@@ -696,7 +696,7 @@ void test_maximize_routing() {
     event_bus->publish(click_ev);
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
 
-    assert(wm->get_window_state(win_id) == WindowState::Normal); // controls act on release, not on press
+    CHECK(wm->get_window_state(win_id) == WindowState::Normal); // controls act on release, not on press
 
     click_ev = std::make_shared<core::Event>();
     click_ev->topic = "HAL_INPUT_MOUSE";
@@ -704,7 +704,7 @@ void test_maximize_routing() {
     event_bus->publish(click_ev);
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
 
-    assert(wm->get_window_state(win_id) == WindowState::Maximized);
+    CHECK(wm->get_window_state(win_id) == WindowState::Maximized);
 
     // Try to drag (click TitleBar)
     click_ev = std::make_shared<core::Event>();
@@ -722,7 +722,7 @@ void test_maximize_routing() {
     
     // Window should NOT have moved because drag is disabled when maximized
     auto geom = wm->get_window_geometry(win_id);
-    assert(geom->x == 0); // Still flush with the work area (maximized frames have no side margins)
+    CHECK(geom->x == 0); // Still flush with the work area (maximized frames have no side margins)
     
     std::cout << "test_maximize_routing passed\n";
 }
@@ -771,8 +771,8 @@ void test_every_window_gets_chrome_with_its_own_title() {
     shell.update_frame();
 
     for (uint32_t id : {alpha, beta, untitled}) {
-        assert(wm->get_window_margins(id).top == 42);
-        assert(decoration_layer_of(wm, id) != nullptr);
+        CHECK(wm->get_window_margins(id).top == 42);
+        CHECK(decoration_layer_of(wm, id) != nullptr);
     }
 
     // Titles come from the window manager: different titles draw different chrome, and the chrome matches an
@@ -787,15 +787,15 @@ void test_every_window_gets_chrome_with_its_own_title() {
         dec->draw_decorations(surface, layout, title, visual, desktop::WindowTheme{});
         return pixels_of(surface);
     };
-    assert(pixels_of(decoration_layer_of(wm, alpha)) == expected("Alpha", alpha));
-    assert(pixels_of(decoration_layer_of(wm, beta)) == expected("Beta", beta));
-    assert(pixels_of(decoration_layer_of(wm, alpha)) != expected("Application", alpha));
-    assert(pixels_of(decoration_layer_of(wm, untitled)) == expected("Untitled", untitled));
+    CHECK(pixels_of(decoration_layer_of(wm, alpha)) == expected("Alpha", alpha));
+    CHECK(pixels_of(decoration_layer_of(wm, beta)) == expected("Beta", beta));
+    CHECK(pixels_of(decoration_layer_of(wm, alpha)) != expected("Application", alpha));
+    CHECK(pixels_of(decoration_layer_of(wm, untitled)) == expected("Untitled", untitled));
 
     // Chrome follows focus without being asked twice.
     shell.focus_window(alpha);
     shell.update_frame();
-    assert(pixels_of(decoration_layer_of(wm, alpha)) != expected("Alpha", alpha)); // now focused, drawn differently
+    CHECK(pixels_of(decoration_layer_of(wm, alpha)) != expected("Alpha", alpha)); // now focused, drawn differently
 
     std::cout << "test_every_window_gets_chrome_with_its_own_title passed\n";
 }

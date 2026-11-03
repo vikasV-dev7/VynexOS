@@ -1,6 +1,6 @@
 #include <vynexos/apps/application_registry.hpp>
 #include <vynexos/apps/application.hpp>
-#include <cassert>
+#include "test_check.hpp"
 #include <iostream>
 #include <stdexcept>
 
@@ -19,7 +19,7 @@ public:
         // We assert that shutdown must be called. However, if init failed, 
         // shutdown shouldn't be called.
         if (m_init_called && m_init_success) {
-            assert(m_shutdown_called && "Shutdown should be called before destruction if started");
+            CHECK(m_shutdown_called && "Shutdown should be called before destruction if started");
         }
     }
 
@@ -66,21 +66,23 @@ void test_registration_and_launch() {
     } catch (const std::invalid_argument&) {
         threw = true;
     }
-    assert(threw);
+    CHECK(threw);
 
     // Launch non-existent
-    assert(!registry.launch("non.existent"));
+    const bool launched_unknown = registry.launch("non.existent");
+    CHECK(!launched_unknown);
 
     // Launch valid
-    assert(registry.launch("mock.app"));
+    const bool launched = registry.launch("mock.app");
+    CHECK(launched);
     
     auto running = registry.get_running_applications();
-    assert(running.size() == 1);
+    CHECK(running.size() == 1);
     
     auto mock_app = static_cast<MockApplication*>(running[0]);
-    assert(mock_app->m_init_called);
-    assert(mock_app->m_start_called);
-    assert(!mock_app->m_shutdown_called);
+    CHECK(mock_app->m_init_called);
+    CHECK(mock_app->m_start_called);
+    CHECK(!mock_app->m_shutdown_called);
 }
 
 void test_failed_initialization() {
@@ -90,8 +92,9 @@ void test_failed_initialization() {
         return std::make_unique<MockApplication>("Fail", false);
     });
 
-    assert(!registry.launch("fail.app"));
-    assert(registry.get_running_applications().empty());
+    const bool launched = registry.launch("fail.app");
+    CHECK(!launched);
+    CHECK(registry.get_running_applications().empty());
 }
 
 void test_termination() {
@@ -105,16 +108,16 @@ void test_termination() {
     registry.launch("mock.app");
     
     auto running = registry.get_running_applications();
-    assert(running.size() == 2);
+    CHECK(running.size() == 2);
     
     registry.terminate(running[0]);
     
     auto remaining = registry.get_running_applications();
-    assert(remaining.size() == 1);
-    assert(remaining[0] == running[1]);
+    CHECK(remaining.size() == 1);
+    CHECK(remaining[0] == running[1]);
     
     registry.terminate_all();
-    assert(registry.get_running_applications().empty());
+    CHECK(registry.get_running_applications().empty());
 }
 
 int main() {
