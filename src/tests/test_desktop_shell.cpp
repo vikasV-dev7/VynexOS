@@ -382,7 +382,7 @@ void test_drag_routing() {
     
     auto geom_out = wm->get_window_geometry(win_id).value();
     CHECK(geom_out.x == 750 && geom_out.y == 820); // 100+650, 100+720
-    CHECK(app_ptr->event_handled == true); // Pointer captured, event still routed!
+    CHECK(app_ptr->event_handled == false); // Pointer captured by the move: moving the window is not application input
     
     // 5. Mouse Release
     auto release_ev = std::make_shared<core::Event>();

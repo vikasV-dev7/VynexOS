@@ -235,10 +235,18 @@ void test_exactly_the_reported_regions_are_recomposited() {
 void test_regions_are_clamped_to_the_content() {
     Rig r;
     ScriptedApp app;
-    // The surface (120 x 60) covers only part of the client area (200 x 100): content ends where the surface does.
+    // Hosted with a surface (120 x 60) smaller than the client area (200 x 100): the shell replaces it with one of the
+    // client area's size (an application's surface is always exactly its client area), so content ends where the client
+    // area does.
     const WindowGeometry g{300, 200, 200, 100};
-    r.host(&app, g, 120, 60);
+    const uint32_t id = r.host(&app, g, 120, 60);
     r.frame();
+    std::shared_ptr<ISurface> shown;
+    for (const auto& layer : r.wm->build_scene()) {
+        if (layer.window_id == id) shown = layer.surface;
+    }
+    vynex_test::context() = "surface fitted to the client area";
+    CHECK(shown && shown->width() == 200 && shown->height() == 100);
     struct Case {
         const char* what;
         Rect reported;
@@ -246,8 +254,8 @@ void test_regions_are_clamped_to_the_content() {
     };
     const Case cases[] = {
         {"reaching past the top-left", {-10, -10, 30, 30}, Rect{300, 200, 20, 20}},
-        {"reaching past the surface's bottom-right", {110, 50, 100, 100}, Rect{410, 250, 10, 10}},
-        {"whole content = the surface", apps::kWholeContent, Rect{300, 200, 120, 60}},
+        {"reaching past the bottom-right", {190, 90, 100, 100}, Rect{490, 290, 10, 10}},
+        {"whole content = the client area", apps::kWholeContent, Rect{300, 200, 200, 100}},
         {"entirely outside the content", {500, 500, 10, 10}, std::nullopt},
         {"empty", {10, 10, 0, 0}, std::nullopt},
     };

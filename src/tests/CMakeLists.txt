@@ -191,6 +191,12 @@ target_include_directories(test_app_invalidation PRIVATE ${PROJECT_SOURCE_DIR}/i
 target_link_libraries(test_app_invalidation PRIVATE vynex_apps vynex_core vynex_desktop vynex_hal)
 add_test(NAME AppInvalidationTests COMMAND test_app_invalidation)
 
+# Geometry contract: application pointer coordinates and surfaces follow the window's client area
+add_executable(test_app_geometry test_app_geometry.cpp)
+target_include_directories(test_app_geometry PRIVATE ${PROJECT_SOURCE_DIR}/include)
+target_link_libraries(test_app_geometry PRIVATE vynex_apps vynex_core vynex_desktop vynex_hal)
+add_test(NAME AppGeometryTests COMMAND test_app_geometry)
+
 # --- Test mechanism: self-tests and source hygiene ------------------------------------------------------------------------
 # CHECK() (test_check.hpp) must fail on a false condition and evaluate its argument in every configuration, NDEBUG included.
 # The two *Detects* tests pass only when the process exits non-zero (WILL_FAIL), so a CHECK that stopped working would fail them.

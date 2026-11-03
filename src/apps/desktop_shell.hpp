@@ -6,6 +6,7 @@
 #include "vynexos/desktop/window_decorator.hpp"
 #include "vynexos/core/event_bus.hpp"
 #include "vynexos/desktop/notification_service.hpp"
+#include "vynexos/hal/input_driver.hpp"
 #include <memory>
 #include <vector>
 #include <mutex>
@@ -80,6 +81,11 @@ private:
     };
     std::unordered_map<uint32_t, ContentStamp> m_content; // guarded by m_mutex
     void present_application_content(desktop::RunningApplication& app);
+    void fit_application_surface(desktop::RunningApplication& app, const desktop::WindowGeometry& client);
+
+    // Pointer input for applications, in content coordinates (see the geometry contract in window_manager.hpp).
+    std::optional<uint32_t> m_app_pointer_owner; // window whose application holds the pointer (pressed in its content); guarded by m_mutex
+    void route_pointer_to_application(const core::Event& ev, const hal::MouseEvent& mouse, bool pressed, bool released);
     void invalidate_content_region(const desktop::WindowGeometry& client, const desktop::ISurface& surface, const desktop::Rect& region);
 
     // Pointer interaction with the title-bar controls (minimize, maximize, close). A press captures the pointer for

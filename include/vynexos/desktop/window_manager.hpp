@@ -9,10 +9,42 @@
 
 namespace vynexos::desktop {
 
+// Coordinate spaces (the geometry contract)
+//
+//   Host window      SDL window units. The HAL maps them, through the viewport (aspect-preserving scale + letterbox) and
+//                    any high-DPI factor, to desktop coordinates before publishing input; nothing above the HAL sees them.
+//   Desktop          The logical desktop (the compositor's framebuffer). All pointer events on the bus, window geometry,
+//                    decorated bounds and redraw requests are in desktop coordinates.
+//   Client area      WindowGeometry: the window's content, in desktop coordinates; (x, y) is the client origin.
+//   Decorated bounds The client area grown by the window's margins (title bar, borders, invisible resize band).
+//   Content          Application coordinates: origin at the client area's top-left. An application's surface is exactly
+//                    the client area's size, decorations are never part of it, and pointer events it receives are
+//                    desktop coordinates minus the client origin, nothing else. It receives them over its client area
+//                    (a press where a corner resize grip overlaps the client resizes instead) and, while a press that
+//                    began there is held, anywhere; never for presses that began on decorations or elsewhere.
 struct WindowGeometry {
     int32_t x, y;
     uint32_t width, height;
 };
+
+/// The decorated bounds of a window whose client area is `client` (desktop coordinates).
+[[nodiscard]] constexpr Rect decorated_bounds(const WindowGeometry& client, const WindowMargins& margins) noexcept {
+    return {client.x - margins.left, client.y - margins.top, client.width + static_cast<uint32_t>(margins.left + margins.right),
+            client.height + static_cast<uint32_t>(margins.top + margins.bottom)};
+}
+
+/// The client area that fills `outer` once `margins` are taken off (empty if the margins do not fit).
+[[nodiscard]] constexpr WindowGeometry client_within(const WindowGeometry& outer, const WindowMargins& margins) noexcept {
+    const auto h = static_cast<uint32_t>(margins.left + margins.right);
+    const auto v = static_cast<uint32_t>(margins.top + margins.bottom);
+    return {outer.x + margins.left, outer.y + margins.top, outer.width > h ? outer.width - h : 0u, outer.height > v ? outer.height - v : 0u};
+}
+
+/// Whether the desktop point (x, y) lies inside the client area.
+[[nodiscard]] constexpr bool client_contains(const WindowGeometry& client, int32_t x, int32_t y) noexcept {
+    return x >= client.x && y >= client.y && static_cast<int64_t>(x) < static_cast<int64_t>(client.x) + client.width &&
+           static_cast<int64_t>(y) < static_cast<int64_t>(client.y) + client.height;
+}
 
 class IWindowManager {
 public:

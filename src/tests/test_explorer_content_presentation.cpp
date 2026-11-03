@@ -5,7 +5,8 @@
 // Invariant checked after every interaction: over the window's client area, the composed frame equals the application's
 // surface byte for byte. A change that is rendered into the surface but never recomposited (stale content) breaks it.
 // Each change must also stay local: pixels outside the rows it affects do not change, and the compositor is asked to
-// redraw only those rows (not the whole window or the desktop).
+// redraw only those rows (not the whole window or the desktop). The last test combines this with moving, resizing,
+// maximizing and restoring the window (pointer coordinates and surface size following the window's geometry).
 #include <algorithm>
 #include <cstdint>
 #include <cstdio>
@@ -30,6 +31,7 @@
 #include "vynexos/hal/input_driver.hpp"
 
 #include "test_check.hpp"
+#include "window_interaction.hpp"
 
 using namespace vynexos;
 using namespace vynexos::desktop;
@@ -101,7 +103,6 @@ struct Desktop {
     apps::ApplicationRegistry registry; // owns the Explorer; declared before the shell, so the shell goes first
     std::unique_ptr<apps::DesktopShell> shell;
     apps::BasicFileExplorer* explorer{nullptr};
-    std::shared_ptr<ISurface> surface;
     uint32_t win{0};
 
     Desktop() {
@@ -125,7 +126,7 @@ struct Desktop {
 
         const WindowGeometry geom{200, 200, 700, 500};
         win = wm->create_window("File Explorer", geom);
-        surface = compositor->create_surface(geom.width, geom.height);
+        auto surface = compositor->create_surface(geom.width, geom.height);
         wm->set_window_surface(win, surface);
         RunningApplication app;
         app.app = explorer;
@@ -151,13 +152,9 @@ struct Desktop {
     WindowGeometry client() const { return *wm->get_window_geometry(win); }
 
     /// Clicks the application at a point in its own (client-area) coordinates, through the real shell input path.
-    /// NOTE (audit defect P-3, not fixed in this stage): the shell subtracts the frame margins a second time when it
-    /// translates pointer coordinates for applications, so a point must be offset by the margins to arrive where intended.
-    /// When P-3 is fixed, remove the margin terms here; nothing else in this test depends on them.
     void click_app(int32_t local_x, int32_t local_y) {
         const auto c = client();
-        const auto m = wm->get_window_margins(win);
-        const int32_t sx = c.x + m.left + local_x, sy = c.y + m.top + local_y;
+        const int32_t sx = c.x + local_x, sy = c.y + local_y;
         auto send = [&](uint8_t buttons) {
             auto ev = std::make_shared<core::Event>();
             ev->topic = hal::kTopicInputMouse;
@@ -181,10 +178,21 @@ struct Desktop {
         return {c.x + 10, c.y + kRowTop + kRowHeight * row, c.width - 20, static_cast<uint32_t>(kRowHeight)};
     }
 
+    /// The surface the compositor shows for the Explorer's content (the last layer of its window in the scene). The
+    /// shell replaces it when the client area changes size.
+    std::shared_ptr<ISurface> content_surface() const {
+        std::shared_ptr<ISurface> s;
+        for (const auto& layer : wm->build_scene()) {
+            if (layer.window_id == win) s = layer.surface;
+        }
+        CHECK(s != nullptr);
+        return s;
+    }
     std::vector<uint8_t> surface_pixels() const {
-        auto px = surface->map_pixels();
+        const auto s = content_surface();
+        auto px = s->map_pixels();
         std::vector<uint8_t> v(px.begin(), px.end());
-        surface->unmap_pixels();
+        s->unmap_pixels();
         return v;
     }
     /// The composed frame's pixels over the client area, row by row (same layout as the surface).
@@ -209,6 +217,13 @@ struct Desktop {
             }
         }
         return n;
+    }
+
+    /// Whether a row shows its selection highlight on screen (most of the highlight area carries the colour; the label
+    /// is drawn over the rest).
+    bool row_lit(int row) const {
+        const Rect r = row_highlight(row);
+        return highlight_pixels_on_screen(r) > static_cast<int>(r.width * r.height * 7 / 10);
     }
 
     /// The core invariant: what is on screen over the client area is exactly what the application rendered.
@@ -400,6 +415,88 @@ void test_moved_window_updates_at_its_new_place() {
     std::printf("test_moved_window_updates_at_its_new_place passed\n");
 }
 
+
+void test_selection_survives_moving_resizing_and_maximizing() {
+    // P-3 and P-4 together on the real Explorer: after every move, resize, maximize and restore the application is the
+    // same instance with the same selection, its surface is exactly the client area, the screen shows that surface,
+    // exactly the selected row is lit, and clicks select the rows they land on at the new size and place.
+    Desktop d;
+    vynex_test::Pointer pointer(*d.bus);
+    const apps::BasicFileExplorer* const instance = d.explorer;
+    auto expect_consistent = [&](std::optional<size_t> selected) {
+        CHECK(d.explorer == instance);
+        CHECK(d.explorer->get_selected_index() == selected);
+        const auto c = d.client();
+        const auto shown = d.content_surface();
+        CHECK(shown->width() == c.width && shown->height() == c.height);
+        d.expect_screen_shows_surface();
+        for (int row = 0; row < 5; ++row) {
+            const bool lit = selected.has_value() && static_cast<int>(*selected) == row;
+            CHECK(d.row_lit(row) == lit);
+        }
+    };
+
+    vynex_test::context() = "select row 1";
+    d.click_row(1);
+    expect_consistent(1);
+
+    vynex_test::context() = "move the window";
+    const auto grab = vynex_test::title_bar_point(*d.wm, d.win);
+    pointer.drag(grab, {grab.x + 120, grab.y + 90});
+    d.settle();
+    expect_consistent(1);
+
+    struct Resize {
+        const char* what;
+        ResizeEdge edge;
+        int32_t dx, dy;
+    };
+    const Resize resizes[] = {
+        {"resize from the right edge", ResizeEdge::Right, 150, 0},
+        {"resize from the bottom edge", ResizeEdge::Bottom, 0, 80},
+        {"resize from the left edge", ResizeEdge::Left, -100, 0},
+        {"resize from the top edge", ResizeEdge::Top, 0, 30},
+        {"resize from the bottom-right corner", ResizeEdge::BottomRight, -380, -200},
+        {"resize from the top-left corner", ResizeEdge::TopLeft, -60, -40},
+    };
+    size_t selected = 1;
+    int next = 2;
+    for (const Resize& r : resizes) {
+        vynex_test::context() = r.what;
+        const auto before = d.client();
+        const auto from = vynex_test::resize_point(*d.wm, d.win, r.edge);
+        pointer.drag(from, {from.x + r.dx, from.y + r.dy});
+        d.settle();
+        CHECK(d.client().width != before.width || d.client().height != before.height);
+        expect_consistent(selected); // resizing neither resets the application nor changes its selection
+
+        vynex_test::context() = std::string(r.what) + ", then select a row at the new size";
+        d.click_row(next);
+        selected = static_cast<size_t>(next);
+        expect_consistent(selected);
+        next = (next + 2) % 5;
+    }
+
+    vynex_test::context() = "maximize";
+    pointer.click(vynex_test::control_point(*d.wm, d.win, DecorationHitRegion::MaximizeButton));
+    d.settle();
+    CHECK(d.wm->get_window_state(d.win) == WindowState::Maximized);
+    expect_consistent(selected);
+    d.click_row(4);
+    expect_consistent(4);
+
+    vynex_test::context() = "restore";
+    const auto maximized = d.client();
+    pointer.click(vynex_test::control_point(*d.wm, d.win, DecorationHitRegion::MaximizeButton));
+    d.settle();
+    CHECK(d.wm->get_window_state(d.win) == WindowState::Normal);
+    CHECK(d.client().width < maximized.width);
+    expect_consistent(4);
+    d.click_row(0);
+    expect_consistent(0);
+    std::printf("test_selection_survives_moving_resizing_and_maximizing passed\n");
+}
+
 } // namespace
 
 int main() {
@@ -409,6 +506,7 @@ int main() {
     test_navigation_repaints_the_list();
     test_idle_frames_do_no_work();
     test_moved_window_updates_at_its_new_place();
+    test_selection_survives_moving_resizing_and_maximizing();
     std::printf("All Explorer content presentation tests passed.\n");
     return 0;
 }

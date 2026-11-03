@@ -225,17 +225,20 @@ DesktopShell::DesktopShell(std::shared_ptr<desktop::IWindowManager> wm,
                         int32_t delta_x = mouse_ev.x - m_resize_state.initial_mouse_x;
                         int32_t delta_y = mouse_ev.y - m_resize_state.initial_mouse_y;
                         
-                        desktop::WindowGeometry geom = m_resize_state.initial_geometry;
+                        const desktop::WindowGeometry initial = m_resize_state.initial_geometry;
+                        desktop::WindowGeometry geom = initial;
                         auto edge = m_resize_state.edge;
+                        const bool left = edge == desktop::ResizeEdge::Left || edge == desktop::ResizeEdge::TopLeft || edge == desktop::ResizeEdge::BottomLeft;
+                        const bool top = edge == desktop::ResizeEdge::Top || edge == desktop::ResizeEdge::TopLeft || edge == desktop::ResizeEdge::TopRight;
                         
-                        if (edge == desktop::ResizeEdge::Left || edge == desktop::ResizeEdge::TopLeft || edge == desktop::ResizeEdge::BottomLeft) {
+                        if (left) {
                             geom.x += delta_x;
                             geom.width = static_cast<uint32_t>(std::max(0, static_cast<int32_t>(geom.width) - delta_x));
                         } else if (edge == desktop::ResizeEdge::Right || edge == desktop::ResizeEdge::TopRight || edge == desktop::ResizeEdge::BottomRight) {
                             geom.width = static_cast<uint32_t>(std::max(0, static_cast<int32_t>(geom.width) + delta_x));
                         }
                         
-                        if (edge == desktop::ResizeEdge::Top || edge == desktop::ResizeEdge::TopLeft || edge == desktop::ResizeEdge::TopRight) {
+                        if (top) {
                             geom.y += delta_y;
                             geom.height = static_cast<uint32_t>(std::max(0, static_cast<int32_t>(geom.height) - delta_y));
                         } else if (edge == desktop::ResizeEdge::Bottom || edge == desktop::ResizeEdge::BottomLeft || edge == desktop::ResizeEdge::BottomRight) {
@@ -245,6 +248,15 @@ DesktopShell::DesktopShell(std::shared_ptr<desktop::IWindowManager> wm,
                         uint32_t resize_wid = m_resize_state.window_id.value();
                         invalidate_window_region(resize_wid);
                         m_wm->set_window_geometry(resize_wid, geom);
+                        // The window manager enforces a minimum size. Resizing from the left or top edge must not then
+                        // push the window along: the opposite edge stays where it was.
+                        if (auto applied = m_wm->get_window_geometry(resize_wid); applied && (left || top) &&
+                                                                                   (applied->width != geom.width || applied->height != geom.height)) {
+                            desktop::WindowGeometry anchored = *applied;
+                            if (left) anchored.x = initial.x + static_cast<int32_t>(initial.width) - static_cast<int32_t>(applied->width);
+                            if (top) anchored.y = initial.y + static_cast<int32_t>(initial.height) - static_cast<int32_t>(applied->height);
+                            m_wm->set_window_geometry(resize_wid, anchored);
+                        }
                         invalidate_window_region(resize_wid);
                         
                         // Redraw decorations since dimensions changed
@@ -298,46 +310,7 @@ DesktopShell::DesktopShell(std::shared_ptr<desktop::IWindowManager> wm,
                 set_hover(control_at(mouse_ev.x, mouse_ev.y));
             }
             
-            // Route mouse event exclusively to the window under cursor OR captured window
-            std::optional<uint32_t> target_window_routing;
-            {
-                std::lock_guard lock(m_mutex);
-                if (m_resize_state.pointer_captured && m_resize_state.window_id.has_value()) {
-                    target_window_routing = m_resize_state.window_id;
-                } else if (m_drag_state.pointer_captured && m_drag_state.window_id.has_value()) {
-                    target_window_routing = m_drag_state.window_id; // Pointer Capture
-                }
-            }
-            
-            if (!target_window_routing.has_value()) {
-                target_window_routing = m_wm->get_window_at(mouse_ev.x, mouse_ev.y);
-            }
-            
-            if (target_window_routing.has_value()) {
-                std::lock_guard lock(m_mutex);
-                for (auto& running_app : m_running_apps) {
-                    if (running_app.window_id == target_window_routing.value() && running_app.visible && running_app.app) {
-                        auto geom_opt = m_wm->get_window_geometry(running_app.window_id);
-                        if (geom_opt.has_value()) {
-                            auto margins = m_wm->get_window_margins(running_app.window_id);
-                            
-                            // Translate to local coordinates
-                            hal::MouseEvent local_mouse_ev = mouse_ev;
-                            local_mouse_ev.x -= (geom_opt->x + margins.left);
-                            local_mouse_ev.y -= (geom_opt->y + margins.top);
-                            
-                            auto local_ev = std::make_shared<core::Event>();
-                            local_ev->topic = ev->topic;
-                            local_ev->payload = local_mouse_ev;
-                            
-                            running_app.app->handle_event(*local_ev);
-                        } else {
-                            running_app.app->handle_event(*ev);
-                        }
-                        break;
-                    }
-                }
-            }
+            route_pointer_to_application(*ev, mouse_ev, clicked, released);
         }
     });
     
@@ -500,7 +473,59 @@ void DesktopShell::update_frame() {
     }
 }
 
+void DesktopShell::route_pointer_to_application(const core::Event& ev, const hal::MouseEvent& mouse, bool pressed, bool released) {
+    // An application sees the pointer only where it is its own: over its client area, or anywhere while a press that
+    // began there is held (the press captures the pointer until the release). A press that began anywhere else (title
+    // bar, border, controls, the desktop, another window) is never delivered, not even when it crosses the content.
+    std::lock_guard lock(m_mutex);
+    std::optional<uint32_t> target = m_app_pointer_owner;
+    if (!target) {
+        if ((mouse.button_state != 0 && !pressed) || released) return; // a press held, or ending, that began elsewhere
+        target = m_wm->get_window_at(mouse.x, mouse.y);
+        if (!target) return;
+    }
+    const auto client = m_wm->get_window_geometry(*target);
+    const auto app = std::find_if(m_running_apps.begin(), m_running_apps.end(), [&](const auto& a) { return a.window_id == *target; });
+    if (!client || app == m_running_apps.end() || !app->visible || !app->app) {
+        m_app_pointer_owner.reset(); // its window or application went away during the press
+        return;
+    }
+    if (!m_app_pointer_owner) {
+        if (!desktop::client_contains(*client, mouse.x, mouse.y)) return; // over the window's decorations
+        if (const auto grip = m_wm->get_resize_handle_at(mouse.x, mouse.y); grip && grip->window_id == *target) return; // a corner grip over the content
+    }
+    m_app_pointer_owner = (mouse.button_state != 0) ? target : std::nullopt;
+
+    hal::MouseEvent local = mouse; // desktop -> content coordinates
+    local.x -= client->x;
+    local.y -= client->y;
+    core::Event local_ev;
+    local_ev.topic = ev.topic;
+    local_ev.payload = local;
+    app->app->handle_event(local_ev);
+}
+
+void DesktopShell::fit_application_surface(desktop::RunningApplication& app, const desktop::WindowGeometry& client) {
+    // An application's surface is exactly its client area. Only a new size needs new pixels; the new surface has not been
+    // painted, so the content stamp no longer matches and the whole content is rendered and redrawn.
+    if (app.surface->width() == client.width && app.surface->height() == client.height) return;
+    auto surface = m_compositor->create_surface(client.width, client.height);
+    if (!surface) return;
+    m_wm->set_window_surface(app.window_id, surface);
+    app.surface = std::move(surface);
+}
+
 void DesktopShell::present_application_content(desktop::RunningApplication& app) {
+    constexpr size_t kMaxReports = 64;
+    const auto client = m_wm->get_window_geometry(app.window_id);
+    if (client && (client->width == 0 || client->height == 0)) {
+        // No content can be shown. What it reports is dropped; it is painted in full once it has an area again.
+        for (size_t taken = 0; taken < kMaxReports && app.app->take_invalidated_region(); ++taken) {}
+        m_content.erase(app.window_id);
+        return;
+    }
+    if (client) fit_application_surface(app, *client);
+
     const desktop::ISurface& surface = *app.surface;
     const auto stamp = m_content.find(app.window_id);
     const bool unpainted = stamp == m_content.end() || stamp->second.surface != &surface || stamp->second.width != surface.width() ||
@@ -512,7 +537,7 @@ void DesktopShell::present_application_content(desktop::RunningApplication& app)
     std::array<desktop::Rect, kMaxRegions> regions{};
     size_t count = 0;
     bool everything = unpainted;
-    for (size_t taken = 0; taken < 64; ++taken) {
+    for (size_t taken = 0; taken < kMaxReports; ++taken) {
         const auto region = app.app->take_invalidated_region();
         if (!region) break;
         if (count < kMaxRegions) regions[count++] = *region;
@@ -523,7 +548,6 @@ void DesktopShell::present_application_content(desktop::RunningApplication& app)
     app.app->render(*app.surface);
     m_content[app.window_id] = ContentStamp{&surface, surface.width(), surface.height()};
 
-    const auto client = m_wm->get_window_geometry(app.window_id);
     if (!client) return;
     if (everything) {
         invalidate_content_region(*client, surface, kWholeContent);
@@ -564,6 +588,7 @@ void DesktopShell::remove_running_application(uint32_t window_id) {
     }
     std::erase_if(m_running_apps, [window_id](const auto& app) { return app.window_id == window_id; });
     m_content.erase(window_id);
+    if (m_app_pointer_owner == window_id) m_app_pointer_owner.reset();
 }
 
 void DesktopShell::clear_running_applications() {
@@ -571,6 +596,7 @@ void DesktopShell::clear_running_applications() {
     m_focused_window = std::nullopt; // safely clear focus
     m_running_apps.clear();
     m_content.clear();
+    m_app_pointer_owner.reset();
 }
 
 size_t DesktopShell::running_application_count() const {
@@ -926,6 +952,7 @@ void DesktopShell::cancel_interaction() {
         m_pointer = ChromePointer{};
         m_drag_state = DragState{};
         m_resize_state = ResizeState{};
+        m_app_pointer_owner.reset();
     }
     m_last_mouse_state = 0;
     m_input_suppressed = true;

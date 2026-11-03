@@ -23,12 +23,7 @@ FrameStyle BasicWindowManager::effective_style(const WindowRecord& win) {
 }
 
 Rect BasicWindowManager::decorated_bounds_of(const WindowRecord& win) {
-    return {
-        win.geometry.x - static_cast<int32_t>(win.margins.left),
-        win.geometry.y - static_cast<int32_t>(win.margins.top),
-        win.geometry.width + static_cast<uint32_t>(win.margins.left + win.margins.right),
-        win.geometry.height + static_cast<uint32_t>(win.margins.top + win.margins.bottom)
-    };
+    return decorated_bounds(win.geometry, win.margins);
 }
 
 DecorationLayout BasicWindowManager::layout_of(const WindowRecord& win) {
@@ -154,15 +149,7 @@ WindowMargins BasicWindowManager::get_window_margins(uint32_t window_id) const {
 
 Rect BasicWindowManager::get_decorated_window_bounds(uint32_t window_id) const {
     std::lock_guard lock(m_mutex);
-    if (auto it = m_windows.find(window_id); it != m_windows.end()) {
-        const auto& win = it->second;
-        return {
-            win.geometry.x - static_cast<int32_t>(win.margins.left),
-            win.geometry.y - static_cast<int32_t>(win.margins.top),
-            win.geometry.width + static_cast<uint32_t>(win.margins.left + win.margins.right),
-            win.geometry.height + static_cast<uint32_t>(win.margins.top + win.margins.bottom)
-        };
-    }
+    if (auto it = m_windows.find(window_id); it != m_windows.end()) return decorated_bounds_of(it->second);
     return {0, 0, 0, 0};
 }
 
@@ -357,10 +344,7 @@ void BasicWindowManager::set_window_state(uint32_t window_id, WindowState state)
 
         if (win.state == WindowState::Normal && state == WindowState::Maximized) {
             win.restore_geometry = win.geometry;
-            win.geometry.x = m_work_area.x + static_cast<int32_t>(win.margins.left);
-            win.geometry.y = m_work_area.y + static_cast<int32_t>(win.margins.top);
-            win.geometry.width = m_work_area.width > static_cast<uint32_t>(win.margins.left + win.margins.right) ? m_work_area.width - static_cast<uint32_t>(win.margins.left + win.margins.right) : 0;
-            win.geometry.height = m_work_area.height > static_cast<uint32_t>(win.margins.top + win.margins.bottom) ? m_work_area.height - static_cast<uint32_t>(win.margins.top + win.margins.bottom) : 0;
+            win.geometry = client_within(m_work_area, win.margins);
         } else if (win.state == WindowState::Maximized && state == WindowState::Normal) {
             // Maximized -> Normal: Restore previous geometry
             if (win.restore_geometry.has_value()) {
@@ -371,12 +355,7 @@ void BasicWindowManager::set_window_state(uint32_t window_id, WindowState state)
                 win.restore_geometry = win.geometry;
             }
             // Fill the work area inside the margins (legacy windows have none, so this is the whole work area).
-            const uint32_t h_margins = static_cast<uint32_t>(win.margins.left + win.margins.right);
-            const uint32_t v_margins = static_cast<uint32_t>(win.margins.top + win.margins.bottom);
-            win.geometry.x = m_work_area.x + static_cast<int32_t>(win.margins.left);
-            win.geometry.y = m_work_area.y + static_cast<int32_t>(win.margins.top);
-            win.geometry.width = m_work_area.width > h_margins ? m_work_area.width - h_margins : 0;
-            win.geometry.height = m_work_area.height > v_margins ? m_work_area.height - v_margins : 0;
+            win.geometry = client_within(m_work_area, win.margins);
         } else if (win.state == WindowState::Minimized && state == WindowState::Normal) {
             // Minimized -> Normal: Restore previous normal geometry if it exists
             if (win.restore_geometry.has_value()) {
@@ -463,12 +442,7 @@ SceneGraph BasicWindowManager::build_scene() const {
         if (win.decoration_surface) {
             RenderLayer dec_layer;
             dec_layer.window_id = id;
-            dec_layer.bounds = {
-                win.geometry.x - static_cast<int32_t>(win.margins.left),
-                win.geometry.y - static_cast<int32_t>(win.margins.top),
-                win.geometry.width + static_cast<uint32_t>(win.margins.left + win.margins.right),
-                win.geometry.height + static_cast<uint32_t>(win.margins.top + win.margins.bottom)
-            };
+            dec_layer.bounds = decorated_bounds_of(win);
             // The invisible resize band is never drawn, so the compositor need not visit it: clip to the visible frame.
             const Rect frame = layout_of(win).visible_frame;
             dec_layer.clip = {dec_layer.bounds.x + frame.x, dec_layer.bounds.y + frame.y, frame.width, frame.height};
