@@ -177,9 +177,12 @@ void test_select_file_no_navigate() {
     CHECK(explorer.get_selected_index().value() == 0);
     CHECK(explorer.get_current_path().as_string() == "/");
     
-    // Second click should NOT navigate because it's a file
+    // Second click (release, then press again) should NOT navigate because it's a file
+    core::Event release = ev;
+    release.payload = hal::MouseEvent(20, 65, 0);
+    explorer.handle_event(release);
     explorer.handle_event(ev);
-    
+
     CHECK(explorer.get_current_path().as_string() == "/");
     CHECK(explorer.get_selected_index().value() == 0);
     std::cout << "test_select_file_no_navigate passed\n";

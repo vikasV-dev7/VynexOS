@@ -22,6 +22,9 @@
 #include <vynexos/core/memory_file_system.hpp>
 #include <vynexos/apps/application_registry.hpp>
 #include "../desktop/basic_taskbar.hpp"
+#include "../apps/basic_file_explorer.hpp"
+#include "../apps/basic_terminal.hpp"
+#include "../apps/demo_app.hpp"
 
 namespace vynexos::bootstrap {
 
@@ -50,10 +53,8 @@ CompositionRoot::CompositionRoot() {
     m_widget_toolkit = std::make_shared<desktop::BasicWidgetToolkit>();
     auto decorator = std::make_shared<desktop::BasicWindowDecorator>(m_widget_toolkit);
     auto taskbar = std::make_shared<desktop::BasicTaskbar>(m_widget_toolkit);
-    m_demo_app = std::make_shared<apps::DemoApp>(m_window_manager, m_compositor, m_widget_toolkit);
     m_desktop_shell = std::make_shared<apps::DesktopShell>(m_window_manager, m_compositor, m_widget_toolkit, decorator, taskbar, m_event_bus);
-    m_terminal = std::make_shared<apps::BasicTerminal>(m_window_manager, m_compositor, m_widget_toolkit);
-    
+
     // New V1.0 Architecture Components
     auto lib_loader = hal::create_library_loader();
     auto ctx_factory = std::make_unique<core::PluginContextFactory>(m_logger, m_event_bus, m_task_scheduler.get(), m_config_manager);
@@ -73,6 +74,16 @@ CompositionRoot::CompositionRoot() {
     // Phase 3 components
     m_vfs = std::make_shared<core::MemoryFileSystem>();
     m_app_registry = std::make_shared<apps::ApplicationRegistry>();
+    m_app_host = std::make_shared<apps::ApplicationHost>(m_app_registry, m_window_manager, m_compositor, m_desktop_shell);
+    m_desktop_shell->set_application_host(m_app_host.get());
+
+    // The applications the desktop offers (launcher order).
+    m_app_host->register_application({"Terminal", "Terminal", {100, 100, 600, 400}},
+                                     [toolkit = m_widget_toolkit]() { return std::make_unique<apps::BasicTerminal>(toolkit); });
+    m_app_host->register_application({"BasicFileExplorer", "File Explorer", {200, 200, 700, 500}},
+                                     [vfs = m_vfs, toolkit = m_widget_toolkit]() { return std::make_unique<apps::BasicFileExplorer>(vfs, toolkit); });
+    m_app_host->register_application({"DemoApp", "Demo App", {400, 300, 300, 200}},
+                                     [toolkit = m_widget_toolkit]() { return std::make_unique<apps::DemoApp>(toolkit); });
 }
 
 CompositionRoot::~CompositionRoot() = default;
@@ -107,35 +118,9 @@ void CompositionRoot::initialize() {
     m_desktop_shell->launch();
     
     m_logger->info("VynexOS Bootstrap: Launching System Apps...");
-    m_terminal->launch();
-    
-    // Register BasicFileExplorer
-    m_app_registry->register_application("BasicFileExplorer", [vfs = m_vfs, toolkit = m_widget_toolkit]() {
-        return std::make_unique<apps::BasicFileExplorer>(vfs, toolkit);
-    });
-    
-    // Launch BasicFileExplorer via Registry
-    if (m_app_registry->launch("BasicFileExplorer")) {
-        // Transitional Window Setup for IApplications
-        // In the future, this migrates to DesktopShell.
-        desktop::WindowGeometry geom{200, 200, 700, 500};
-        uint32_t win_id = m_window_manager->create_window("File Explorer", geom);
-        auto surface = m_compositor->create_surface(geom.width, geom.height);
-        m_window_manager->set_window_surface(win_id, surface);
-        
-        auto apps = m_app_registry->get_running_applications();
-        if (!apps.empty()) {
-            desktop::RunningApplication app_desc;
-            app_desc.app = apps.back();
-            app_desc.window_id = win_id;
-            app_desc.surface = surface;
-            app_desc.visible = true;
-            m_desktop_shell->add_running_application(std::move(app_desc));
-        }
+    for (const char* app_id : {"Terminal", "BasicFileExplorer", "DemoApp"}) {
+        if (!m_app_host->open(app_id)) m_logger->error("Failed to launch {}", app_id);
     }
-    
-    m_logger->info("VynexOS Bootstrap: Launching Demo App...");
-    m_demo_app->launch();
 }
 
 void CompositionRoot::run() {
@@ -166,9 +151,7 @@ void CompositionRoot::run() {
         
         // Let apps update their buffers using the toolkit
         m_desktop_shell->update_frame();
-        m_terminal->update_frame();
-        m_demo_app->update_frame();
-        
+
         // WindowManager builds the scene graph
         auto scene = m_window_manager->build_scene();
         
@@ -227,21 +210,25 @@ void CompositionRoot::shutdown() {
     // Terminate any registered applications before tearing down core components
     m_logger->info("VynexOS Bootstrap: Terminating registered applications...");
     
-    // Explicit Desktop Runtime Shutdown Sequence
+    // Explicit Desktop Runtime Shutdown Sequence: close every hosted application (window, instance, surface), then
+    // detach the host so the shell can no longer reach it.
+    if (m_app_host) {
+        m_app_host->close_all();
+        if (m_desktop_shell) m_desktop_shell->set_application_host(nullptr);
+        m_app_host.reset();
+    }
     if (m_desktop_shell) {
         m_desktop_shell->clear_running_applications();
     }
-    
+
     if (m_app_registry) {
         m_app_registry->terminate_all();
         m_app_registry.reset();
     }
     
     // Apps
-    m_terminal.reset();
     m_desktop_shell.reset();
-    m_demo_app.reset();
-    
+
     // VFS can be safely torn down once no apps are holding file handles
     m_vfs.reset();
     

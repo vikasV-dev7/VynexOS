@@ -33,9 +33,12 @@ bool BasicFileExplorer::handle_event(const vynexos::core::Event& event) {
     if (event.payload.type() == typeid(hal::MouseEvent)) {
         auto mouse_ev = std::any_cast<hal::MouseEvent>(event.payload);
         
-        // We only process button down (assuming 1 is down)
-        if (mouse_ev.button_state != 1) return false;
-        
+        // Only a new press of the left button acts (select, or activate the selected row). Motion with the button held,
+        // the release and free motion change nothing, so dragging across rows never repeats a click.
+        const bool was_down = m_left_down;
+        m_left_down = (mouse_ev.button_state & 1) != 0;
+        if (!m_left_down || was_down) return false;
+
         int32_t x = mouse_ev.x;
         int32_t y = mouse_ev.y;
         

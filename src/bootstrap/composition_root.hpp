@@ -10,10 +10,8 @@
 #include "vynexos/desktop/window_manager.hpp"
 #include "vynexos/desktop/widget_toolkit.hpp"
 #include "vynexos/hal/input_driver.hpp"
-#include "../apps/demo_app.hpp"
+#include "../apps/application_host.hpp"
 #include "../apps/desktop_shell.hpp"
-#include "../apps/basic_terminal.hpp"
-#include "../apps/basic_file_explorer.hpp"
 #include "../core/basic_plugin_manager.hpp"
 #include "../hal/mock_audio_driver.hpp"
 #include "../hal/mock_compute_driver.hpp"
@@ -69,10 +67,8 @@ private:
 public:
     std::shared_ptr<hal::IInputDriver> m_input_driver;
 private:
-    std::shared_ptr<apps::DemoApp> m_demo_app;
     std::shared_ptr<apps::IDesktopShell> m_desktop_shell;
-    std::shared_ptr<apps::BasicTerminal> m_terminal;
-    
+
 
     std::shared_ptr<core::IPluginManager> m_plugin_manager;
     std::shared_ptr<hal::IAudioDevice> m_audio_driver;
@@ -84,7 +80,8 @@ private:
     
     std::shared_ptr<core::IVirtualFileSystem> m_vfs;
     std::shared_ptr<apps::IApplicationManager> m_app_registry;
-    
+    std::shared_ptr<apps::ApplicationHost> m_app_host; // windows <-> application instances; the shell's launcher and close button use it
+
     std::atomic<bool> m_is_running{false};
 };
 

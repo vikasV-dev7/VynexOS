@@ -38,6 +38,12 @@ public:
     virtual bool launch(const std::string& app_id) = 0;
 
     /**
+     * @brief As launch(), returning the new instance (still owned by the manager), or nullptr if it could not be launched.
+     * The pointer stays valid until the instance is terminated.
+     */
+    [[nodiscard]] virtual IApplication* launch_instance(const std::string& app_id) = 0;
+
+    /**
      * @brief Explicitly shuts down and destroys a specific running application instance.
      * @param instance A pointer to the running instance.
      */

@@ -26,6 +26,7 @@ public:
 
     void register_application(const std::string& app_id, AppFactory factory) override;
     bool launch(const std::string& app_id) override;
+    [[nodiscard]] IApplication* launch_instance(const std::string& app_id) override;
     void terminate(IApplication* instance) override;
     void terminate_all() override;
     [[nodiscard]] std::vector<IApplication*> get_running_applications() const override;

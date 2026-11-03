@@ -1,27 +1,25 @@
 #pragma once
-#include "vynexos/desktop/window_manager.hpp"
-#include "vynexos/desktop/compositor.hpp"
+#include "vynexos/apps/application.hpp"
 #include "vynexos/desktop/widget_toolkit.hpp"
 #include <memory>
 
 namespace vynexos::apps {
 
-class DemoApp {
+/// A static sample application: a panel with one button, painted once (it never reports changes).
+class DemoApp final : public IApplication {
 public:
-    DemoApp(std::shared_ptr<desktop::IWindowManager> wm,
-            std::shared_ptr<desktop::ICompositor> compositor,
-            std::shared_ptr<desktop::IWidgetToolkit> toolkit);
-    
-    void launch();
-    void update_frame();
+    explicit DemoApp(std::shared_ptr<desktop::IWidgetToolkit> toolkit);
+
+    bool initialize() override { return m_toolkit != nullptr; }
+    void start() override {}
+    void update(double) override {}
+    bool handle_event(const core::Event&) override { return false; }
+    void render(desktop::ISurface& target_surface) override;
+    void shutdown() override {}
+    [[nodiscard]] std::string get_name() const noexcept override { return "Demo App"; }
 
 private:
-    std::shared_ptr<desktop::IWindowManager> m_wm;
-    std::shared_ptr<desktop::ICompositor> m_compositor;
     std::shared_ptr<desktop::IWidgetToolkit> m_toolkit;
-    
-    uint32_t m_window_id{0};
-    std::shared_ptr<desktop::ISurface> m_surface;
 };
 
 } // namespace vynexos::apps

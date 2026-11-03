@@ -37,6 +37,12 @@ if(TARGET SDL2-static)
     add_executable(test_sdl_pixel_format test_sdl_pixel_format.cpp)
     target_link_libraries(test_sdl_pixel_format PRIVATE SDL2-static)
     add_test(NAME SDLPixelFormatTests COMMAND test_sdl_pixel_format)
+
+    # Keyboard path end to end: SDL events -> SDL2 input driver -> event bus -> shell -> focused application
+    add_executable(test_keyboard_sdl_path test_keyboard_sdl_path.cpp)
+    target_include_directories(test_keyboard_sdl_path PRIVATE ${PROJECT_SOURCE_DIR}/include)
+    target_link_libraries(test_keyboard_sdl_path PRIVATE vynex_apps vynex_core vynex_desktop vynex_hal SDL2-static)
+    add_test(NAME KeyboardSdlPathTests COMMAND test_keyboard_sdl_path)
 endif()
 
 add_executable(test_runtime_bug test_runtime_bug.cpp ${PROJECT_SOURCE_DIR}/src/bootstrap/composition_root.cpp)
@@ -196,6 +202,12 @@ add_executable(test_app_geometry test_app_geometry.cpp)
 target_include_directories(test_app_geometry PRIVATE ${PROJECT_SOURCE_DIR}/include)
 target_link_libraries(test_app_geometry PRIVATE vynex_apps vynex_core vynex_desktop vynex_hal)
 add_test(NAME AppGeometryTests COMMAND test_app_geometry)
+
+# Application lifecycle: launcher, application host, close/reopen, keyboard routing, Terminal
+add_executable(test_app_lifecycle test_app_lifecycle.cpp)
+target_include_directories(test_app_lifecycle PRIVATE ${PROJECT_SOURCE_DIR}/include)
+target_link_libraries(test_app_lifecycle PRIVATE vynex_apps vynex_core vynex_desktop vynex_hal)
+add_test(NAME AppLifecycleTests COMMAND test_app_lifecycle)
 
 # --- Test mechanism: self-tests and source hygiene ------------------------------------------------------------------------
 # CHECK() (test_check.hpp) must fail on a false condition and evaluate its argument in every configuration, NDEBUG included.

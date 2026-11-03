@@ -39,6 +39,7 @@ public:
     desktop::RunningApplication* focused_application() override;
     bool has_focus() const override;
     std::shared_ptr<desktop::ITaskbar> taskbar() override { return m_taskbar; }
+    void set_application_host(IApplicationHost* host) override { m_host = host; }
 
 private:
     std::shared_ptr<desktop::IWindowManager> m_wm;
@@ -85,7 +86,25 @@ private:
 
     // Pointer input for applications, in content coordinates (see the geometry contract in window_manager.hpp).
     std::optional<uint32_t> m_app_pointer_owner; // window whose application holds the pointer (pressed in its content); guarded by m_mutex
-    void route_pointer_to_application(const core::Event& ev, const hal::MouseEvent& mouse, bool pressed, bool released);
+    void route_pointer_to_application(const hal::MouseEvent& mouse, bool pressed, bool released);
+    bool deliver_pointer_locked(uint32_t window_id, const hal::MouseEvent& mouse);
+
+    // Keyboard input goes to the focused application only (not while the launcher is open, not to a minimized or closed
+    // one). A key release goes to the application that received its press, and only while that one still has focus.
+    std::unordered_map<uint32_t, uint32_t> m_key_presses; // key code -> window that received the press; guarded by m_mutex
+    desktop::RunningApplication* keyboard_target_locked();
+    void route_key(const core::Event& ev, const hal::KeyEvent& key);
+    void route_text(const core::Event& ev);
+
+    // Launcher: a desktop component (no decorations, never focused). Its entries come from the application host and
+    // act on release over the entry that was pressed; Escape or a press anywhere else dismisses it.
+    IApplicationHost* m_host{nullptr};
+    std::optional<size_t> m_launcher_press; // entry pressed, until the release; guarded by m_mutex
+    void set_launcher_visible(bool visible);
+    std::optional<size_t> launcher_entry_at(int32_t x, int32_t y) const;
+    static desktop::Rect launcher_entry_rect(size_t index) {
+        return {kLauncherEntryX, kLauncherEntryTop + static_cast<int32_t>(index) * kLauncherEntryStep, kLauncherEntryWidth, kLauncherEntryHeight};
+    }
     void invalidate_content_region(const desktop::WindowGeometry& client, const desktop::ISurface& surface, const desktop::Rect& region);
 
     // Pointer interaction with the title-bar controls (minimize, maximize, close). A press captures the pointer for
@@ -124,6 +143,11 @@ private:
     static constexpr int32_t kLauncherButtonY = 5;
     static constexpr int32_t kLauncherButtonWidth = 80;
     static constexpr int32_t kLauncherButtonHeight = 30;
+    static constexpr int32_t kLauncherEntryX = 10;       // launcher entries, in launcher coordinates
+    static constexpr int32_t kLauncherEntryTop = 50;
+    static constexpr int32_t kLauncherEntryStep = 50;
+    static constexpr uint32_t kLauncherEntryWidth = 280;
+    static constexpr uint32_t kLauncherEntryHeight = 40;
     hal::DisplaySize m_display_size{hal::kDefaultDisplaySize};
     int32_t display_width() const { return static_cast<int32_t>(m_display_size.width); }
     int32_t display_height() const { return static_cast<int32_t>(m_display_size.height); }

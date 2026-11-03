@@ -26,8 +26,10 @@
 #include <string>
 #include <vector>
 #include "../apps/basic_file_explorer.hpp"
+#include "../apps/application_host.hpp"
 #include "../apps/basic_terminal.hpp"
 #include "../apps/demo_app.hpp"
+#include "vynexos/apps/application_registry.hpp"
 #include "../apps/desktop_shell.hpp"
 #include "../core/basic_task_scheduler.hpp"
 #include "../core/in_memory_event_bus.hpp"
@@ -312,28 +314,18 @@ int main(int argc, char** argv) {
     auto taskbar = std::make_shared<desktop::BasicTaskbar>(toolkit);
     auto shell = std::make_shared<apps::DesktopShell>(wm, compositor, toolkit, decorator, taskbar, bus);
     auto vfs = std::make_shared<core::MemoryFileSystem>();
-    auto terminal = std::make_shared<apps::BasicTerminal>(wm, compositor, toolkit);
-    auto demo = std::make_shared<apps::DemoApp>(wm, compositor, toolkit);
-
-    // Same population as CompositionRoot::initialize().
+    // Same population as CompositionRoot::initialize(), through the same application host.
+    auto registry = std::make_shared<apps::ApplicationRegistry>();
+    auto host = std::make_shared<apps::ApplicationHost>(registry, wm, compositor, shell);
+    shell->set_application_host(host.get());
+    host->register_application({"Terminal", "Terminal", {100, 100, 600, 400}}, [toolkit]() { return std::make_unique<apps::BasicTerminal>(toolkit); });
+    host->register_application({"BasicFileExplorer", "File Explorer", {200, 200, 700, 500}},
+                               [vfs, toolkit]() { return std::make_unique<apps::BasicFileExplorer>(vfs, toolkit); });
+    host->register_application({"DemoApp", "Demo App", {400, 300, 300, 200}}, [toolkit]() { return std::make_unique<apps::DemoApp>(toolkit); });
     shell->launch();
-    terminal->launch();
-    apps::BasicFileExplorer explorer(vfs, toolkit);
-    uint32_t explorer_id = 0;
-    {
-        desktop::WindowGeometry geom{200, 200, 700, 500};
-        const uint32_t win_id = wm->create_window("File Explorer", geom);
-        explorer_id = win_id;
-        auto surface = compositor->create_surface(geom.width, geom.height);
-        wm->set_window_surface(win_id, surface);
-        desktop::RunningApplication app;
-        app.app = &explorer;
-        app.window_id = win_id;
-        app.surface = surface;
-        app.visible = true;
-        shell->add_running_application(std::move(app));
-    }
-    demo->launch();
+    (void)host->open("Terminal");
+    const uint32_t explorer_id = host->open("BasicFileExplorer").value_or(0);
+    (void)host->open("DemoApp");
 
     const auto size = compositor->logical_size();
     std::printf("Desktop frame benchmark: %ux%u logical, %d frames/scenario, display=%s\n",
@@ -347,9 +339,7 @@ int main(int argc, char** argv) {
         const auto t_frame = Clock::now();
         auto t = Clock::now();
         shell->update_frame();
-        terminal->update_frame();
-        demo->update_frame();
-        p.update.push_back(ms_since(t));
+p.update.push_back(ms_since(t));
 
         t = Clock::now();
         auto scene = wm->build_scene();
@@ -470,6 +460,8 @@ int main(int argc, char** argv) {
     }
 
     run_micro_benchmarks();
+    host->close_all();
+    shell->set_application_host(nullptr);
     shell.reset();
     std::printf("\nDone.\n");
     return 0;

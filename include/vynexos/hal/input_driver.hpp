@@ -1,6 +1,7 @@
 #pragma once
 #include <cstdint>
 #include <memory>
+#include <string>
 #include "vynexos/core/event_bus.hpp"
 
 namespace vynexos::hal {
@@ -10,6 +11,7 @@ namespace vynexos::hal {
 inline constexpr const char* kTopicInputKey = "HAL_INPUT_KEY";
 inline constexpr const char* kTopicInputMouse = "HAL_INPUT_MOUSE";
 inline constexpr const char* kTopicInputPointer = "HAL_INPUT_POINTER";  ///< PointerSignalEvent payloads
+inline constexpr const char* kTopicInputText = "HAL_INPUT_TEXT";        ///< TextInputEvent payloads
 
 /// Pointer happenings that carry no position, published on kTopicInputPointer.
 enum class PointerSignal : uint8_t {
@@ -21,10 +23,22 @@ struct PointerSignalEvent {
     PointerSignal signal;
 };
 
+/// A physical key going down (`pressed`, repeated while held) or up. Key codes are SDL keycodes: for keys that produce
+/// an ASCII character it is that character (lower case), and the named keys below. Characters typed are delivered
+/// separately as TextInputEvent (layout, shift and composition applied), so key events are for keys, not text.
 struct KeyEvent {
     uint32_t key_code;
     bool pressed;
     KeyEvent(uint32_t k, bool p) : key_code(k), pressed(p) {}
+};
+inline constexpr uint32_t kKeyBackspace = 8;
+inline constexpr uint32_t kKeyReturn = 13;
+inline constexpr uint32_t kKeyEscape = 27;
+inline constexpr uint32_t kKeyKeypadEnter = 0x40000058; // SDLK_KP_ENTER: the numeric keypad's Enter
+
+/// Text produced by typing, UTF-8, published on kTopicInputText.
+struct TextInputEvent {
+    std::string text;
 };
 
 struct MouseEvent {

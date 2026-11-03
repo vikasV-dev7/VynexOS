@@ -35,6 +35,11 @@ void SDL2InputDriver::poll() {
             ev->topic = kTopicInputKey;
             ev->payload = KeyEvent(static_cast<uint32_t>(event.key.keysym.sym), pressed);
             m_event_bus->dispatch_immediate(ev);
+        } else if (event.type == SDL_TEXTINPUT) {
+            auto ev = std::make_shared<core::Event>();
+            ev->topic = kTopicInputText;
+            ev->payload = TextInputEvent{event.text.text};
+            m_event_bus->dispatch_immediate(ev);
         } else if (event.type == SDL_MOUSEMOTION) {
             uint8_t state = 0;
             if (event.motion.state & SDL_BUTTON_LMASK) state |= 1;

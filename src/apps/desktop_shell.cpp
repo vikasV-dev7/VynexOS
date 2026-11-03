@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <array>
 #include <limits>
+#include <utility>
 
 namespace vynexos::apps {
 
@@ -69,17 +70,38 @@ DesktopShell::DesktopShell(std::shared_ptr<desktop::IWindowManager> wm,
                 const int32_t button_top = display_height() - kTaskbarHeight + kLauncherButtonY;
                 if (mouse_ev.x >= kLauncherButtonX && mouse_ev.x <= kLauncherButtonX + kLauncherButtonWidth &&
                     mouse_ev.y >= button_top && mouse_ev.y <= button_top + kLauncherButtonHeight) {
-                    std::lock_guard lock(m_mutex);
-                    m_launcher_visible = !m_launcher_visible;
-                    m_wm->set_window_visibility(m_launcher_id, m_launcher_visible);
-                    invalidate_window_region(m_launcher_id); // repaint: the compositor only redraws dirty regions
+                    bool show = false;
+                    {
+                        std::lock_guard lock(m_mutex);
+                        show = !m_launcher_visible;
+                    }
+                    set_launcher_visible(show);
                     return; // Consumed by DesktopShell
                 }
-                
+
                 // Focus Management, Resize & Drag Start
                 auto target_window = m_wm->get_window_at(mouse_ev.x, mouse_ev.y);
                 auto resize_handle = m_wm->get_resize_handle_at(mouse_ev.x, mouse_ev.y);
-                
+
+                bool launcher_open = false;
+                {
+                    std::lock_guard lock(m_mutex);
+                    launcher_open = m_launcher_visible;
+                }
+                if (launcher_open) {
+                    if (target_window == std::optional<uint32_t>{m_launcher_id}) {
+                        // A press on the launcher only selects the entry under it: it acts on release, and it neither
+                        // focuses the launcher nor reaches anything beneath.
+                        const auto entry = launcher_entry_at(mouse_ev.x, mouse_ev.y);
+                        std::lock_guard lock(m_mutex);
+                        m_launcher_press = entry;
+                        m_drag_state.window_id = std::nullopt;
+                        m_resize_state.window_id = std::nullopt;
+                        return;
+                    }
+                    set_launcher_visible(false); // a press anywhere else dismisses it, then acts as usual
+                }
+
                 if (target_window.has_value() && target_window.value() == m_taskbar_id) {
                     auto geom = m_wm->get_window_geometry(m_taskbar_id);
                     if (geom.has_value()) {
@@ -207,6 +229,7 @@ DesktopShell::DesktopShell(std::shared_ptr<desktop::IWindowManager> wm,
                 {
                     std::lock_guard lock(m_mutex);
                     pressing_control = m_pointer.press.window_id.has_value();
+                    if (m_launcher_press.has_value()) return; // a launcher press: nothing happens until the release
                 }
                 if (pressing_control) {
                     track_control_press(mouse_ev.x, mouse_ev.y); // captured: nothing else sees this pointer
@@ -293,13 +316,24 @@ DesktopShell::DesktopShell(std::shared_ptr<desktop::IWindowManager> wm,
                 }
             } else if (released) { // Drag Completion / Release Pointer Capture
                 bool pressing_control = false;
+                std::optional<size_t> launcher_press;
                 {
                     std::lock_guard lock(m_mutex);
                     pressing_control = m_pointer.press.window_id.has_value();
+                    launcher_press = std::exchange(m_launcher_press, std::nullopt);
                     m_drag_state.window_id = std::nullopt;
                     m_drag_state.pointer_captured = false;
                     m_resize_state.window_id = std::nullopt;
                     m_resize_state.pointer_captured = false;
+                }
+                if (launcher_press.has_value()) {
+                    // An entry acts only when released over the entry that was pressed.
+                    if (launcher_entry_at(mouse_ev.x, mouse_ev.y) == launcher_press && m_host) {
+                        const auto entries = m_host->launcher_entries();
+                        set_launcher_visible(false);
+                        if (*launcher_press < entries.size()) m_host->open(entries[*launcher_press].app_id);
+                    }
+                    return;
                 }
                 if (pressing_control) {
                     release_control_press(mouse_ev.x, mouse_ev.y);
@@ -310,7 +344,7 @@ DesktopShell::DesktopShell(std::shared_ptr<desktop::IWindowManager> wm,
                 set_hover(control_at(mouse_ev.x, mouse_ev.y));
             }
             
-            route_pointer_to_application(*ev, mouse_ev, clicked, released);
+            route_pointer_to_application(mouse_ev, clicked, released);
         }
     });
     
@@ -325,15 +359,11 @@ DesktopShell::DesktopShell(std::shared_ptr<desktop::IWindowManager> wm,
     });
 
     m_event_bus->subscribe(hal::kTopicInputKey, [this](std::shared_ptr<const core::Event> ev) {
-        std::lock_guard lock(m_mutex);
-        if (m_focused_window.has_value()) {
-            for (auto& running_app : m_running_apps) {
-                if (running_app.window_id == m_focused_window.value() && running_app.visible && running_app.app) {
-                    running_app.app->handle_event(*ev);
-                    break;
-                }
-            }
-        }
+        if (ev->payload.type() == typeid(hal::KeyEvent)) route_key(*ev, std::any_cast<hal::KeyEvent>(ev->payload));
+    });
+
+    m_event_bus->subscribe(hal::kTopicInputText, [this](std::shared_ptr<const core::Event> ev) {
+        if (ev->payload.type() == typeid(hal::TextInputEvent)) route_text(*ev);
     });
 }
 
@@ -451,11 +481,15 @@ void DesktopShell::update_frame() {
             m_toolkit->draw_panel(m_launcher_surface, 0, 0, 300, 400);
             m_toolkit->draw_rect(m_launcher_surface, 0, 0, 300, 30, desktop::Color{50, 50, 70, 255});
             m_toolkit->draw_text(m_launcher_surface, 10, 10, "Applications", desktop::Color{255, 255, 255, 255});
-            
-            // Mock apps
-            m_toolkit->draw_button(m_launcher_surface, 10, 50, 280, 40, "Terminal");
-            m_toolkit->draw_button(m_launcher_surface, 10, 100, 280, 40, "File Explorer");
-            m_toolkit->draw_button(m_launcher_surface, 10, 150, 280, 40, "System Settings");
+
+            // One button per application the host offers
+            if (m_host) {
+                const auto entries = m_host->launcher_entries();
+                for (size_t i = 0; i < entries.size(); ++i) {
+                    const desktop::Rect r = launcher_entry_rect(i);
+                    m_toolkit->draw_button(m_launcher_surface, r.x, r.y, r.width, r.height, entries[i].title);
+                }
+            }
         }
     }
     
@@ -473,7 +507,7 @@ void DesktopShell::update_frame() {
     }
 }
 
-void DesktopShell::route_pointer_to_application(const core::Event& ev, const hal::MouseEvent& mouse, bool pressed, bool released) {
+void DesktopShell::route_pointer_to_application(const hal::MouseEvent& mouse, bool pressed, bool released) {
     // An application sees the pointer only where it is its own: over its client area, or anywhere while a press that
     // began there is held (the press captures the pointer until the release). A press that began anywhere else (title
     // bar, border, controls, the desktop, another window) is never delivered, not even when it crosses the content.
@@ -495,14 +529,90 @@ void DesktopShell::route_pointer_to_application(const core::Event& ev, const hal
         if (const auto grip = m_wm->get_resize_handle_at(mouse.x, mouse.y); grip && grip->window_id == *target) return; // a corner grip over the content
     }
     m_app_pointer_owner = (mouse.button_state != 0) ? target : std::nullopt;
+deliver_pointer_locked(*target, mouse);
+}
 
+bool DesktopShell::deliver_pointer_locked(uint32_t window_id, const hal::MouseEvent& mouse) {
+    const auto client = m_wm->get_window_geometry(window_id);
+    const auto app = std::find_if(m_running_apps.begin(), m_running_apps.end(), [&](const auto& a) { return a.window_id == window_id; });
+    if (!client || app == m_running_apps.end() || !app->visible || !app->app) return false;
     hal::MouseEvent local = mouse; // desktop -> content coordinates
     local.x -= client->x;
     local.y -= client->y;
     core::Event local_ev;
-    local_ev.topic = ev.topic;
+    local_ev.topic = hal::kTopicInputMouse;
     local_ev.payload = local;
     app->app->handle_event(local_ev);
+    return true;
+}
+
+desktop::RunningApplication* DesktopShell::keyboard_target_locked() {
+    if (m_launcher_visible || !m_focused_window.has_value()) return nullptr; // the launcher or the desktop has the keyboard
+    const auto app = std::find_if(m_running_apps.begin(), m_running_apps.end(), [&](const auto& a) { return a.window_id == *m_focused_window; });
+    if (app == m_running_apps.end() || !app->visible || !app->app) return nullptr;
+    if (m_wm->get_window_state(app->window_id) == desktop::WindowState::Minimized) return nullptr;
+    return &*app;
+}
+
+void DesktopShell::route_key(const core::Event& ev, const hal::KeyEvent& key) {
+    bool dismiss_launcher = false;
+    {
+        std::lock_guard lock(m_mutex);
+        if (m_launcher_visible) {
+            m_key_presses.erase(key.key_code);
+            dismiss_launcher = key.pressed && key.key_code == hal::kKeyEscape;
+        } else if (key.pressed) {
+            auto* target = keyboard_target_locked();
+            if (!target) {
+                m_key_presses.erase(key.key_code);
+                return;
+            }
+            m_key_presses[key.key_code] = target->window_id;
+            target->app->handle_event(ev);
+        } else {
+            const auto owner = m_key_presses.find(key.key_code);
+            if (owner == m_key_presses.end()) return; // its press reached no application
+            const uint32_t window = owner->second;
+            m_key_presses.erase(owner);
+            auto* target = keyboard_target_locked();
+            if (target && target->window_id == window) target->app->handle_event(ev); // only while it still has focus
+        }
+    }
+    if (dismiss_launcher) set_launcher_visible(false);
+}
+
+void DesktopShell::route_text(const core::Event& ev) {
+    std::lock_guard lock(m_mutex);
+    if (auto* target = keyboard_target_locked()) target->app->handle_event(ev);
+}
+
+void DesktopShell::set_launcher_visible(bool visible) {
+    std::optional<uint32_t> refocus;
+    {
+        std::lock_guard lock(m_mutex);
+        if (m_launcher_visible == visible) return;
+        m_launcher_visible = visible;
+        m_launcher_press.reset();
+        refocus = m_focused_window;
+    }
+    m_wm->set_window_visibility(m_launcher_id, visible);
+    // The window manager has no layered stacking yet: raise the launcher above application windows while it is shown,
+    // and give the window manager's active window back to the shell's focus when it closes.
+    if (visible) m_wm->focus_window(m_launcher_id);
+    else if (refocus.has_value()) m_wm->focus_window(*refocus);
+    invalidate_window_region(m_launcher_id); // repaint: the compositor only redraws dirty regions
+}
+
+std::optional<size_t> DesktopShell::launcher_entry_at(int32_t x, int32_t y) const {
+    const auto geom = m_wm->get_window_geometry(m_launcher_id);
+    if (!geom || !m_host) return std::nullopt;
+    const size_t count = m_host->launcher_entries().size();
+    const int32_t lx = x - geom->x, ly = y - geom->y;
+    for (size_t i = 0; i < count; ++i) {
+        const desktop::Rect r = launcher_entry_rect(i);
+        if (lx >= r.x && ly >= r.y && lx < r.x + static_cast<int32_t>(r.width) && ly < r.y + static_cast<int32_t>(r.height)) return i;
+    }
+    return std::nullopt;
 }
 
 void DesktopShell::fit_application_surface(desktop::RunningApplication& app, const desktop::WindowGeometry& client) {
@@ -868,6 +978,7 @@ void DesktopShell::release_control_press(int32_t x, int32_t y) {
 void DesktopShell::activate_control(uint32_t wid, desktop::DecorationHitRegion control) {
     if (control == desktop::DecorationHitRegion::CloseButton) {
         invalidate_window_region(wid);
+        if (m_host && m_host->close(wid)) return; // window, application instance and surface go together
         this->remove_running_application(wid);
         m_wm->destroy_window(wid);
         return;
@@ -952,6 +1063,9 @@ void DesktopShell::cancel_interaction() {
         m_pointer = ChromePointer{};
         m_drag_state = DragState{};
         m_resize_state = ResizeState{};
+        m_launcher_press.reset();
+        // An application holding the pointer sees its press end, so it never waits for a release that will not come.
+        if (m_app_pointer_owner.has_value()) deliver_pointer_locked(*m_app_pointer_owner, hal::MouseEvent(m_cursor_x, m_cursor_y, 0));
         m_app_pointer_owner.reset();
     }
     m_last_mouse_state = 0;

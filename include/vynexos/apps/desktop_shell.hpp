@@ -3,6 +3,7 @@
 #include <memory>
 #include "vynexos/desktop/running_application.hpp"
 #include "vynexos/desktop/taskbar.hpp"
+#include "vynexos/apps/application_host.hpp"
 
 namespace vynexos::apps {
 
@@ -28,6 +29,10 @@ public:
     
     // Component Access
     virtual std::shared_ptr<desktop::ITaskbar> taskbar() = 0;
+
+    /// Where the launcher opens applications and the close button closes them (non-owning; nullptr detaches). Without a
+    /// host the launcher offers nothing and closing a window only removes it.
+    virtual void set_application_host(IApplicationHost* host) = 0;
 };
 
 } // namespace vynexos::apps

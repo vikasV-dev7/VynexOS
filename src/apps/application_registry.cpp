@@ -16,23 +16,27 @@ void ApplicationRegistry::register_application(const std::string& app_id, AppFac
 }
 
 bool ApplicationRegistry::launch(const std::string& app_id) {
+    return launch_instance(app_id) != nullptr;
+}
+
+IApplication* ApplicationRegistry::launch_instance(const std::string& app_id) {
     auto it = m_factories.find(app_id);
     if (it == m_factories.end()) {
-        return false;
+        return nullptr;
     }
 
     auto instance = it->second();
     if (!instance) {
-        return false;
+        return nullptr;
     }
 
     if (!instance->initialize()) {
-        return false; // instance is safely destroyed here automatically
+        return nullptr; // instance is safely destroyed here automatically
     }
 
     instance->start();
     m_running_apps.push_back(std::move(instance));
-    return true;
+    return m_running_apps.back().get();
 }
 
 void ApplicationRegistry::terminate(IApplication* instance) {

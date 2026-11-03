@@ -62,6 +62,7 @@ private:
 
     // Content regions changed since the presentation layer last asked (usually zero to two rows).
     std::vector<desktop::Rect> m_invalidated;
+    bool m_left_down{false}; // left button state as last seen, to tell a new press from motion with the button held
 };
 
 } // namespace vynexos::apps

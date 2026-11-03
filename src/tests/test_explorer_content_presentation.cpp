@@ -497,6 +497,38 @@ void test_selection_survives_moving_resizing_and_maximizing() {
     std::printf("test_selection_survives_moving_resizing_and_maximizing passed\n");
 }
 
+void test_dragging_across_rows_is_not_a_click() {
+    // A press selects; motion with the button held (within the row, across the others, back) and the release change
+    // nothing. Row 0 is a directory: treating any held-button event as another click would open it.
+    Desktop d;
+    vynex_test::Pointer pointer(*d.bus);
+    const auto c = d.client();
+    auto at_row = [&](int row, int dx) { return vynex_test::Point{c.x + 60 + dx, c.y + kRowTop + kRowHeight * row + kRowHeight / 2}; };
+    const hal::FrameBuffer before = d.display->last;
+    d.compositor->invalidated.clear();
+    pointer.send(at_row(0, 0), 0); // hover first: nothing
+    pointer.send(at_row(0, 0), 1); // press: select
+    for (int dx = 1; dx <= 5; ++dx) pointer.send(at_row(0, 7 * dx), 1);
+    for (int row = 1; row < 5; ++row) pointer.send(at_row(row, 0), 1);
+    pointer.send(at_row(0, 0), 1);
+    pointer.send(at_row(0, 0), 0); // release
+    for (int row = 0; row < 5; ++row) pointer.send(at_row(row, 3), 0); // free motion afterwards
+    d.settle();
+    vynex_test::context() = "drag across the rows";
+    CHECK(d.explorer->get_current_path().as_string() == "/"); // not opened
+    CHECK(d.explorer->get_selected_index() == std::optional<size_t>{0});
+    d.expect_screen_shows_surface();
+    CHECK(d.row_lit(0) && !d.row_lit(1) && !d.row_lit(2) && !d.row_lit(3) && !d.row_lit(4));
+    (void)Desktop::changed_pixels_only_within(before, d.display->last, {d.row_highlight(0)});
+    d.expect_invalidations_within({d.row_strip(0)});
+
+    vynex_test::context() = "a real second click still opens it";
+    d.click_row(0);
+    CHECK(d.explorer->get_current_path().as_string() == "/docs");
+    d.expect_screen_shows_surface();
+    std::printf("test_dragging_across_rows_is_not_a_click passed\n");
+}
+
 } // namespace
 
 int main() {
@@ -507,6 +539,7 @@ int main() {
     test_idle_frames_do_no_work();
     test_moved_window_updates_at_its_new_place();
     test_selection_survives_moving_resizing_and_maximizing();
-    std::printf("All Explorer content presentation tests passed.\n");
+    test_dragging_across_rows_is_not_a_click();
+std::printf("All Explorer content presentation tests passed.\n");
     return 0;
 }
