@@ -28,7 +28,7 @@
 
 namespace vynexos::bootstrap {
 
-CompositionRoot::CompositionRoot() {
+CompositionRoot::CompositionRoot(StartupOptions options) {
     // 1. Instantiate concrete implementations
     m_logger = std::make_shared<core::FileLogger>("vynexos_runtime.log");
     m_task_scheduler = std::make_unique<core::BasicTaskScheduler>(*m_logger);
@@ -73,7 +73,14 @@ CompositionRoot::CompositionRoot() {
     
     // Phase 3 components
     m_vfs = std::make_shared<core::MemoryFileSystem>();
-    m_app_registry = std::make_shared<apps::ApplicationRegistry>();
+    {
+        const core::SeedResult seeded = apply_vfs_profile(*m_vfs, options.vfs_profile);
+        m_logger->info("VynexOS Bootstrap: VFS profile '{}': {} entries created", to_string(options.vfs_profile), seeded.created);
+        for (const auto& failure : seeded.failures) {
+            m_logger->error("VynexOS Bootstrap: VFS profile entry {} not created: {}", failure.path, failure.reason);
+        }
+    }
+m_app_registry = std::make_shared<apps::ApplicationRegistry>();
     m_app_host = std::make_shared<apps::ApplicationHost>(m_app_registry, m_window_manager, m_compositor, m_desktop_shell);
     m_desktop_shell->set_application_host(m_app_host.get());
 

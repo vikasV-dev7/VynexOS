@@ -10,5 +10,6 @@ add_library(vynex_core STATIC
     virtual_path.cpp
     memory_file_handle.cpp
     memory_file_system.cpp
+    vfs_seed.cpp
 )
 target_include_directories(vynex_core PUBLIC ${PROJECT_SOURCE_DIR}/include)

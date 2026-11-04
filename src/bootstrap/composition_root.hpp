@@ -12,6 +12,7 @@
 #include "vynexos/hal/input_driver.hpp"
 #include "../apps/application_host.hpp"
 #include "../apps/desktop_shell.hpp"
+#include "startup_options.hpp"
 #include "../core/basic_plugin_manager.hpp"
 #include "../hal/mock_audio_driver.hpp"
 #include "../hal/mock_compute_driver.hpp"
@@ -31,7 +32,8 @@ namespace vynexos::bootstrap {
 // The Composition Root wires all abstract dependencies to their concrete implementations.
 class CompositionRoot {
 public:
-    CompositionRoot();
+    /// The default options are those of a plain launch (see StartupOptions).
+    explicit CompositionRoot(StartupOptions options = {});
     ~CompositionRoot();
 
     void initialize();
@@ -39,6 +41,9 @@ public:
     void shutdown();
     
     void request_stop();
+
+    /// The system's filesystem (owned by the root), for inspection by tests and tools.
+    [[nodiscard]] std::shared_ptr<core::IVirtualFileSystem> virtual_file_system() const { return m_vfs; }
 
 private:
     // =========================================================================

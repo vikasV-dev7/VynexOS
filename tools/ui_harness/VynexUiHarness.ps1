@@ -48,7 +48,8 @@ function Start-VynexApp {
     param(
         [Parameter(Mandatory)][string]$Exe,
         [Parameter(Mandatory)][string]$WorkDir,
-        [int]$StartupSeconds = 4
+        [int]$StartupSeconds = 4,
+        [string[]]$Arguments = @()   # command-line arguments for the app, e.g. '--vfs-profile=empty'
     )
     if (-not (Test-Path $Exe)) { throw "Executable not found: $Exe" }
     New-Item -ItemType Directory -Force $WorkDir | Out-Null
@@ -59,8 +60,8 @@ function Start-VynexApp {
     if (Test-Path $log) { Clear-Content $log -ErrorAction SilentlyContinue }
 
     $exeCopy = Join-Path $run (Split-Path $Exe -Leaf)
-    $proc = Start-Process $exeCopy -WorkingDirectory $run -PassThru
-    Start-Sleep -Seconds $StartupSeconds
+    $proc = if ($Arguments.Count -gt 0) { Start-Process $exeCopy -ArgumentList $Arguments -WorkingDirectory $run -PassThru } else { Start-Process $exeCopy -WorkingDirectory $run -PassThru }
+Start-Sleep -Seconds $StartupSeconds
     $proc.Refresh()
     if ($proc.HasExited) { throw "App exited during startup (exit code $($proc.ExitCode))" }
     if ($proc.MainWindowHandle -eq [IntPtr]::Zero) { Stop-Process -Id $proc.Id -Force; throw 'App has no window' }

@@ -30,7 +30,7 @@ target_link_libraries(test_plugin_manager PRIVATE vynex_core vynex_hal)
 # SDL Integration test
 if(TARGET SDL2-static)
     add_executable(test_sdl_integration test_sdl_integration.cpp ${PROJECT_SOURCE_DIR}/src/bootstrap/composition_root.cpp)
-    target_link_libraries(test_sdl_integration PRIVATE vynex_core vynex_desktop vynex_hal vynex_apps SDL2-static)
+    target_link_libraries(test_sdl_integration PRIVATE vynex_startup vynex_core vynex_desktop vynex_hal vynex_apps SDL2-static)
     add_test(NAME SDLIntegrationTests COMMAND test_sdl_integration)
 
     # Framebuffer -> texture channel order (headless: software renderer, no window)
@@ -47,11 +47,11 @@ endif()
 
 add_executable(test_runtime_bug test_runtime_bug.cpp ${PROJECT_SOURCE_DIR}/src/bootstrap/composition_root.cpp)
 target_include_directories(test_runtime_bug PRIVATE ${PROJECT_SOURCE_DIR}/include)
-target_link_libraries(test_runtime_bug PRIVATE vynex_core vynex_hal vynex_desktop vynex_apps)
+target_link_libraries(test_runtime_bug PRIVATE vynex_startup vynex_core vynex_hal vynex_desktop vynex_apps)
 
 add_executable(test_hal test_hal.cpp ${PROJECT_SOURCE_DIR}/src/bootstrap/composition_root.cpp)
 target_include_directories(test_hal PRIVATE ${PROJECT_SOURCE_DIR}/include)
-target_link_libraries(test_hal PRIVATE vynex_core vynex_hal vynex_desktop vynex_apps)
+target_link_libraries(test_hal PRIVATE vynex_startup vynex_core vynex_hal vynex_desktop vynex_apps)
 
 add_executable(test_compositor test_compositor.cpp)
 target_include_directories(test_compositor PRIVATE ${PROJECT_SOURCE_DIR}/include)
@@ -208,6 +208,23 @@ add_executable(test_app_lifecycle test_app_lifecycle.cpp)
 target_include_directories(test_app_lifecycle PRIVATE ${PROJECT_SOURCE_DIR}/include)
 target_link_libraries(test_app_lifecycle PRIVATE vynex_apps vynex_core vynex_desktop vynex_hal)
 add_test(NAME AppLifecycleTests COMMAND test_app_lifecycle)
+
+# Initial filesystem contents: the generic seeding helper (vynex_core) and the startup profiles and options (vynex_startup)
+add_executable(test_vfs_seed test_vfs_seed.cpp)
+target_include_directories(test_vfs_seed PRIVATE ${PROJECT_SOURCE_DIR}/include)
+target_link_libraries(test_vfs_seed PRIVATE vynex_core)
+add_test(NAME VfsSeedTests COMMAND test_vfs_seed)
+
+add_executable(test_startup_profiles test_startup_profiles.cpp)
+target_link_libraries(test_startup_profiles PRIVATE vynex_startup vynex_core)
+add_test(NAME StartupProfileTests COMMAND test_startup_profiles)
+
+add_executable(test_composition_vfs test_composition_vfs.cpp ${PROJECT_SOURCE_DIR}/src/bootstrap/composition_root.cpp)
+target_include_directories(test_composition_vfs PRIVATE ${PROJECT_SOURCE_DIR}/include)
+target_link_libraries(test_composition_vfs PRIVATE vynex_startup vynex_core vynex_hal vynex_desktop vynex_apps)
+add_test(NAME CompositionRootVfsTests COMMAND test_composition_vfs)
+# The program itself refuses an invalid command line (exit status 2, a diagnostic, no desktop started).
+add_test(NAME StartupRejectsBadOptions COMMAND ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:vynex_init> -P ${PROJECT_SOURCE_DIR}/cmake/check_startup_rejects.cmake)
 
 # --- Test mechanism: self-tests and source hygiene ------------------------------------------------------------------------
 # CHECK() (test_check.hpp) must fail on a false condition and evaluate its argument in every configuration, NDEBUG included.
