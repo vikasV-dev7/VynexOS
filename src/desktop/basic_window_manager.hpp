@@ -87,19 +87,22 @@ private:
     std::unordered_map<uint32_t, WindowRecord> m_windows;
     std::vector<uint32_t> m_creation_order;
     WindowGeometry m_work_area{0, 0, 1920, 1080};
-    std::vector<uint32_t> m_z_order; // front is bottom, back is top
+    // THE stacking order, bottom (front) to top (back), used for composition (build_scene) and hit-testing alike. It is
+    // always sorted by layer (Desktop < Normal < Panel < Overlay); within a layer the most recently raised window is on
+    // top. restack_locked() is the only way a window enters or moves in it.
+    std::vector<uint32_t> m_z_order;
     std::optional<uint32_t> m_focused_window;
+    void restack_locked(uint32_t window_id); // to the top of its own layer
 
     // The style in effect for a window, with the margins actually in use (set_window_decoration may override them).
     [[nodiscard]] static FrameStyle effective_style(const WindowRecord& win);
     [[nodiscard]] static Rect decorated_bounds_of(const WindowRecord& win);
     [[nodiscard]] static DecorationLayout layout_of(const WindowRecord& win);
 
-    // Who is under a point. Visible pixels win over invisible resize bands, and the desktop (wallpaper) is last:
-    //   1. the topmost non-desktop window whose VISIBLE frame contains the point;
-    //   2. otherwise the topmost non-desktop window whose invisible resize band contains it (`band` = true);
-    //   3. otherwise the desktop window.
-    // so a window's invisible band never steals clicks from another window's visible area, a panel, or a maximized window.
+    // Who is under a point: the topmost window in the stacking order (so the same order the screen is composed in) whose
+    // decorated bounds contain it. `band` is true when the point is in that window's invisible resize band rather than its
+    // visible frame. A window's band therefore belongs to it even over a window lower in the stack, but never over a
+    // window above it, a panel or an overlay (higher layers come first).
     struct Hit {
         uint32_t id;
         bool band;

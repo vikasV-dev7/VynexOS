@@ -32,33 +32,30 @@ DecorationLayout BasicWindowManager::layout_of(const WindowRecord& win) {
 }
 
 std::optional<BasicWindowManager::Hit> BasicWindowManager::find_hit_locked(int32_t x, int32_t y) const {
-    std::optional<Hit> band_candidate;
-    std::optional<Hit> desktop_hit;
-
-    // Topmost first. A window only claims the point if it is inside its VISIBLE frame; being inside just its invisible
-    // resize band makes it a fallback candidate, so something visible underneath still wins.
+    // Topmost first, in the very order build_scene() composes: the first window that covers the point takes it.
     for (auto it = m_z_order.rbegin(); it != m_z_order.rend(); ++it) {
-        const uint32_t id = *it;
-        const auto& win = m_windows.at(id);
+        const auto& win = m_windows.at(*it);
         if (!win.visible || win.state == WindowState::Minimized) continue;
 
         const Rect bounds = decorated_bounds_of(win);
         if (!point_in_rect(x, y, bounds)) continue;
 
-        if (win.layer == WindowLayer::Desktop) {
-            if (!desktop_hit) desktop_hit = Hit{id, false};
-            continue;
-        }
-
         const DecorationLayout layout = layout_of(win);
         const Rect frame{bounds.x + layout.visible_frame.x, bounds.y + layout.visible_frame.y, layout.visible_frame.width,
                          layout.visible_frame.height};
-        if (point_in_rect(x, y, frame)) return Hit{id, false};
-        if (!band_candidate) band_candidate = Hit{id, true};
+        return Hit{*it, !point_in_rect(x, y, frame)};
     }
+    return std::nullopt;
+}
 
-    if (band_candidate) return band_candidate;
-    return desktop_hit;
+void BasicWindowManager::restack_locked(uint32_t window_id) {
+    const auto record = m_windows.find(window_id);
+    if (record == m_windows.end()) return;
+    m_z_order.erase(std::remove(m_z_order.begin(), m_z_order.end(), window_id), m_z_order.end());
+    // Above every window of the same or a lower layer, below every window of a higher one.
+    const auto layer = record->second.layer;
+    const auto above = std::find_if(m_z_order.begin(), m_z_order.end(), [&](uint32_t id) { return m_windows.at(id).layer > layer; });
+    m_z_order.insert(above, window_id);
 }
 
 std::optional<uint32_t> BasicWindowManager::get_window_at(int32_t x, int32_t y) const {
@@ -172,7 +169,7 @@ uint32_t BasicWindowManager::create_window(std::string_view title, WindowGeometr
     record.state = WindowState::Normal;
     
     m_windows[id] = std::move(record);
-    m_z_order.push_back(id);
+    restack_locked(id); // top of the Normal layer: below panels and overlays
     m_creation_order.push_back(id);
     m_logger->info("BasicWindowManager: Created window '{}' with ID {}", title, id);
     return id;
@@ -184,7 +181,7 @@ void BasicWindowManager::destroy_window(uint32_t window_id) {
         m_z_order.erase(std::remove(m_z_order.begin(), m_z_order.end(), window_id), m_z_order.end());
         m_creation_order.erase(std::remove(m_creation_order.begin(), m_creation_order.end(), window_id), m_creation_order.end());
         if (m_focused_window == window_id) {
-            m_focused_window = m_z_order.empty() ? std::nullopt : std::make_optional(m_z_order.back());
+            m_focused_window = std::nullopt; // the shell decides what is focused next (the top of the stack may be a panel)
         }
         m_logger->info("BasicWindowManager: Destroyed window ID {}", window_id);
     }
@@ -193,11 +190,7 @@ void BasicWindowManager::destroy_window(uint32_t window_id) {
 void BasicWindowManager::focus_window(uint32_t window_id) {
     std::lock_guard lock(m_mutex);
     if (m_windows.contains(window_id)) {
-        auto it = std::find(m_z_order.begin(), m_z_order.end(), window_id);
-        if (it != m_z_order.end()) {
-            m_z_order.erase(it);
-            m_z_order.push_back(window_id); // Move to top (back of vector)
-        }
+        restack_locked(window_id); // raised within its own layer
         m_focused_window = window_id;
         m_logger->info("BasicWindowManager: Focused window [ID: {}]", window_id);
     }
@@ -278,7 +271,10 @@ FrameStyle BasicWindowManager::get_window_frame_style(uint32_t window_id) const 
 
 void BasicWindowManager::set_window_layer(uint32_t window_id, WindowLayer layer) {
     std::lock_guard lock(m_mutex);
-    if (auto it = m_windows.find(window_id); it != m_windows.end()) it->second.layer = layer;
+    if (auto it = m_windows.find(window_id); it != m_windows.end()) {
+        it->second.layer = layer;
+        restack_locked(window_id); // enters its new layer on top
+    }
 }
 
 WindowLayer BasicWindowManager::get_window_layer(uint32_t window_id) const {

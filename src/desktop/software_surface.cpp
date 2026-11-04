@@ -1,10 +1,16 @@
 #include "software_surface.hpp"
+#include "vynexos/desktop/surface_limits.hpp"
+#include <stdexcept>
+#include <string>
 
 namespace vynexos::desktop {
 
 SoftwareSurface::SoftwareSurface(uint32_t width, uint32_t height)
     : m_width(width), m_height(height) {
-    m_pixels.resize(m_width * m_height * 4, 0); // Initialize with transparent black
+    if (width == 0 || height == 0) return; // empty: no pixels
+    const auto bytes = surface_byte_size(width, height);
+    if (!bytes) throw std::length_error("SoftwareSurface: " + std::to_string(width) + "x" + std::to_string(height) + " exceeds the surface limits");
+    m_pixels.resize(*bytes, 0); // Initialize with transparent black
 }
 
 uint32_t SoftwareSurface::width() const {

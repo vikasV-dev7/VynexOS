@@ -101,6 +101,11 @@ private:
     IApplicationHost* m_host{nullptr};
     std::optional<size_t> m_launcher_press; // entry pressed, until the release; guarded by m_mutex
     void set_launcher_visible(bool visible);
+
+    // Focus succession: when the focused window closes or is minimized, the topmost remaining application window takes the
+    // focus (nothing does if none is left). Restoring a window focuses it.
+    std::optional<uint32_t> next_focus_candidate(uint32_t leaving);
+    void focus_next_after(uint32_t leaving);
     std::optional<size_t> launcher_entry_at(int32_t x, int32_t y) const;
     static desktop::Rect launcher_entry_rect(size_t index) {
         return {kLauncherEntryX, kLauncherEntryTop + static_cast<int32_t>(index) * kLauncherEntryStep, kLauncherEntryWidth, kLauncherEntryHeight};

@@ -109,8 +109,10 @@ public:
         return FrameStyle{};
     }
 
-    // Stacking class. In hit-testing, Desktop windows (the wallpaper) never take priority over the invisible resize band
-    // of an ordinary window, so windows can be resized from just outside their edge over an empty desktop.
+    // Stacking class (see WindowLayer). Setting a layer puts the window on top of that layer. The stacking order is the
+    // composition order and the hit-testing order: the topmost window whose decorated bounds contain a point receives
+    // it, its invisible resize band included (so a window can be resized from just outside its edge even over the window
+    // below it, but never over a window above it, a panel or an overlay).
     virtual void set_window_layer(uint32_t window_id, WindowLayer layer) {
         (void)window_id;
         (void)layer;

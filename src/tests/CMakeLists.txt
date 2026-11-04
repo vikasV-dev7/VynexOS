@@ -209,6 +209,24 @@ target_include_directories(test_app_lifecycle PRIVATE ${PROJECT_SOURCE_DIR}/incl
 target_link_libraries(test_app_lifecycle PRIVATE vynex_apps vynex_core vynex_desktop vynex_hal)
 add_test(NAME AppLifecycleTests COMMAND test_app_lifecycle)
 
+# Layered stacking: composition order, hit-testing, resize bands (window manager and compositor)
+add_executable(test_layers_hit_testing test_layers_hit_testing.cpp)
+target_include_directories(test_layers_hit_testing PRIVATE ${PROJECT_SOURCE_DIR}/include)
+target_link_libraries(test_layers_hit_testing PRIVATE vynex_desktop vynex_core vynex_hal)
+add_test(NAME LayerHitTestingTests COMMAND test_layers_hit_testing)
+
+# Focus succession, taskbar/desktop focus policy, input over the launcher and the taskbar (shell and application host)
+add_executable(test_focus_restoration test_focus_restoration.cpp)
+target_include_directories(test_focus_restoration PRIVATE ${PROJECT_SOURCE_DIR}/include)
+target_link_libraries(test_focus_restoration PRIVATE vynex_apps vynex_core vynex_desktop vynex_hal)
+add_test(NAME FocusRestorationTests COMMAND test_focus_restoration)
+
+# Surface allocation limits and refused allocations
+add_executable(test_surface_limits test_surface_limits.cpp)
+target_include_directories(test_surface_limits PRIVATE ${PROJECT_SOURCE_DIR}/include)
+target_link_libraries(test_surface_limits PRIVATE vynex_apps vynex_core vynex_desktop vynex_hal)
+add_test(NAME SurfaceLimitTests COMMAND test_surface_limits)
+
 # Initial filesystem contents: the generic seeding helper (vynex_core) and the startup profiles and options (vynex_startup)
 add_executable(test_vfs_seed test_vfs_seed.cpp)
 target_include_directories(test_vfs_seed PRIVATE ${PROJECT_SOURCE_DIR}/include)

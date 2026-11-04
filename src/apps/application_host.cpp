@@ -33,8 +33,12 @@ std::optional<uint32_t> ApplicationHost::open(std::string_view app_id) {
     if (!instance) return std::nullopt;
 
     const desktop::WindowGeometry geometry = descriptor->geometry;
-    const uint32_t window = m_wm->create_window(descriptor->title, geometry);
     auto surface = m_compositor->create_surface(geometry.width, geometry.height);
+    if (!surface) {
+        m_manager->terminate(instance); // a window size no surface may have: nothing is opened
+        return std::nullopt;
+    }
+    const uint32_t window = m_wm->create_window(descriptor->title, geometry);
     m_wm->set_window_surface(window, surface);
 
     desktop::RunningApplication running;

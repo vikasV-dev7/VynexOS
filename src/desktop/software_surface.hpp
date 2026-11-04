@@ -6,6 +6,9 @@ namespace vynexos::desktop {
 
 class SoftwareSurface final : public ISurface {
 public:
+    /// A width x height RGBA surface, zero-filled. A zero side gives an empty surface that owns no pixels. A size outside
+    /// the surface limits (surface_limits.hpp) throws std::length_error before anything is allocated; use
+    /// ICompositor::create_surface() to get nullptr instead.
     SoftwareSurface(uint32_t width, uint32_t height);
     ~SoftwareSurface() override = default;
 

@@ -12,7 +12,9 @@ class ICompositor {
 public:
     virtual ~ICompositor() = default;
     
-    // New Interface
+    /// A new surface of width x height pixels, or nullptr if that size must not be allocated (see surface_limits.hpp:
+    /// a zero side, a side above kMaxSurfaceDimension, or more than kMaxSurfacePixels). Callers keep what they had when
+    /// it returns nullptr.
     virtual std::shared_ptr<ISurface> create_surface(uint32_t width, uint32_t height) = 0;
     virtual void invalidate_region(const Rect& rect) = 0;
     virtual std::expected<void, DisplayError> render_frame(const SceneGraph& scene) = 0;

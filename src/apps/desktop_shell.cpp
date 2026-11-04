@@ -111,39 +111,20 @@ DesktopShell::DesktopShell(std::shared_ptr<desktop::IWindowManager> wm,
                         if (clicked_win.has_value()) {
                             uint32_t wid = clicked_win.value();
                             
-                            // Taskbar button click logic
-                            auto current_state = m_wm->get_window_state(wid);
-                            if (current_state == desktop::WindowState::Minimized) {
+                            // Taskbar button: restore and focus a minimized window, minimize the focused one, focus any other.
+                            if (m_wm->get_window_state(wid) == desktop::WindowState::Minimized) {
                                 // Restore to previous state (Normal or Maximized)
                                 invalidate_window_region(wid);
                                 m_wm->set_window_state(wid, m_wm->get_previous_window_state(wid));
-                                m_wm->focus_window(wid);
                                 invalidate_window_region(wid);
                                 this->focus_window(wid);
+                            } else if (focused_window() == std::optional<uint32_t>{wid}) {
+                                invalidate_window_region(wid);
+                                m_wm->set_window_state(wid, desktop::WindowState::Minimized);
+                                invalidate_window_region(wid);
+                                focus_next_after(wid);
                             } else {
-                                // Window is not minimized
-                                std::unique_lock lock(m_mutex);
-                                if (m_focused_window.has_value() && m_focused_window.value() == wid) {
-                                    // If already focused, minimize it
-                                    lock.unlock();
-                                    invalidate_window_region(wid);
-                                    m_wm->set_window_state(wid, desktop::WindowState::Minimized);
-                                    invalidate_window_region(wid);
-                                    lock.lock();
-                                    
-                                    // Focus the next window in z-order
-                                    auto visible_windows = m_wm->get_visible_windows_z_ordered();
-                                    if (!visible_windows.empty()) {
-                                        m_focused_window = visible_windows.back();
-                                        m_wm->focus_window(m_focused_window.value());
-                                    } else {
-                                        m_focused_window = std::nullopt;
-                                    }
-                                } else {
-                                    // Otherwise just focus it
-                                    m_wm->focus_window(wid);
-                                    m_focused_window = wid;
-                                }
+                                this->focus_window(wid);
                             }
                             return; // Consumed
                         }
@@ -205,19 +186,17 @@ DesktopShell::DesktopShell(std::shared_ptr<desktop::IWindowManager> wm,
                 }
                 
                 if (target_window.has_value()) {
-                    if (target_window.value() != m_wallpaper_id && target_window.value() != m_taskbar_id) {
+                    // Focus policy for presses: an application window takes the focus; the desktop takes it away (no
+                    // window has the keyboard); the taskbar never takes it (only its buttons act, above).
+                    if (!is_shell_window(target_window.value())) {
                         this->focus_window(target_window.value());
-                        
-                        // We no longer initiate window drag from clicking the content area
-                        std::lock_guard lock(m_mutex);
-                        m_drag_state.window_id = std::nullopt;
-                        m_resize_state.window_id = std::nullopt;
-                    } else {
+                    } else if (target_window.value() == m_wallpaper_id) {
                         this->clear_focus();
-                        std::lock_guard lock(m_mutex);
-                        m_drag_state.window_id = std::nullopt;
-                        m_resize_state.window_id = std::nullopt;
                     }
+                    // We no longer initiate window drag from clicking the content area
+                    std::lock_guard lock(m_mutex);
+                    m_drag_state.window_id = std::nullopt;
+                    m_resize_state.window_id = std::nullopt;
                 } else {
                     this->clear_focus();
                     std::lock_guard lock(m_mutex);
@@ -374,15 +353,18 @@ void DesktopShell::launch() {
     desktop::WindowGeometry wall_geom{0, 0, m_display_size.width, m_display_size.height};
     m_wallpaper_id = m_wm->create_window("Wallpaper", wall_geom);
     
+    // The shell's own surfaces follow the display size; one the limits refuse is simply absent (nothing drawn there).
     m_wallpaper_surface = m_compositor->create_surface(wall_geom.width, wall_geom.height);
-    auto map_wall = m_wallpaper_surface->map_pixels();
-    for (size_t i = 0; i < map_wall.size(); i += 4) {
-        map_wall[i] = static_cast<uint8_t>(30);
-        map_wall[i+1] = static_cast<uint8_t>(30);
-        map_wall[i+2] = static_cast<uint8_t>(30);
-        map_wall[i+3] = static_cast<uint8_t>(255);
+    if (m_wallpaper_surface) {
+        auto map_wall = m_wallpaper_surface->map_pixels();
+        for (size_t i = 0; i < map_wall.size(); i += 4) {
+            map_wall[i] = static_cast<uint8_t>(30);
+            map_wall[i+1] = static_cast<uint8_t>(30);
+            map_wall[i+2] = static_cast<uint8_t>(30);
+            map_wall[i+3] = static_cast<uint8_t>(255);
+        }
+        m_wallpaper_surface->unmap_pixels();
     }
-    m_wallpaper_surface->unmap_pixels();
     m_wm->set_window_surface(m_wallpaper_id, m_wallpaper_surface);
     
     // 2. Taskbar (Bottom panel)
@@ -390,9 +372,11 @@ void DesktopShell::launch() {
     m_taskbar_id = m_wm->create_window("Taskbar", task_geom);
     
     m_taskbar_surface = m_compositor->create_surface(task_geom.width, task_geom.height);
-    auto map_task = m_taskbar_surface->map_pixels();
-    std::fill(map_task.begin(), map_task.end(), static_cast<uint8_t>(0));
-    m_taskbar_surface->unmap_pixels();
+    if (m_taskbar_surface) {
+        auto map_task = m_taskbar_surface->map_pixels();
+        std::fill(map_task.begin(), map_task.end(), static_cast<uint8_t>(0));
+        m_taskbar_surface->unmap_pixels();
+    }
     m_wm->set_window_surface(m_taskbar_id, m_taskbar_surface);
     
     // 3. Launcher Window
@@ -415,7 +399,7 @@ void DesktopShell::update_frame() {
     bool taskbar_changed = false;
     {
         std::vector<desktop::TaskbarEntry> entries;
-        auto active_win = m_wm->get_active_window();
+        const auto active_win = focused_window(); // the shell's focus is the one the taskbar shows
         auto snapshots = m_wm->get_window_snapshots();
         
         std::vector<uint32_t> live_windows;
@@ -442,7 +426,7 @@ void DesktopShell::update_frame() {
         std::erase_if(m_chrome, [&](const auto& item) { return std::find(live_windows.begin(), live_windows.end(), item.first) == live_windows.end(); });
     }
     
-    if (taskbar_changed || !m_first_frame_drawn) {
+    if ((taskbar_changed || !m_first_frame_drawn) && m_taskbar_surface) {
         m_first_frame_drawn = true;
         // Clear Taskbar surface
         auto map_task = m_taskbar_surface->map_pixels();
@@ -463,6 +447,7 @@ void DesktopShell::update_frame() {
         std::lock_guard lock(m_mutex);
         int32_t notif_y = display_height() - kTaskbarHeight - 5; // Start drawing above taskbar
         for (const auto& notif : m_notifications) {
+            if (!m_wallpaper_surface) break;
             m_toolkit->draw_panel(m_wallpaper_surface, display_width() - 320, notif_y - 60, 300, 50);
             m_toolkit->draw_text(m_wallpaper_surface, display_width() - 310, notif_y - 50, notif.title, desktop::Color{255, 255, 255, 255});
             m_toolkit->draw_text(m_wallpaper_surface, display_width() - 310, notif_y - 30, notif.body, desktop::Color{200, 200, 200, 255});
@@ -470,7 +455,7 @@ void DesktopShell::update_frame() {
         }
         
         // Draw Launcher
-        if (m_launcher_visible) {
+        if (m_launcher_visible && m_launcher_surface) {
             // Clear Launcher surface
             {
                 auto map_launcher = m_launcher_surface->map_pixels();
@@ -587,20 +572,37 @@ void DesktopShell::route_text(const core::Event& ev) {
 }
 
 void DesktopShell::set_launcher_visible(bool visible) {
-    std::optional<uint32_t> refocus;
     {
         std::lock_guard lock(m_mutex);
         if (m_launcher_visible == visible) return;
         m_launcher_visible = visible;
         m_launcher_press.reset();
-        refocus = m_focused_window;
     }
+    // The launcher is in the Overlay layer, so it is above every application window and the taskbar without being
+    // raised or focused; showing it changes neither the stacking of windows nor the focus.
     m_wm->set_window_visibility(m_launcher_id, visible);
-    // The window manager has no layered stacking yet: raise the launcher above application windows while it is shown,
-    // and give the window manager's active window back to the shell's focus when it closes.
-    if (visible) m_wm->focus_window(m_launcher_id);
-    else if (refocus.has_value()) m_wm->focus_window(*refocus);
     invalidate_window_region(m_launcher_id); // repaint: the compositor only redraws dirty regions
+}
+
+std::optional<uint32_t> DesktopShell::next_focus_candidate(uint32_t leaving) {
+    // The topmost visible, not minimized application window other than `leaving` (stacking order, Normal layer only:
+    // the wallpaper, the taskbar and the launcher never take the focus).
+    const auto stack = m_wm->get_visible_windows_z_ordered();
+    std::lock_guard lock(m_mutex);
+    for (auto it = stack.rbegin(); it != stack.rend(); ++it) {
+        if (*it == leaving || is_shell_window(*it) || m_wm->get_window_layer(*it) != desktop::WindowLayer::Normal) continue;
+        const bool hosts_application = std::any_of(m_running_apps.begin(), m_running_apps.end(), [&](const auto& a) { return a.window_id == *it && a.app; });
+        if (hosts_application) return *it;
+    }
+    return std::nullopt;
+}
+
+void DesktopShell::focus_next_after(uint32_t leaving) {
+    if (const auto next = next_focus_candidate(leaving)) {
+        focus_window(*next);
+    } else {
+        clear_focus();
+    }
 }
 
 std::optional<size_t> DesktopShell::launcher_entry_at(int32_t x, int32_t y) const {
@@ -692,13 +694,19 @@ void DesktopShell::add_running_application(desktop::RunningApplication&& app) {
 }
 
 void DesktopShell::remove_running_application(uint32_t window_id) {
-    std::lock_guard lock(m_mutex);
-    if (m_focused_window.has_value() && m_focused_window.value() == window_id) {
-        m_focused_window = std::nullopt; // safely clear focus
+    bool had_focus = false;
+    {
+        std::lock_guard lock(m_mutex);
+        had_focus = m_focused_window == window_id;
+        if (had_focus) m_focused_window = std::nullopt; // never a focus on something that is going away
+        for (auto& app : m_running_apps) {
+            if (app.window_id == window_id) app.focused = false;
+        }
+        std::erase_if(m_running_apps, [window_id](const auto& app) { return app.window_id == window_id; });
+        m_content.erase(window_id);
+        if (m_app_pointer_owner == window_id) m_app_pointer_owner.reset();
     }
-    std::erase_if(m_running_apps, [window_id](const auto& app) { return app.window_id == window_id; });
-    m_content.erase(window_id);
-    if (m_app_pointer_owner == window_id) m_app_pointer_owner.reset();
+    if (had_focus) focus_next_after(window_id);
 }
 
 void DesktopShell::clear_running_applications() {
@@ -849,6 +857,7 @@ void DesktopShell::update_window_decoration(uint32_t window_id, bool focused) {
     std::shared_ptr<desktop::ISurface> surface = stamp.surface;
     if (!surface || surface->width() != bounds.width || surface->height() != bounds.height) {
         surface = m_compositor->create_surface(bounds.width, bounds.height); // only a new size needs new pixels
+        if (!surface) return; // a size the limits refuse: the window keeps the frame it has (retried while it differs)
     }
     m_decorator->draw_decorations(surface, layout, title, visual, m_theme);
     m_wm->set_window_decoration(window_id, surface, style.margins);
@@ -988,18 +997,7 @@ void DesktopShell::activate_control(uint32_t wid, desktop::DecorationHitRegion c
         invalidate_window_region(wid);
         m_wm->set_window_state(wid, desktop::WindowState::Minimized);
         invalidate_window_region(wid);
-
-        // Transfer focus if the minimized window was focused
-        std::lock_guard lock(m_mutex);
-        if (m_focused_window.has_value() && m_focused_window.value() == wid) {
-            auto visible_windows = m_wm->get_visible_windows_z_ordered();
-            if (!visible_windows.empty()) {
-                m_focused_window = visible_windows.back();
-                m_wm->focus_window(m_focused_window.value());
-            } else {
-                m_focused_window = std::nullopt;
-            }
-        }
+        if (focused_window() == std::optional<uint32_t>{wid}) focus_next_after(wid);
         return;
     }
 

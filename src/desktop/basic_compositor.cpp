@@ -1,5 +1,6 @@
 #include "basic_compositor.hpp"
 #include "software_surface.hpp"
+#include "vynexos/desktop/surface_limits.hpp"
 #include <algorithm>
 #include <cmath>
 #include <cstring>
@@ -52,6 +53,7 @@ hal::DisplaySize BasicCompositor::logical_size() const {
 }
 
 std::shared_ptr<ISurface> BasicCompositor::create_surface(uint32_t width, uint32_t height) {
+    if (!surface_byte_size(width, height)) return nullptr; // refused before anything is allocated
     return std::make_shared<SoftwareSurface>(width, height);
 }
 
@@ -73,9 +75,11 @@ std::expected<void, DisplayError> BasicCompositor::render_frame(const SceneGraph
 std::expected<void, DisplayError> BasicCompositor::render_scene_internal(const SceneGraph& scene) {
     if (m_master_fb.pixels.empty()) {
         const auto size = m_display->logical_size();
+        const auto bytes = surface_byte_size(size.width, size.height);
+        if (!bytes) return std::unexpected(DisplayError::InvalidBuffer); // a display size no surface may have
         m_master_fb.width = size.width;
         m_master_fb.height = size.height;
-        m_master_fb.pixels.resize(m_master_fb.width * m_master_fb.height * 4, static_cast<uint8_t>(0));
+        m_master_fb.pixels.resize(*bytes, static_cast<uint8_t>(0));
     }
     
     if (m_first_frame) {

@@ -397,7 +397,7 @@ void test_layer_semantics_for_the_wallpaper() {
     CHECK(r.wm.get_window_layer(a) == WindowLayer::Normal);
     CHECK(r.wm.get_resize_handle_at(px, py).has_value());
 
-    // If the wallpaper were an ordinary window, its visible pixels would win over A's invisible band.
+    // Made an ordinary window, the wallpaper enters the Normal layer on top of A, so it covers A's band like any window above A.
     r.wm.set_window_layer(r.wallpaper, WindowLayer::Normal);
     CHECK(r.wm.get_window_at(px, py) == r.wallpaper);
     CHECK(!r.wm.get_resize_handle_at(px, py).has_value());

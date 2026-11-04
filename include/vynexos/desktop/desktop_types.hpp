@@ -64,13 +64,14 @@ struct FrameStyle {
     uint32_t button_margin_right{10};
 };
 
-/// Stacking class of a window. The window manager keeps desktop-level windows (the wallpaper) from swallowing the
-/// invisible resize bands of ordinary windows; full ordering rules arrive with the layered z-order.
+/// Stacking class of a window. The window manager's single stacking order is sorted by layer, in this order, bottom to
+/// top; composition and hit-testing both follow it, so what is drawn on top is what receives the pointer. Within a layer,
+/// the most recently raised (focused) window is on top. Raising never moves a window out of its layer.
 enum class WindowLayer : uint8_t {
-    Desktop,  ///< wallpaper: below everything, never blocks window resize bands
-    Normal,   ///< application windows (default)
-    Panel,    ///< taskbar
-    Overlay   ///< launcher, menus: above panels
+    Desktop = 0,  ///< wallpaper: below everything
+    Normal = 1,   ///< application windows (default)
+    Panel = 2,    ///< taskbar: above every application window, maximized ones included
+    Overlay = 3   ///< launcher, menus: above panels
 };
 
 struct WindowFrameMetrics {

@@ -345,7 +345,10 @@ void test_single_instance_close_and_reopen() {
     CHECK(r.host->window_of("ProbeA") == first && r.probe("ProbeA") == instance);
     CHECK(r.counters_a.alive == 1 && r.counters_a.created == 1);
     CHECK(r.shell->focused_window() == first);
-    CHECK(r.wm->get_windows_z_ordered().back() == *first);
+    // On top of the application windows (the Normal layer); panels and overlays stay above every application.
+    const auto stack = r.wm->get_windows_z_ordered();
+    const auto top_app = std::find_if(stack.rbegin(), stack.rend(), [&](uint32_t id) { return r.wm->get_window_layer(id) == WindowLayer::Normal; });
+    CHECK(top_app != stack.rend() && *top_app == *first);
 
     vynex_test::context() = "a minimized instance is restored";
     r.pointer.click(vynex_test::control_point(*r.wm, *first, DecorationHitRegion::MinimizeButton));
