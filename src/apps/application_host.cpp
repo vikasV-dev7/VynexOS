@@ -46,7 +46,10 @@ std::optional<uint32_t> ApplicationHost::open(std::string_view app_id) {
     running.window_id = window;
     running.surface = std::move(surface);
     running.visible = true;
-    m_shell->add_running_application(std::move(running));
+    m_shell->add_running_application(std::move(running)); // gives the window its frame (and so its margins)
+    // Placement policy: on a desktop too small for the window's usual place, its title bar still opens on screen.
+    const auto placed = desktop::constrain_window_position(geometry, m_wm->get_window_margins(window), m_wm->get_work_area());
+    if (placed.x != geometry.x || placed.y != geometry.y) m_wm->move_window(window, placed.x, placed.y);
     m_hosted.push_back({descriptor->app_id, instance, window});
     m_shell->focus_window(window);
     return window;

@@ -131,7 +131,7 @@ DesktopShell::DesktopShell(std::shared_ptr<desktop::IWindowManager> wm,
                     }
                 }
                 
-                if (resize_handle.has_value() && resize_handle->window_id != m_wallpaper_id && resize_handle->window_id != m_taskbar_id) {
+                if (resize_handle.has_value() && !is_shell_window(resize_handle->window_id)) {
                     if (m_wm->get_window_state(resize_handle->window_id) == desktop::WindowState::Maximized) {
                         return; // Resizing disabled for Maximized windows
                     }
@@ -248,11 +248,22 @@ DesktopShell::DesktopShell(std::shared_ptr<desktop::IWindowManager> wm,
                         }
                         
                         uint32_t resize_wid = m_resize_state.window_id.value();
+                        if (top) {
+                            // The top edge stops where the title bar would leave the work area (placement policy); the
+                            // bottom edge stays put.
+                            const auto placed = desktop::constrain_window_position(geom, m_wm->get_window_margins(resize_wid), m_wm->get_work_area());
+                            if (placed.y > geom.y) {
+                                const int64_t bottom = static_cast<int64_t>(geom.y) + geom.height;
+                                geom.height = static_cast<uint32_t>(std::max<int64_t>(0, bottom - placed.y));
+                                geom.y = placed.y;
+                            }
+                        }
                         invalidate_window_region(resize_wid);
-                        m_wm->set_window_geometry(resize_wid, geom);
+                        // A size the window manager rejects (beyond the surface limits) leaves the window as it was.
+                        const bool resized = m_wm->set_window_geometry(resize_wid, geom);
                         // The window manager enforces a minimum size. Resizing from the left or top edge must not then
                         // push the window along: the opposite edge stays where it was.
-                        if (auto applied = m_wm->get_window_geometry(resize_wid); applied && (left || top) &&
+                        if (auto applied = m_wm->get_window_geometry(resize_wid); resized && applied && (left || top) &&
                                                                                    (applied->width != geom.width || applied->height != geom.height)) {
                             desktop::WindowGeometry anchored = *applied;
                             if (left) anchored.x = initial.x + static_cast<int32_t>(initial.width) - static_cast<int32_t>(applied->width);
@@ -289,7 +300,7 @@ DesktopShell::DesktopShell(std::shared_ptr<desktop::IWindowManager> wm,
                         // Dispatch to IWindowManager
                         uint32_t drag_wid = m_drag_state.window_id.value();
                         invalidate_window_region(drag_wid);
-                        m_wm->move_window(drag_wid, new_x, new_y);
+                        place_window(drag_wid, new_x, new_y);
                         invalidate_window_region(drag_wid);
                     }
                 }
@@ -405,9 +416,7 @@ void DesktopShell::update_frame() {
         std::vector<uint32_t> live_windows;
         live_windows.reserve(snapshots.size());
         for (const auto& snap : snapshots) {
-            if (snap.window_id == m_wallpaper_id || snap.window_id == m_taskbar_id || snap.window_id == m_launcher_id) {
-                continue;
-            }
+            if (is_shell_window(snap.window_id)) continue; // no frame, no taskbar entry
 
             live_windows.push_back(snap.window_id);
             sync_window_chrome(snap);
@@ -442,18 +451,10 @@ void DesktopShell::update_frame() {
         invalidate_window_region(m_taskbar_id);
     }
     
-    // Draw Notifications
+    sync_notifications();
+
     {
         std::lock_guard lock(m_mutex);
-        int32_t notif_y = display_height() - kTaskbarHeight - 5; // Start drawing above taskbar
-        for (const auto& notif : m_notifications) {
-            if (!m_wallpaper_surface) break;
-            m_toolkit->draw_panel(m_wallpaper_surface, display_width() - 320, notif_y - 60, 300, 50);
-            m_toolkit->draw_text(m_wallpaper_surface, display_width() - 310, notif_y - 50, notif.title, desktop::Color{255, 255, 255, 255});
-            m_toolkit->draw_text(m_wallpaper_surface, display_width() - 310, notif_y - 30, notif.body, desktop::Color{200, 200, 200, 255});
-            notif_y -= 60;
-        }
-        
         // Draw Launcher
         if (m_launcher_visible && m_launcher_surface) {
             // Clear Launcher surface
@@ -582,6 +583,59 @@ void DesktopShell::set_launcher_visible(bool visible) {
     // raised or focused; showing it changes neither the stacking of windows nor the focus.
     m_wm->set_window_visibility(m_launcher_id, visible);
     invalidate_window_region(m_launcher_id); // repaint: the compositor only redraws dirty regions
+}
+
+desktop::Rect DesktopShell::notification_rect(size_t index) const {
+    // Stacked upwards from just above the taskbar at the right edge, 60 px apart (the layout the wallpaper used to carry).
+    const int32_t bottom = display_height() - kTaskbarHeight - 5 - static_cast<int32_t>(index) * kNotificationStep;
+    return {display_width() - 320, bottom - kNotificationStep, kNotificationWidth, kNotificationHeight};
+}
+
+void DesktopShell::sync_notifications() {
+    // Each notification is an Overlay window exactly the size of its panel: above application windows and the taskbar,
+    // receiving the pointer over its own pixels only (not in the gaps between panels), never framed or focused. Rebuilt
+    // here, on the frame thread, whenever the list changes; the event handlers only edit the list.
+    std::vector<desktop::Notification> current;
+    {
+        std::lock_guard lock(m_mutex);
+        current = m_notifications;
+    }
+    const bool unchanged = current.size() == m_notification_views.size() &&
+                           std::equal(current.begin(), current.end(), m_notification_views.begin(),
+                                      [](const desktop::Notification& n, const NotificationView& v) { return n.id == v.id; });
+    if (unchanged) return;
+
+    for (const NotificationView& view : m_notification_views) {
+        if (view.window == 0) continue;
+        invalidate_window_region(view.window);
+        m_wm->destroy_window(view.window);
+    }
+    m_notification_views.clear();
+    for (size_t i = 0; i < current.size(); ++i) {
+        const desktop::Rect r = notification_rect(i);
+        auto surface = m_compositor->create_surface(r.width, r.height);
+        if (!surface) {
+            m_notification_views.push_back({current[i].id, 0}); // refused by the surface limits: listed, not shown
+            continue;
+        }
+        m_toolkit->draw_panel(surface, 0, 0, r.width, r.height);
+        m_toolkit->draw_text(surface, 10, 10, current[i].title, desktop::Color{255, 255, 255, 255});
+        m_toolkit->draw_text(surface, 10, 30, current[i].body, desktop::Color{200, 200, 200, 255});
+        const uint32_t window = m_wm->create_window("Notification", {r.x, r.y, r.width, r.height});
+        m_wm->set_window_surface(window, std::move(surface));
+        m_wm->set_window_layer(window, desktop::WindowLayer::Overlay);
+        m_notification_views.push_back({current[i].id, window});
+        invalidate_window_region(window);
+    }
+}
+
+void DesktopShell::place_window(uint32_t window_id, int32_t x, int32_t y) {
+    auto geometry = m_wm->get_window_geometry(window_id);
+    if (!geometry) return;
+    geometry->x = x;
+    geometry->y = y;
+    const auto placed = desktop::constrain_window_position(*geometry, m_wm->get_window_margins(window_id), m_wm->get_work_area());
+    m_wm->move_window(window_id, placed.x, placed.y);
 }
 
 std::optional<uint32_t> DesktopShell::next_focus_candidate(uint32_t leaving) {

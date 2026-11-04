@@ -227,6 +227,12 @@ target_include_directories(test_surface_limits PRIVATE ${PROJECT_SOURCE_DIR}/inc
 target_link_libraries(test_surface_limits PRIVATE vynex_apps vynex_core vynex_desktop vynex_hal)
 add_test(NAME SurfaceLimitTests COMMAND test_surface_limits)
 
+# Window placement policy, all-or-nothing resizing, notifications as overlays
+add_executable(test_desktop_usability test_desktop_usability.cpp)
+target_include_directories(test_desktop_usability PRIVATE ${PROJECT_SOURCE_DIR}/include)
+target_link_libraries(test_desktop_usability PRIVATE vynex_apps vynex_core vynex_desktop vynex_hal)
+add_test(NAME DesktopUsabilityTests COMMAND test_desktop_usability)
+
 # Initial filesystem contents: the generic seeding helper (vynex_core) and the startup profiles and options (vynex_startup)
 add_executable(test_vfs_seed test_vfs_seed.cpp)
 target_include_directories(test_vfs_seed PRIVATE ${PROJECT_SOURCE_DIR}/include)

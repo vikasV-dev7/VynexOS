@@ -22,8 +22,8 @@ public:
     
     void focus_window(uint32_t window_id) override;
     void move_window(uint32_t window_id, int32_t x, int32_t y) override;
-    void resize_window(uint32_t window_id, uint32_t width, uint32_t height) override;
-    void set_window_geometry(uint32_t window_id, const WindowGeometry& geometry) override;
+    bool resize_window(uint32_t window_id, uint32_t width, uint32_t height) override;
+    bool set_window_geometry(uint32_t window_id, const WindowGeometry& geometry) override;
     
     void set_work_area(const WindowGeometry& area) override;
     WindowGeometry get_work_area() const override;
@@ -93,6 +93,8 @@ private:
     std::vector<uint32_t> m_z_order;
     std::optional<uint32_t> m_focused_window;
     void restack_locked(uint32_t window_id); // to the top of its own layer
+    // Applies a new client geometry (minimum size raised) unless its decorated bounds exceed the surface limits.
+    bool apply_geometry_locked(uint32_t window_id, WindowRecord& win, WindowGeometry geometry);
 
     // The style in effect for a window, with the margins actually in use (set_window_decoration may override them).
     [[nodiscard]] static FrameStyle effective_style(const WindowRecord& win);

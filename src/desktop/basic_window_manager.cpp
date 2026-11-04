@@ -2,6 +2,7 @@
 #include "software_surface.hpp"
 #include "vynexos/desktop/desktop_types.hpp"
 #include "vynexos/desktop/decoration_layout.hpp"
+#include "vynexos/desktop/surface_limits.hpp"
 #include "vynexos/hal/input_driver.hpp"
 #include <algorithm>
 
@@ -205,25 +206,45 @@ void BasicWindowManager::move_window(uint32_t window_id, int32_t x, int32_t y) {
     }
 }
 
-void BasicWindowManager::resize_window(uint32_t window_id, uint32_t width, uint32_t height) {
-    std::lock_guard lock(m_mutex);
-    if (auto it = m_windows.find(window_id); it != m_windows.end()) {
-        it->second.geometry.width = std::max(width, it->second.min_width);
-        it->second.geometry.height = std::max(height, it->second.min_height);
-        m_logger->trace("BasicWindowManager: Resized window [ID: {}] to {}x{}", window_id, width, height);
+bool BasicWindowManager::apply_geometry_locked(uint32_t window_id, WindowRecord& win, WindowGeometry geometry) {
+    geometry.width = std::max(geometry.width, win.min_width);
+    geometry.height = std::max(geometry.height, win.min_height);
+    // The window and its surfaces always agree: a size its decoration surface could not have is refused outright. The
+    // decorated size is computed in 64 bits: near UINT32_MAX, adding the margins in 32 bits would wrap to a small size.
+    const uint64_t decorated_w = uint64_t{geometry.width} + static_cast<uint32_t>(win.margins.left + win.margins.right);
+    const uint64_t decorated_h = uint64_t{geometry.height} + static_cast<uint32_t>(win.margins.top + win.margins.bottom);
+    if (decorated_w > kMaxSurfaceDimension || decorated_h > kMaxSurfaceDimension ||
+        !surface_byte_size(static_cast<uint32_t>(decorated_w), static_cast<uint32_t>(decorated_h))) {
+        m_logger->warning("BasicWindowManager: Rejected size {}x{} for window [ID: {}] (exceeds the surface limits)", geometry.width,
+                          geometry.height, window_id);
+        return false;
     }
+    win.geometry = geometry;
+    return true;
 }
 
-void BasicWindowManager::set_window_geometry(uint32_t window_id, const WindowGeometry& geometry) {
+bool BasicWindowManager::resize_window(uint32_t window_id, uint32_t width, uint32_t height) {
     std::lock_guard lock(m_mutex);
     if (auto it = m_windows.find(window_id); it != m_windows.end()) {
-        it->second.geometry.x = geometry.x;
-        it->second.geometry.y = geometry.y;
-        it->second.geometry.width = std::max(geometry.width, it->second.min_width);
-        it->second.geometry.height = std::max(geometry.height, it->second.min_height);
-        m_logger->trace("BasicWindowManager: Set geometry window [ID: {}] to {},{} {}x{}", 
-                        window_id, geometry.x, geometry.y, geometry.width, geometry.height);
+        WindowGeometry g = it->second.geometry;
+        g.width = width;
+        g.height = height;
+        if (!apply_geometry_locked(window_id, it->second, g)) return false;
+        m_logger->trace("BasicWindowManager: Resized window [ID: {}] to {}x{}", window_id, width, height);
+        return true;
     }
+    return false;
+}
+
+bool BasicWindowManager::set_window_geometry(uint32_t window_id, const WindowGeometry& geometry) {
+    std::lock_guard lock(m_mutex);
+    if (auto it = m_windows.find(window_id); it != m_windows.end()) {
+        if (!apply_geometry_locked(window_id, it->second, geometry)) return false;
+        m_logger->trace("BasicWindowManager: Set geometry window [ID: {}] to {},{} {}x{}",
+                        window_id, geometry.x, geometry.y, geometry.width, geometry.height);
+        return true;
+    }
+    return false;
 }
 
 void BasicWindowManager::set_work_area(const WindowGeometry& area) {

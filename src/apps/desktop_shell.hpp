@@ -13,6 +13,7 @@
 #include <string>
 #include <unordered_map>
 #include <optional>
+#include <algorithm>
 
 namespace vynexos::apps {
 
@@ -102,6 +103,9 @@ private:
     std::optional<size_t> m_launcher_press; // entry pressed, until the release; guarded by m_mutex
     void set_launcher_visible(bool visible);
 
+    // Moves a window to (x, y), or as near as the placement policy allows (title bar reachable in the work area).
+    void place_window(uint32_t window_id, int32_t x, int32_t y);
+
     // Focus succession: when the focused window closes or is minimized, the topmost remaining application window takes the
     // focus (nothing does if none is left). Restoring a window focuses it.
     std::optional<uint32_t> next_focus_candidate(uint32_t leaving);
@@ -139,8 +143,21 @@ private:
     void validate_captures();
     void cancel_interaction();
     bool is_shell_window(uint32_t window_id) const {
-        return window_id == m_wallpaper_id || window_id == m_taskbar_id || window_id == m_launcher_id;
+        return window_id == m_wallpaper_id || window_id == m_taskbar_id || window_id == m_launcher_id ||
+               std::any_of(m_notification_views.begin(), m_notification_views.end(), [&](const NotificationView& v) { return v.window == window_id; });
     }
+
+    // Notifications: one Overlay window per notification (see sync_notifications).
+    struct NotificationView {
+        uint32_t id;     // the notification
+        uint32_t window; // its window (0: none, its surface was refused)
+    };
+    std::vector<NotificationView> m_notification_views; // frame/input thread only
+    static constexpr uint32_t kNotificationWidth = 300;
+    static constexpr uint32_t kNotificationHeight = 50;
+    static constexpr int32_t kNotificationStep = 60;
+    desktop::Rect notification_rect(size_t index) const;
+    void sync_notifications();
     
     // Desktop layout derives from the compositor's logical size (no hard-coded resolution).
     static constexpr int32_t kTaskbarHeight = 40;

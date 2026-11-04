@@ -193,8 +193,11 @@ void test_failed_resize_keeps_the_valid_surface() {
     const int renders = app->renders;
 
     vynex_test::context() = "a client area whose surface the limits refuse (9000 x 9000 = 81 Mi pixels)";
-    r.wm->set_window_geometry(w, {100, 100, 9000, 9000});
+    const auto before = *r.wm->get_window_geometry(w);
+    CHECK(!r.wm->set_window_geometry(w, {100, 100, 9000, 9000})); // rejected as a whole...
     r.settle();
+    const auto kept = *r.wm->get_window_geometry(w); // ...so the window keeps its geometry, position included
+    CHECK(kept.x == before.x && kept.y == before.y && kept.width == 400 && kept.height == 300);
     const auto [content_after, decoration_after] = r.surfaces_of(w);
     CHECK(content_after == content && content_after->width() == 400 && content_after->height() == 300); // the same, intact surface
     CHECK(decoration_after == decoration);
@@ -204,14 +207,14 @@ void test_failed_resize_keeps_the_valid_surface() {
     r.settle();
     CHECK(app->renders == renders + 1 && app->rendered_w == 400 && app->rendered_h == 300);
     const auto& fb = r.display->last;
-    const size_t i = (static_cast<size_t>(100 + 10) * fb.width + 100 + 10) * 4; // client origin (100,100) + (10,10)
+    const size_t i = (static_cast<size_t>(kept.y + 10) * fb.width + static_cast<size_t>(kept.x + 10)) * 4; // client origin + (10,10)
     auto px = content->map_pixels();
     const size_t s = (static_cast<size_t>(10) * 400 + 10) * 4;
     CHECK(fb.pixels[i] == px[s] && fb.pixels[i + 1] == px[s + 1] && fb.pixels[i + 2] == px[s + 2]);
     content->unmap_pixels();
 
     vynex_test::context() = "back to a valid size: a new surface of that size, painted";
-    r.wm->set_window_geometry(w, {100, 100, 500, 350});
+    CHECK(r.wm->set_window_geometry(w, {100, 100, 500, 350}));
     r.settle();
     const auto [resized, redecorated] = r.surfaces_of(w);
     CHECK(resized && resized != content && resized->width() == 500 && resized->height() == 350);

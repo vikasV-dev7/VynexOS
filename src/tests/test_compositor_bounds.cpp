@@ -493,6 +493,7 @@ void test_shell_drag_beyond_every_edge() {
     };
     r.mouse(gx, gy, 1);
     int32_t cur_x = start.x, cur_y = start.y;
+    int partly_off_screen = 0;
     for (const Target& t : targets) {
         // Three steps per move, with pointer coordinates that go negative as they do under mouse capture.
         for (int step = 1; step <= 3; ++step) {
@@ -501,7 +502,12 @@ void test_shell_drag_beyond_every_edge() {
             r.frame();
             g_context = std::string("shell drag towards '") + t.name + "' step " + std::to_string(step);
             const auto g = *r.wm->get_window_geometry(r.win);
-            CHECK(g.x == nx && g.y == ny); // movement is not restricted
+            // Interactive moves follow the placement policy (the title bar stays reachable), so the window stops at the
+            // edges the policy allows; it still goes partly off the left, right and bottom edges, which this test is for.
+            const auto expected = constrain_window_position({nx, ny, start.width, start.height}, r.wm->get_window_margins(r.win), r.wm->get_work_area());
+            CHECK(g.x == expected.x && g.y == expected.y);
+            const Rect d = r.wm->get_decorated_window_bounds(r.win);
+            if (d.x < 0 || d.y < 0 || d.x + static_cast<int64_t>(d.width) > 1920 || d.y + static_cast<int64_t>(d.height) > 1080) ++partly_off_screen;
             r.expect_incremental_equals_full();
         }
         cur_x = t.x;
@@ -509,7 +515,8 @@ void test_shell_drag_beyond_every_edge() {
     }
     r.mouse(gx, gy, 0);
     r.frame();
-    std::printf("test_shell_drag_beyond_every_edge passed (%zu targets x 3 steps)\n", std::size(targets));
+    CHECK(partly_off_screen >= 20); // the compositor really was exercised with the window crossing the screen edges
+    std::printf("test_shell_drag_beyond_every_edge passed(%zu targets x 3 steps)\n", std::size(targets));
 }
 
 void test_shell_resize_maximize_restore_after_off_screen() {
