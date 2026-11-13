@@ -247,6 +247,26 @@ add_executable(test_composition_vfs test_composition_vfs.cpp ${PROJECT_SOURCE_DI
 target_include_directories(test_composition_vfs PRIVATE ${PROJECT_SOURCE_DIR}/include)
 target_link_libraries(test_composition_vfs PRIVATE vynex_startup vynex_core vynex_hal vynex_desktop vynex_apps)
 add_test(NAME CompositionRootVfsTests COMMAND test_composition_vfs)
+# Shutdown safety: queued asynchronous events never reach a destroyed subscriber or bus; scheduler drain semantics.
+add_executable(test_shutdown_safety test_shutdown_safety.cpp ${PROJECT_SOURCE_DIR}/src/apps/desktop_shell.cpp)
+target_include_directories(test_shutdown_safety PRIVATE ${PROJECT_SOURCE_DIR}/include)
+target_link_libraries(test_shutdown_safety PRIVATE vynex_core vynex_desktop vynex_hal)
+add_test(NAME ShutdownSafetyTests COMMAND test_shutdown_safety)
+# CompositionRoot shutdown: idempotent, safe from the destructor, safe without initialize().
+add_executable(test_composition_shutdown test_composition_shutdown.cpp ${PROJECT_SOURCE_DIR}/src/bootstrap/composition_root.cpp)
+target_include_directories(test_composition_shutdown PRIVATE ${PROJECT_SOURCE_DIR}/include)
+target_link_libraries(test_composition_shutdown PRIVATE vynex_startup vynex_core vynex_hal vynex_desktop vynex_apps)
+add_test(NAME CompositionRootShutdownTests COMMAND test_composition_shutdown)
+# Idle logging (building the scene logs nothing; warnings and errors still do) and the scene snapshot test interface.
+add_executable(test_scene_snapshot test_scene_snapshot.cpp)
+target_include_directories(test_scene_snapshot PRIVATE ${PROJECT_SOURCE_DIR}/include)
+target_link_libraries(test_scene_snapshot PRIVATE vynex_startup vynex_core vynex_desktop vynex_hal)
+add_test(NAME SceneSnapshotTests COMMAND test_scene_snapshot)
+# Mock block device: sparse allocate-on-write storage, bounds rules (including wrap-around), allocation behaviour.
+add_executable(test_block_device test_block_device.cpp)
+target_include_directories(test_block_device PRIVATE ${PROJECT_SOURCE_DIR}/include)
+target_link_libraries(test_block_device PRIVATE vynex_hal vynex_core)
+add_test(NAME BlockDeviceTests COMMAND test_block_device)
 # The program itself refuses an invalid command line (exit status 2, a diagnostic, no desktop started).
 add_test(NAME StartupRejectsBadOptions COMMAND ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:vynex_init> -P ${PROJECT_SOURCE_DIR}/cmake/check_startup_rejects.cmake)
 
@@ -261,6 +281,8 @@ set_tests_properties(CheckMechanismDetectsFalseCondition CheckMechanismDetectsFa
 # Test sources must not use assert() (it vanishes under NDEBUG).
 add_test(NAME TestSourcesHaveNoAssert COMMAND ${CMAKE_COMMAND} -DTEST_DIR=${CMAKE_CURRENT_SOURCE_DIR} -P ${PROJECT_SOURCE_DIR}/cmake/check_no_assert.cmake)
 
+# The UI harness reads window state from the scene snapshot, never by parsing the runtime log.
+add_test(NAME HarnessUsesSceneSnapshot COMMAND ${CMAKE_COMMAND} -DHARNESS_DIR=${PROJECT_SOURCE_DIR}/tools/ui_harness -P ${PROJECT_SOURCE_DIR}/cmake/check_harness_no_log_parsing.cmake)
 # --- Timeouts -------------------------------------------------------------------------------------------------------------
 # Every test has an explicit timeout so a hung or crash-stalled test fails instead of blocking CTest (its default is 25 min).
 # Slower tests are listed here (seconds); every other registered test gets the 120 s default below. Measured: the slowest are

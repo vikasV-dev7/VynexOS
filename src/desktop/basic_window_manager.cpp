@@ -415,46 +415,14 @@ SceneGraph BasicWindowManager::build_scene() const {
     SceneGraph scene;
     scene.reserve(m_z_order.size());
     
-    static int frame_count = 0;
-    frame_count++;
-    
-    if (frame_count % 60 == 0) {
-        m_logger->info("----------------------------------");
-        m_logger->info("Registered Windows:");
-        for (const auto& [id, win] : m_windows) {
-            auto it = std::find(m_z_order.begin(), m_z_order.end(), id);
-            int z_idx = (it != m_z_order.end()) ? static_cast<int>(std::distance(m_z_order.begin(), it)) : -1;
-            m_logger->info("Window ID: {}, Title: {}, Visible: {}, Focused: {}, Z-order: {}, Bounds: [{},{},{}x{}], Surface pointer: {}, Opacity: {}",
-                id, win.title, win.visible, (m_focused_window.has_value() && m_focused_window.value() == id), z_idx,
-                win.geometry.x, win.geometry.y, win.geometry.width, win.geometry.height,
-                static_cast<void*>(win.surface.get()), win.opacity);
-        }
-        m_logger->info("----------------------------------");
-        m_logger->info("Generated SceneGraph:");
-    }
-    
     for (uint32_t id : m_z_order) {
-        if (!m_windows.contains(id)) {
-            if (frame_count % 60 == 0) m_logger->info("Excluded Window ID: {} - Reason: Missing registration", id);
-            continue;
-        }
-        const auto& win = m_windows.at(id);
-        if (!win.surface) {
-            if (frame_count % 60 == 0) m_logger->info("Excluded Window ID: {} ({}) - Reason: Null surface", id, win.title);
-            continue;
-        }
-        if (!win.visible) {
-            if (frame_count % 60 == 0) m_logger->info("Excluded Window ID: {} ({}) - Reason: Invisible", id, win.title);
-            continue;
-        }
-        if (win.state == WindowState::Minimized) {
-            if (frame_count % 60 == 0) m_logger->info("Excluded Window ID: {} ({}) - Reason: Minimized", id, win.title);
-            continue;
-        }
-        if (win.opacity <= 0.0f) {
-            if (frame_count % 60 == 0) m_logger->info("Excluded Window ID: {} ({}) - Reason: Zero opacity", id, win.title);
-        }
-        
+        // Left out of the scene: unregistered, without a content surface, hidden, or minimized. (Nothing is logged here:
+        // this runs every frame. Tools read the window table through the scene snapshot, bootstrap/scene_snapshot.hpp.)
+        const auto found = m_windows.find(id);
+        if (found == m_windows.end()) continue;
+        const auto& win = found->second;
+        if (!win.surface || !win.visible || win.state == WindowState::Minimized) continue;
+
         // Push Decoration Layer
         if (win.decoration_surface) {
             RenderLayer dec_layer;
@@ -485,20 +453,8 @@ SceneGraph BasicWindowManager::build_scene() const {
             layer.visible = win.visible;
             layer.surface = win.surface;
             
-            if (frame_count % 60 == 0) {
-                auto it = std::find(m_z_order.begin(), m_z_order.end(), id);
-                int z_idx = (it != m_z_order.end()) ? static_cast<int>(std::distance(m_z_order.begin(), it)) : -1;
-                m_logger->info("RenderLayer Content: Window ID: {}, Bounds: [{},{},{}x{}], Clip: [{},{},{}x{}], Opacity: {}, Visible: {}, Surface pointer: {}, Z-order: {}",
-                    id, layer.bounds.x, layer.bounds.y, layer.bounds.width, layer.bounds.height,
-                    layer.clip.x, layer.clip.y, layer.clip.width, layer.clip.height,
-                    layer.opacity, layer.visible, static_cast<void*>(layer.surface.get()), z_idx);
-            }
             scene.push_back(std::move(layer));
         }
-    }
-    
-    if (frame_count % 60 == 0) {
-        m_logger->info("RenderLayer count: {}", scene.size());
     }
     
     return scene;

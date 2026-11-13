@@ -197,6 +197,21 @@ void test_invalid_command_lines_are_rejected() {
     std::printf("test_invalid_command_lines_are_rejected passed\n");
 }
 
+void test_scene_snapshot_option() {
+    CHECK(StartupOptions{}.scene_snapshot_path.empty()); // off unless asked for
+    CHECK(parse({}).options.scene_snapshot_path.empty());
+    const auto on = parse({"--scene-snapshot=C:\\run\\scene.txt"});
+    CHECK(on.ok() && on.options.scene_snapshot_path == "C:\\run\\scene.txt");
+    const auto both = parse({"--vfs-profile=empty", "--scene-snapshot=scene.txt"});
+    CHECK(both.ok() && both.options.vfs_profile == VfsProfile::Empty && both.options.scene_snapshot_path == "scene.txt");
+    CHECK(parse({"--scene-snapshot=a", "--scene-snapshot=b"}).options.scene_snapshot_path == "b"); // last value wins
+    CHECK(!parse({"--scene-snapshot"}).ok()); // no file
+    CHECK(!parse({"--scene-snapshot="}).ok());
+    CHECK(!parse({"--scene-snapshotx=a"}).ok());
+    CHECK(startup_usage().find("--scene-snapshot=<file>") != std::string::npos);
+    std::printf("test_scene_snapshot_option passed\n");
+}
+
 } // namespace
 
 int main() {
@@ -209,6 +224,7 @@ int main() {
     test_default_profile_selection();
     test_command_line_profiles();
     test_invalid_command_lines_are_rejected();
-    std::printf("All startup profile tests passed.\n");
+    test_scene_snapshot_option();
+std::printf("All startup profile tests passed.\n");
     return 0;
 }

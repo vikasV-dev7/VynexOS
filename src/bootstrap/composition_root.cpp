@@ -80,6 +80,10 @@ CompositionRoot::CompositionRoot(StartupOptions options) {
             m_logger->error("VynexOS Bootstrap: VFS profile entry {} not created: {}", failure.path, failure.reason);
         }
     }
+    if (!options.scene_snapshot_path.empty()) {
+        m_scene_snapshot = std::make_unique<SceneSnapshotWriter>(options.scene_snapshot_path, m_logger);
+        m_logger->info("VynexOS Bootstrap: scene snapshot enabled: {}", options.scene_snapshot_path);
+    }
 m_app_registry = std::make_shared<apps::ApplicationRegistry>();
     m_app_host = std::make_shared<apps::ApplicationHost>(m_app_registry, m_window_manager, m_compositor, m_desktop_shell);
     m_desktop_shell->set_application_host(m_app_host.get());
@@ -93,7 +97,8 @@ m_app_registry = std::make_shared<apps::ApplicationRegistry>();
                                      [toolkit = m_widget_toolkit]() { return std::make_unique<apps::DemoApp>(toolkit); });
 }
 
-CompositionRoot::~CompositionRoot() = default;
+// A root that was never shut down explicitly (an exception, an early return) still tears down in the safe order.
+CompositionRoot::~CompositionRoot() { shutdown(); }
 
 void CompositionRoot::initialize() {
     m_logger->info("VynexOS Bootstrap: Initializing Core Services...");
@@ -162,19 +167,13 @@ void CompositionRoot::run() {
         // WindowManager builds the scene graph
         auto scene = m_window_manager->build_scene();
         
-        auto start_render = std::chrono::steady_clock::now();
         // Compositor handles rendering the scene graph to the display backend
         if (auto res = m_compositor->render_frame(scene); !res) {
             m_logger->error("Compositor dropped frame due to display error.");
         }
-        auto end_render = std::chrono::steady_clock::now();
-        auto dur = std::chrono::duration_cast<std::chrono::microseconds>(end_render - start_render).count();
-        
-        static uint64_t frame_count = 0;
-        frame_count++;
-        if (frame_count % 60 == 0) { 
-            m_logger->info("Frame Loop: Frame={}, SceneSize={}, RenderDur={}us", frame_count, scene.size(), dur);
-        }
+
+        // Test/diagnostic interface (--scene-snapshot): the window table, rewritten only when it changes.
+        if (m_scene_snapshot) m_scene_snapshot->update(*m_window_manager, scene);
         
         frame_clock.end_frame_and_wait();
     }
@@ -186,6 +185,8 @@ void CompositionRoot::request_stop() {
 }
 
 void CompositionRoot::shutdown() {
+    if (m_shut_down) return;
+    m_shut_down = true;
     m_logger->info("VynexOS Bootstrap: Shutting down...");
     
     // =========================================================================
@@ -197,8 +198,14 @@ void CompositionRoot::shutdown() {
     
     // 1. Stop all high-level services first. They may enqueue final cleanup tasks.
     m_service_manager->stop_all();
+
+    // 2. Quiesce asynchronous work while every component is still alive. Queued tasks (event deliveries to
+    //    subscribers, plugin tasks) run to completion against live objects; afterwards the scheduler rejects new work,
+    //    so no task can run against anything torn down below.
+    m_logger->info("VynexOS Bootstrap: Draining asynchronous work...");
+    m_task_scheduler->shutdown();
     
-    // 2. Explicit Reverse-Order Teardown of components
+    // 3. Explicit Reverse-Order Teardown of components
     m_logger->info("VynexOS Bootstrap: Tearing down services in reverse order...");
     m_service_manager.reset();
     m_notification_service.reset();
@@ -256,7 +263,7 @@ void CompositionRoot::shutdown() {
     m_config_manager.reset();
     m_event_bus.reset();
     
-    // Finally, shut down the Task Scheduler.
+    // Finally, release the Task Scheduler (already shut down in step 2; shutdown() is idempotent).
     if (m_task_scheduler) {
         m_task_scheduler->shutdown();
         m_task_scheduler.reset();

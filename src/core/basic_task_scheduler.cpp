@@ -38,7 +38,13 @@ bool BasicTaskScheduler::enqueue(std::move_only_function<void(const ExecutionCon
 
 void BasicTaskScheduler::shutdown() {
     bool expected = true;
-    if (is_running_.compare_exchange_strong(expected, false)) {
+    bool first = false;
+    {
+        // Under the queue lock, so an enqueue() either completes before (and its task is drained) or sees the flag.
+        std::lock_guard<std::mutex> lock(mutex_);
+        first = is_running_.compare_exchange_strong(expected, false);
+    }
+    if (first) {
         logger_.info("BasicTaskScheduler: Initiating shutdown. Draining queue...");
         
         // Notify all threads to wake up and process remaining tasks or exit

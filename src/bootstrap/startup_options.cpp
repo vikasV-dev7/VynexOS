@@ -5,6 +5,7 @@ namespace vynexos::bootstrap {
 
 namespace {
 constexpr std::string_view kProfileOption = "--vfs-profile";
+constexpr std::string_view kSceneSnapshotOption = "--scene-snapshot";
 }
 
 StartupParse parse_startup_options(std::span<const std::string_view> args) {
@@ -24,6 +25,14 @@ StartupParse parse_startup_options(std::span<const std::string_view> args) {
             result.options.vfs_profile = *profile;
             continue;
         }
+        if (arg == kSceneSnapshotOption || arg == std::string(kSceneSnapshotOption) + "=") {
+            result.error = "--scene-snapshot needs a file: --scene-snapshot=<file>";
+            return result;
+        }
+        if (arg.starts_with(kSceneSnapshotOption) && arg[kSceneSnapshotOption.size()] == '=') {
+            result.options.scene_snapshot_path = std::string(arg.substr(kSceneSnapshotOption.size() + 1));
+            continue;
+        }
         result.error = "unknown argument '" + std::string(arg) + "'";
         return result;
     }
@@ -37,8 +46,9 @@ StartupParse parse_startup_options(int argc, const char* const* argv) {
 }
 
 std::string startup_usage() {
-    return "usage: vynex_init [--vfs-profile=empty|development]\n"
-           "  --vfs-profile   initial filesystem contents (default: development)\n";
+    return "usage: vynex_init [--vfs-profile=empty|development] [--scene-snapshot=<file>]\n"
+           "  --vfs-profile     initial filesystem contents (default: development)\n"
+           "  --scene-snapshot  test/diagnostic: keep <file> updated with the window table (default: off)\n";
 }
 
 } // namespace vynexos::bootstrap

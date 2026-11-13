@@ -44,7 +44,7 @@ try {
         [void](Save-VynexScreenshot $app (Join-Path $shots ($name + '.png')))
         Start-Sleep -Milliseconds 1300
         $before = Get-VynexWindowBounds $app 5
-        if (-not $before) { Confirm-Vynex $app "bounds available at $($geo.ClientW)x$($geo.ClientH)" $false 'no log snapshot'; continue }
+        if (-not $before) { Confirm-Vynex $app "bounds available at $($geo.ClientW)x$($geo.ClientH)" $false 'no scene snapshot'; continue }
         $gx = $before.X + 350; $gy = $before.Y - 20           # middle of the title bar, logical coordinates
         Invoke-VynexDrag $app $geo $gx $gy ($gx + 40) ($gy + 30)
         Start-Sleep -Milliseconds 1300

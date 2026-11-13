@@ -22,7 +22,9 @@ public:
     [[nodiscard]] virtual bool enqueue(std::move_only_function<void(const ExecutionContext&)> task) = 0;
 
     /**
-     * @brief Signals the scheduler to stop accepting new tasks and gracefully shut down.
+     * @brief Stops accepting new tasks and gracefully shuts down: every task accepted before the call has finished
+     * running when it returns (tasks those enqueue are rejected). Calling it again does nothing. It must not be
+     * called from one of the scheduler's own tasks.
      */
     virtual void shutdown() = 0;
 };

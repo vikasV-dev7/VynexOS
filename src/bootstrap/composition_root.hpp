@@ -13,6 +13,7 @@
 #include "../apps/application_host.hpp"
 #include "../apps/desktop_shell.hpp"
 #include "startup_options.hpp"
+#include "scene_snapshot.hpp"
 #include "../core/basic_plugin_manager.hpp"
 #include "../hal/mock_audio_driver.hpp"
 #include "../hal/mock_compute_driver.hpp"
@@ -44,6 +45,8 @@ public:
 
     /// The system's filesystem (owned by the root), for inspection by tests and tools.
     [[nodiscard]] std::shared_ptr<core::IVirtualFileSystem> virtual_file_system() const { return m_vfs; }
+    /// The system's task scheduler (owned by the root; null after shutdown), for tests of the shutdown sequence.
+    [[nodiscard]] core::ITaskScheduler* task_scheduler() const { return m_task_scheduler.get(); }
 
 private:
     // =========================================================================
@@ -53,10 +56,12 @@ private:
     // Actual memory release relies on standard C++ RAII (reverse order of declaration).
     // 
     // Foundational Contract for RAII Teardown:
-    // 1. Consumers terminate first.
-    // 2. EventBus and IPC frameworks terminate before the scheduler.
-    // 3. The Task Scheduler terminates ONLY AFTER all components capable of 
-    //    enqueueing work have completed their shutdown.
+    // 1. Asynchronous work is quiesced first: right after services stop, the Task Scheduler is shut down, which runs
+    //    every queued task (event deliveries, plugin tasks) while all the objects they reach are still alive and then
+    //    rejects new work. Nothing asynchronous runs during the teardown that follows.
+    // 2. Consumers terminate next; subscribers unsubscribe from the EventBus as they are destroyed.
+    // 3. EventBus and IPC frameworks terminate before the scheduler object is released.
+    // shutdown() runs once: later calls, and the destructor's call, do nothing.
     // =========================================================================
 
     std::shared_ptr<core::ILogger> m_logger;
@@ -87,7 +92,10 @@ private:
     std::shared_ptr<apps::IApplicationManager> m_app_registry;
     std::shared_ptr<apps::ApplicationHost> m_app_host; // windows <-> application instances; the shell's launcher and close button use it
 
+    std::unique_ptr<SceneSnapshotWriter> m_scene_snapshot; // only with --scene-snapshot (test/diagnostic interface)
+
     std::atomic<bool> m_is_running{false};
+    bool m_shut_down{false};
 };
 
 } // namespace vynexos::bootstrap

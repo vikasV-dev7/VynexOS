@@ -1,4 +1,5 @@
 #pragma once
+#include <cstdint>
 #include <functional>
 #include <string>
 #include <memory>
@@ -16,7 +17,7 @@ struct Event {
  * @brief Provides a decentralized pub-sub communication layer for loosely-coupled components.
  * 
  * ### Concurrency and Execution Contract
- * - **Thread Safety:** `publish()` and `subscribe()` are fully thread-safe and non-blocking. Two `publish()` calls can execute concurrently from different threads.
+ * - **Thread Safety:** `publish()` and `subscribe()` are fully thread-safe and non-blocking. Two `publish()` calls can execute concurrently from different threads. `unsubscribe()` is thread-safe and blocks while a handler is running.
  * - **Global Event Ordering:** NOT guaranteed. Events are dispatched asynchronously. The chronological order of `publish()` calls does not dictate the execution order of handlers.
  * - **Publisher Event Ordering:** NOT guaranteed. Sequential `publish(A)` followed by `publish(B)` from the same thread may result in B being processed before A due to underlying thread-pool scheduling.
  * - **Handler Concurrency:** Handlers for the *same* event instance are executed sequentially (in a single worker context). Handlers for *different* event instances will execute concurrently.
@@ -24,8 +25,11 @@ struct Event {
  * @Purpose The central nervous system for decoupled inter-module communication.
  * @Responsibilities Subscribes handlers, dispatches events synchronously/asynchronously, manages topic routing.
  * @Ownership Shared ownership via Dependency Injection to all major system services.
- * @Lifetime Lives for the entire duration of the `CompositionRoot::run()` loop.
- * @ThreadSafety Subscribers must be added strictly on the main thread. Publish is thread-safe.
+ * @Lifetime Lives for the entire duration of the `CompositionRoot::run()` loop. A subscriber that can be destroyed
+ *           before the bus must unsubscribe first (typically in its destructor): once `unsubscribe()` returns, its
+ *           handler is not running and is never called again, even for events already queued.
+ * @ThreadSafety Subscribers must be added strictly on the main thread. Publish is thread-safe. Handlers must not
+ *           subscribe or unsubscribe on the bus that is calling them.
  * @FailureHandling If an event handler throws, the EventBus catches and logs the exception but continues dispatching.
  * @ExtensionPoints Custom event types can be derived from `SystemEvent`.
  */
@@ -34,6 +38,8 @@ public:
     virtual ~IEventBus() = default;
     
     using EventHandler = std::function<void(std::shared_ptr<const Event>)>;
+    /// Identifies one subscription, for unsubscribe(). 0 is never a valid id (no subscription was made).
+    using SubscriptionId = std::uint64_t;
 
     /**
      * @brief Dispatches an event asynchronously.
@@ -58,8 +64,16 @@ public:
      * @brief Registers a handler for a specific topic.
      * @param topic The string identifier for the topic.
      * @param handler The callback executed when an event is dispatched. Must be thread-safe.
+     * @return The subscription's id, for unsubscribe().
      */
-    virtual void subscribe(const std::string& topic, EventHandler handler) = 0;
+    virtual SubscriptionId subscribe(const std::string& topic, EventHandler handler) = 0;
+
+    /**
+     * @brief Removes a subscription. When this returns, the handler is not running on any thread and will not be called
+     * again, including for events published earlier and still queued. Unknown ids (and 0) are ignored.
+     * It waits for a running handler to finish, so it must not be called from inside a handler of the same bus.
+     */
+    virtual void unsubscribe(SubscriptionId id) = 0;
 };
 
 } // namespace vynexos::core

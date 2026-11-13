@@ -24,23 +24,23 @@ DesktopShell::DesktopShell(std::shared_ptr<desktop::IWindowManager> wm,
 
     m_theme = desktop::to_window_theme(m_toolkit->theme());
       
-    m_event_bus->subscribe("notification_show", [this](std::shared_ptr<const core::Event> ev) {
+    m_subscriptions.push_back(m_event_bus->subscribe("notification_show", [this](std::shared_ptr<const core::Event> ev) {
         if (ev->payload.type() == typeid(desktop::Notification)) {
             std::lock_guard lock(m_mutex);
             auto n = std::any_cast<desktop::Notification>(ev->payload);
             m_notifications.push_back(n);
         }
-    });
+    }));
 
-    m_event_bus->subscribe("notification_dismiss", [this](std::shared_ptr<const core::Event> ev) {
+    m_subscriptions.push_back(m_event_bus->subscribe("notification_dismiss", [this](std::shared_ptr<const core::Event> ev) {
         if (ev->payload.type() == typeid(uint32_t)) {
             std::lock_guard lock(m_mutex);
             auto id = std::any_cast<uint32_t>(ev->payload);
             std::erase_if(m_notifications, [id](const auto& n) { return n.id == id; });
         }
-    });
+    }));
 
-    m_event_bus->subscribe(hal::kTopicInputMouse, [this](std::shared_ptr<const core::Event> ev) {
+    m_subscriptions.push_back(m_event_bus->subscribe(hal::kTopicInputMouse, [this](std::shared_ptr<const core::Event> ev) {
         if (ev->payload.type() == typeid(hal::MouseEvent)) {
             auto mouse_ev = std::any_cast<hal::MouseEvent>(ev->payload);
             
@@ -336,9 +336,9 @@ DesktopShell::DesktopShell(std::shared_ptr<desktop::IWindowManager> wm,
             
             route_pointer_to_application(mouse_ev, clicked, released);
         }
-    });
+    }));
     
-    m_event_bus->subscribe(hal::kTopicInputPointer, [this](std::shared_ptr<const core::Event> ev) {
+    m_subscriptions.push_back(m_event_bus->subscribe(hal::kTopicInputPointer, [this](std::shared_ptr<const core::Event> ev) {
         if (ev->payload.type() != typeid(hal::PointerSignalEvent)) return;
         const auto signal = std::any_cast<hal::PointerSignalEvent>(ev->payload).signal;
         if (signal == hal::PointerSignal::Cancel) {
@@ -346,15 +346,19 @@ DesktopShell::DesktopShell(std::shared_ptr<desktop::IWindowManager> wm,
         } else {
             set_hover({}); // the pointer is gone; a press in progress keeps its capture
         }
-    });
+    }));
 
-    m_event_bus->subscribe(hal::kTopicInputKey, [this](std::shared_ptr<const core::Event> ev) {
+    m_subscriptions.push_back(m_event_bus->subscribe(hal::kTopicInputKey, [this](std::shared_ptr<const core::Event> ev) {
         if (ev->payload.type() == typeid(hal::KeyEvent)) route_key(*ev, std::any_cast<hal::KeyEvent>(ev->payload));
-    });
+    }));
 
-    m_event_bus->subscribe(hal::kTopicInputText, [this](std::shared_ptr<const core::Event> ev) {
+    m_subscriptions.push_back(m_event_bus->subscribe(hal::kTopicInputText, [this](std::shared_ptr<const core::Event> ev) {
         if (ev->payload.type() == typeid(hal::TextInputEvent)) route_text(*ev);
-    });
+    }));
+}
+
+DesktopShell::~DesktopShell() {
+    for (const auto id : m_subscriptions) m_event_bus->unsubscribe(id);
 }
 
 void DesktopShell::launch() {

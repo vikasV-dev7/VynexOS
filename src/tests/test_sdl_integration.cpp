@@ -40,7 +40,8 @@ public:
             recorded_mouse_states.push_back(me.button_state);
         }
     }
-    void subscribe(const std::string&, EventHandler) override {}
+    SubscriptionId subscribe(const std::string&, EventHandler) override { return 0; }
+    void unsubscribe(SubscriptionId) override {}
 };
 
 void test_frame_clock_stability() {

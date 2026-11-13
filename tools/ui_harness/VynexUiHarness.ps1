@@ -58,14 +58,18 @@ function Start-VynexApp {
     Copy-Item $Exe $run -Force
     $log = Join-Path $run 'vynexos_runtime.log'
     if (Test-Path $log) { Clear-Content $log -ErrorAction SilentlyContinue }
+    # The app publishes its window table to this file (its --scene-snapshot test interface); see Get-VynexSceneSnapshot.
+    $snapshot = Join-Path $run 'scene_snapshot.txt'
+    Remove-Item $snapshot, "$snapshot.tmp" -ErrorAction SilentlyContinue
 
     $exeCopy = Join-Path $run (Split-Path $Exe -Leaf)
-    $proc = if ($Arguments.Count -gt 0) { Start-Process $exeCopy -ArgumentList $Arguments -WorkingDirectory $run -PassThru } else { Start-Process $exeCopy -WorkingDirectory $run -PassThru }
+    $allArgs = @($Arguments) + @("`"--scene-snapshot=$snapshot`"")
+    $proc = Start-Process $exeCopy -ArgumentList $allArgs -WorkingDirectory $run -PassThru
 Start-Sleep -Seconds $StartupSeconds
     $proc.Refresh()
     if ($proc.HasExited) { throw "App exited during startup (exit code $($proc.ExitCode))" }
     if ($proc.MainWindowHandle -eq [IntPtr]::Zero) { Stop-Process -Id $proc.Id -Force; throw 'App has no window' }
-    $app = [pscustomobject]@{ Process = $proc; Handle = $proc.MainWindowHandle; Log = $log; Run = $run; Failures = New-Object System.Collections.ArrayList; Checks = 0 }
+    $app = [pscustomobject]@{ Process = $proc; Handle = $proc.MainWindowHandle; Log = $log; Snapshot = $snapshot; Run = $run; Failures = New-Object System.Collections.ArrayList; Checks = 0 }
     Set-VynexForeground $app
     return $app
 }
@@ -191,40 +195,40 @@ function Save-VynexScreenshot {
     return [pscustomobject]@{ Path = $Path; Width = $w; Height = $h; Clipped = $clipped }
 }
 
-# The app dumps its window table and scene graph about once a second. This returns the most recent COMPLETE
-# dump so results are never read from a half-written or stale block.
-#   Registered[id] = logical bounds from the window table (present even when hidden/minimized)
+# The app's window table, read from the scene snapshot file it keeps current (the --scene-snapshot test interface,
+# src/bootstrap/scene_snapshot.hpp). The app replaces the file whole whenever the table changes, so a read is always a
+# complete, current snapshot; nothing is parsed from the runtime log.
+#   Registered[id] = logical client bounds of every window (present even when hidden/minimized)
 #   Layers[id]     = logical bounds of windows that are actually in the scene (i.e. visible on screen)
-#   Excluded[id]   = reason the window was left out of the scene (Invisible, Minimized, ...)
+#   Excluded[id]   = why a window is not in the scene: Invisible, Minimized, or NoSurface (nothing to show yet)
+#   Windows[id]    = every field of the window's record (Layer, State, Visible, InScene, Title, ...)
+#   Active         = the focused window id, or $null
 function Get-VynexSceneSnapshot {
     param([Parameter(Mandatory)]$App)
-    $lines = @(Get-Content $App.Log -Tail 300 -ErrorAction SilentlyContinue)
-    $markers = @(for ($i = 0; $i -lt $lines.Count; $i++) { if ($lines[$i] -match 'Generated SceneGraph:') { $i } })
-    for ($k = $markers.Count - 1; $k -ge 0; $k--) {
-        $from = $markers[$k]
-        $to = if ($k + 1 -lt $markers.Count) { $markers[$k + 1] - 1 } else { $lines.Count - 1 }
-        $block = $lines[$from..$to]
-        if (-not ($block -match 'RenderLayer count:')) { continue }   # incomplete: still being written
-        $snap = [pscustomobject]@{ Registered = @{}; Layers = @{}; Excluded = @{} }
-        $tableFrom = [Math]::Max(0, $from - 40)
-        foreach ($l in $lines[$tableFrom..$from]) {
-            if ($l -match 'Window ID: (\d+), Title: .*?Bounds: \[(-?\d+),(-?\d+),(\d+)x(\d+)\]') {
-                $snap.Registered[[int]$Matches[1]] = [pscustomobject]@{ X = [int]$Matches[2]; Y = [int]$Matches[3]; W = [int]$Matches[4]; H = [int]$Matches[5] }
-            }
-        }
-        foreach ($l in $block) {
-            if ($l -match 'RenderLayer Content: Window ID: (\d+), Bounds: \[(-?\d+),(-?\d+),(\d+)x(\d+)\]') {
-                $snap.Layers[[int]$Matches[1]] = [pscustomobject]@{ X = [int]$Matches[2]; Y = [int]$Matches[3]; W = [int]$Matches[4]; H = [int]$Matches[5] }
-            } elseif ($l -match 'Excluded Window ID: (\d+) .*Reason: (\w+)') {
-                $snap.Excluded[[int]$Matches[1]] = $Matches[2]
-            }
-        }
-        return $snap
+    $lines = $null
+    for ($attempt = 0; $attempt -lt 5 -and $null -eq $lines; $attempt++) {
+        try { $lines = [IO.File]::ReadAllLines($App.Snapshot) } catch { Start-Sleep -Milliseconds 50 }   # mid-replace or not written yet
     }
-    return $null
+    if ($null -eq $lines -or $lines.Count -lt 2 -or $lines[0] -ne 'vynexos-scene-snapshot 1' -or $lines[-1] -ne 'end') { return $null }
+    $snap = [pscustomobject]@{ Registered = @{}; Layers = @{}; Excluded = @{}; Windows = @{}; Active = $null }
+    foreach ($l in $lines) {
+        if ($l -match '^active (\d+)$') { $snap.Active = [int]$Matches[1]; continue }
+        if ($l -notmatch '^window id=(\d+) layer=(\w+) state=(\w+) visible=([01]) in_scene=([01]) x=(-?\d+) y=(-?\d+) w=(\d+) h=(\d+) title=(.*)$') { continue }
+        $id = [int]$Matches[1]
+        $w = [pscustomobject]@{ Id = $id; Layer = $Matches[2]; State = $Matches[3]; Visible = ($Matches[4] -eq '1'); InScene = ($Matches[5] -eq '1')
+                                X = [int]$Matches[6]; Y = [int]$Matches[7]; W = [int]$Matches[8]; H = [int]$Matches[9]; Title = $Matches[10] }
+        $bounds = [pscustomobject]@{ X = $w.X; Y = $w.Y; W = $w.W; H = $w.H }
+        $snap.Windows[$id] = $w
+        $snap.Registered[$id] = $bounds
+        if ($w.InScene) { $snap.Layers[$id] = $bounds }
+        elseif ($w.State -eq 'Minimized') { $snap.Excluded[$id] = 'Minimized' }
+        elseif (-not $w.Visible) { $snap.Excluded[$id] = 'Invisible' }
+        else { $snap.Excluded[$id] = 'NoSurface' }
+    }
+    return $snap
 }
 
-# Latest logical bounds the app logged for a window id.
+# Current logical client bounds of a window id.
 function Get-VynexWindowBounds {
     param([Parameter(Mandatory)]$App, [Parameter(Mandatory)][int]$WindowId)
     $snap = Get-VynexSceneSnapshot $App
@@ -232,7 +236,7 @@ function Get-VynexWindowBounds {
     return $null
 }
 
-# True when the latest complete dump says the window was left out of the scene for the given reason.
+# True when the current snapshot says the window is left out of the scene for the given reason.
 function Test-VynexWindowExcluded {
     param([Parameter(Mandatory)]$App, [Parameter(Mandatory)][int]$WindowId, [string]$Reason)
     $snap = Get-VynexSceneSnapshot $App

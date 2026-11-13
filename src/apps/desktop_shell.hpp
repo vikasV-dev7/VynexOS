@@ -25,6 +25,10 @@ public:
                  std::shared_ptr<desktop::IWindowDecorator> decorator,
                  std::shared_ptr<desktop::ITaskbar> taskbar,
                  std::shared_ptr<core::IEventBus> event_bus);
+    /// Unsubscribes every handler (they capture this): when it returns no handler is running or will run again.
+    ~DesktopShell() override;
+    DesktopShell(const DesktopShell&) = delete;
+    DesktopShell& operator=(const DesktopShell&) = delete;
     
     void launch() override;
     void update_frame() override;
@@ -49,7 +53,8 @@ private:
     std::shared_ptr<desktop::IWindowDecorator> m_decorator;
     std::shared_ptr<desktop::ITaskbar> m_taskbar;
     std::shared_ptr<core::IEventBus> m_event_bus;
-    
+    std::vector<core::IEventBus::SubscriptionId> m_subscriptions;
+
     desktop::WindowTheme m_theme;
 
     void update_window_decoration(uint32_t window_id, bool focused);
