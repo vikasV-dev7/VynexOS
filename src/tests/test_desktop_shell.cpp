@@ -13,6 +13,7 @@
 #include "vynexos/core/logger.hpp"
 #include "../core/basic_task_scheduler.hpp"
 #include "../desktop/mock_display_backend.hpp"
+#include "../desktop/software_surface.hpp"
 #include "vynexos/hal/input_driver.hpp"
 #include "vynexos/desktop/decoration_layout.hpp"
 
@@ -62,12 +63,14 @@ void test_desktop_shell_rendering() {
     scene[0].surface->unmap_pixels();
     
     auto task_map = scene[1].surface->map_pixels();
-    // Verify panel background color {45, 45, 45, 255} over {0, 0, 0, 0}
-    // Result = 45
-    CHECK(task_map[0] == 45); // R
-    CHECK(task_map[1] == 45); // G
-    CHECK(task_map[2] == 45); // B
+    // The taskbar is a `surface` panel (#1A2027) with a one-pixel `border_subtle` separator (#28313A) along its top
+    // edge. Row 0 is the separator; row 1 is the panel.
+    CHECK(task_map[0] == 0x28); // R
+    CHECK(task_map[1] == 0x31); // G
+    CHECK(task_map[2] == 0x3A); // B
     CHECK(task_map[3] == 255); // A
+    const size_t row1 = static_cast<size_t>(scene[1].surface->width()) * 4;
+    CHECK(task_map[row1] == 0x1A && task_map[row1 + 1] == 0x20 && task_map[row1 + 2] == 0x27 && task_map[row1 + 3] == 255);
     scene[1].surface->unmap_pixels();
     
     // Launcher is initially invisible
@@ -800,6 +803,33 @@ void test_every_window_gets_chrome_with_its_own_title() {
     std::cout << "test_every_window_gets_chrome_with_its_own_title passed\n";
 }
 
+void test_taskbar_buttons_are_centred_in_the_bar() {
+    // The taskbar's buttons are 30 px high and sit in the middle of the bar, whose height is the theme's token (48):
+    // rows 9..38. A click is theirs on those rows (the hit test also takes the row just below, as it always has).
+    auto toolkit = std::make_shared<BasicWidgetToolkit>();
+    CHECK(toolkit->theme().size.taskbar_height == 48);
+    BasicTaskbar taskbar(toolkit);
+    CHECK(taskbar.synchronize({TaskbarEntry{7, "App", WindowState::Normal, false}}));
+    for (const int32_t y : {9, 24, 38, 39}) CHECK(taskbar.get_clicked_window(110, y) == std::optional<uint32_t>{7});
+    for (const int32_t y : {0, 8, 40, 47}) CHECK(!taskbar.get_clicked_window(110, y).has_value());
+
+    auto surface = std::make_shared<SoftwareSurface>(400, 48);
+    taskbar.draw(surface);
+    auto map = surface->map_pixels();
+    auto alpha_at = [&](int x, int y) { return map[(static_cast<size_t>(y) * 400 + static_cast<size_t>(x)) * 4 + 3]; };
+    auto red_at = [&](int x, int y) { return map[(static_cast<size_t>(y) * 400 + static_cast<size_t>(x)) * 4]; };
+    int first = -1, last = -1;
+    for (int y = 0; y < 48; ++y) {
+        if (alpha_at(105, y) == 0) continue;
+        if (first < 0) first = y;
+        last = y;
+    }
+    CHECK(first == 9 && last == 38 && red_at(105, first) == 80 && red_at(105, last) == 80); // the button: rows 9..38
+    CHECK(first == 47 - last);                                                              // equal space above and below
+    surface->unmap_pixels();
+    std::cout << "test_taskbar_buttons_are_centred_in_the_bar passed\n";
+}
+
 int main(int argc, char **argv) {
     (void)argc;
     (void)argv;
@@ -814,6 +844,7 @@ int main(int argc, char **argv) {
     test_taskbar_routing();
     test_maximize_routing();
     test_every_window_gets_chrome_with_its_own_title();
+    test_taskbar_buttons_are_centred_in_the_bar();
     std::cout << "All tests passed successfully.\n";
     return 0;
 }

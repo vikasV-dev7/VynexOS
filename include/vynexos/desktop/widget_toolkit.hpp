@@ -66,6 +66,10 @@ public:
     /// The design tokens components should read colours, spacing and sizes from.
     [[nodiscard]] virtual const Theme& theme() const { return default_theme(); }
 
+    /// The text renderer this toolkit draws with, for code that paints shared components (components.hpp) directly
+    /// with a Painter. Null when the toolkit has no font engine (components then draw no labels).
+    [[nodiscard]] virtual const TextRenderer* text_renderer() const { return nullptr; }
+
     // Typography. Positions are in pixels; the y coordinate is the text BASELINE (not a top edge). Text is a single
     // line of UTF-8; see text_charset.hpp for exactly which characters are supported. Like the extended drawing
     // above, these are not pure virtual: an implementation without a font engine inherits the 8x8-bitmap-era

@@ -3,6 +3,7 @@ set(DESKTOP_SOURCES
     basic_compositor.cpp
     basic_window_manager.cpp
     basic_widget_toolkit.cpp
+    components.cpp
     basic_window_decorator.cpp
     basic_notification_service.cpp
     software_surface.cpp

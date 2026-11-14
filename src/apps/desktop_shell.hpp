@@ -116,9 +116,7 @@ private:
     std::optional<uint32_t> next_focus_candidate(uint32_t leaving);
     void focus_next_after(uint32_t leaving);
     std::optional<size_t> launcher_entry_at(int32_t x, int32_t y) const;
-    static desktop::Rect launcher_entry_rect(size_t index) {
-        return {kLauncherEntryX, kLauncherEntryTop + static_cast<int32_t>(index) * kLauncherEntryStep, kLauncherEntryWidth, kLauncherEntryHeight};
-    }
+    desktop::Rect launcher_entry_rect(size_t index) const; // in launcher coordinates
     void invalidate_content_region(const desktop::WindowGeometry& client, const desktop::ISurface& surface, const desktop::Rect& region);
 
     // Pointer interaction with the title-bar controls (minimize, maximize, close). A press captures the pointer for
@@ -164,16 +162,19 @@ private:
     desktop::Rect notification_rect(size_t index) const;
     void sync_notifications();
     
-    // Desktop layout derives from the compositor's logical size (no hard-coded resolution).
-    static constexpr int32_t kTaskbarHeight = 40;
-    static constexpr int32_t kLauncherButtonX = 10;
-    static constexpr int32_t kLauncherButtonY = 5;
-    static constexpr int32_t kLauncherButtonWidth = 80;
-    static constexpr int32_t kLauncherButtonHeight = 30;
-    static constexpr int32_t kLauncherEntryX = 10;       // launcher entries, in launcher coordinates
+    // Desktop layout derives from the compositor's logical size and the design tokens (theme.hpp): the taskbar height,
+    // the launcher's size and the margins are tokens, so the shell, the window manager's work area and every component
+    // agree on them. The few numbers below are the launcher's current internal layout, which has no token yet.
+    const desktop::Theme& theme() const { return m_toolkit->theme(); }
+    int32_t taskbar_height() const { return theme().size.taskbar_height; }
+    desktop::Rect launcher_button_rect() const; // the "Vynex" button, in taskbar coordinates
+    desktop::Rect launcher_rect() const;        // the launcher panel, in desktop coordinates
+    // A panel of the Overlay elevation (launcher, notifications) covering all of `surface`.
+    void paint_overlay_panel(desktop::ISurface& surface) const;
+    static constexpr uint32_t kLauncherButtonWidth = 80;
+    static constexpr uint32_t kLauncherHeaderHeight = 30;
     static constexpr int32_t kLauncherEntryTop = 50;
     static constexpr int32_t kLauncherEntryStep = 50;
-    static constexpr uint32_t kLauncherEntryWidth = 280;
     static constexpr uint32_t kLauncherEntryHeight = 40;
     hal::DisplaySize m_display_size{hal::kDefaultDisplaySize};
     int32_t display_width() const { return static_cast<int32_t>(m_display_size.width); }

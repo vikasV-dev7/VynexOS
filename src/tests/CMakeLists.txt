@@ -267,6 +267,11 @@ add_executable(test_block_device test_block_device.cpp)
 target_include_directories(test_block_device PRIVATE ${PROJECT_SOURCE_DIR}/include)
 target_link_libraries(test_block_device PRIVATE vynex_hal vynex_core)
 add_test(NAME BlockDeviceTests COMMAND test_block_device)
+# Shared component painting: state model, style resolvers, painters, fill/border alignment (dark and light themes)
+add_executable(test_components test_components.cpp)
+target_include_directories(test_components PRIVATE ${PROJECT_SOURCE_DIR}/include)
+target_link_libraries(test_components PRIVATE vynex_desktop vynex_core vynex_hal)
+add_test(NAME ComponentTests COMMAND test_components)
 # The program itself refuses an invalid command line (exit status 2, a diagnostic, no desktop started).
 add_test(NAME StartupRejectsBadOptions COMMAND ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:vynex_init> -P ${PROJECT_SOURCE_DIR}/cmake/check_startup_rejects.cmake)
 

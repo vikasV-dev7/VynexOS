@@ -119,7 +119,7 @@ struct Rig {
         host->register_application({"B", "B", {500, 250, 400, 300}}, probe);
         host->register_application({"C", "C", {700, 350, 400, 300}}, probe);
         host->register_application({"Low", "Low", {1300, 900, 400, 300}}, probe);
-        host->register_application({"UnderLauncher", "Under the launcher", {50, 600, 500, 300}}, probe);
+        host->register_application({"UnderLauncher", "Under the launcher", {50, 520, 500, 300}}, probe); // under the launcher's first entry
         shell->launch();
         for (const auto& s : wm->get_window_snapshots()) {
             if (s.title == "Launcher") launcher = s.window_id;
@@ -368,6 +368,20 @@ void test_launcher_and_panel_input_over_windows() {
     CHECK(r.wm->is_window_visible(r.launcher));
     const auto scene = r.wm->build_scene();
     CHECK(!scene.empty() && scene.back().window_id == r.launcher); // composed last: on top
+    {
+        // The launcher is the token size and the Overlay elevation: surface_overlay (#2A333D) inside a one-pixel
+        // border (#36414D), so it stands out from the window bodies (#1A2027) it lies over.
+        const auto& panel = scene.back().surface;
+        CHECK(panel->width() == 420 && panel->height() == 520);
+        auto lp = panel->map_pixels();
+        auto at = [&](uint32_t x, uint32_t y) { return (static_cast<size_t>(y) * 420 + x) * 4; };
+        for (const size_t i : {at(0, 0), at(419, 0), at(0, 519), at(419, 519), at(200, 519), at(419, 300)}) {
+            CHECK(lp[i] == 0x36 && lp[i + 1] == 0x41 && lp[i + 2] == 0x4D && lp[i + 3] == 255);
+        }
+        const size_t inside = at(200, 400); // below the entries
+        CHECK(lp[inside] == 0x2A && lp[inside + 1] == 0x33 && lp[inside + 2] == 0x3D && lp[inside + 3] == 255);
+        panel->unmap_pixels();
+    }
     CHECK(r.wm->get_windows_z_ordered() == stack_before);          // nothing was restacked
     CHECK(r.shell->focused_window() == std::optional<uint32_t>{under});
     CHECK(r.wm->get_active_window() != std::optional<uint32_t>{r.launcher}); // not activated in the window manager either

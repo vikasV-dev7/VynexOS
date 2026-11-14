@@ -406,6 +406,88 @@ void Painter::stroke_rounded_rect(const Rect& rect, const CornerRadii& radii, fl
     }
 }
 
+void Painter::draw_box(const Rect& rect, const CornerRadii& radii, Color fill, float border_thickness, Color border) noexcept {
+    if (m_width == 0) return;
+    const bool has_border = border.a != 0 && finite(border_thickness) && border_thickness > 0.0f;
+    if (!has_border) {
+        fill_rounded_rect(rect, radii, fill);
+        return;
+    }
+    if (fill.a == 0) {
+        stroke_rounded_rect(rect, radii, border_thickness, border);
+        return;
+    }
+    const Target t = make_target(m_pixels.data(), m_width, m_height, clip_bounds());
+    const Box shape = to_box(rect);
+    if (shape.empty()) return;
+    const Box vis = intersect(shape, t.clip);
+    if (vis.empty()) return;
+
+    const float x0 = static_cast<float>(shape.x0);
+    const float y0 = static_cast<float>(shape.y0);
+    const float x1 = static_cast<float>(shape.x1);
+    const float y1 = static_cast<float>(shape.y1);
+    const RR outer = make_rr(x0, y0, x1, y1, radii);
+
+    // The border composited over the fill: the colour of the ring where the border fully covers the shape.
+    const auto border_over_fill = [&](float ring) noexcept {
+        const float ba = static_cast<float>(border.a) / 255.0f * ring;
+        const float fa = static_cast<float>(fill.a) / 255.0f;
+        const float out_a = ba + fa * (1.0f - ba);
+        if (out_a <= 0.0f) return Color{0, 0, 0, 0};
+        auto ch = [&](uint8_t b, uint8_t f) {
+            const float v = (static_cast<float>(b) * ba + static_cast<float>(f) * fa * (1.0f - ba)) / out_a;
+            return static_cast<uint8_t>(std::clamp(v + 0.5f, 0.0f, 255.0f));
+        };
+        return Color{ch(border.r, fill.r), ch(border.g, fill.g), ch(border.b, fill.b),
+                     static_cast<uint8_t>(std::clamp(out_a * 255.0f + 0.5f, 0.0f, 255.0f))};
+    };
+
+    const float th = border_thickness;
+    if (th >= std::min(outer.hx, outer.hy)) {
+        // The border consumes the whole shape: one fill in the composited colour.
+        fill_rr(t, shape, radii, SolidFn{border_over_fill(1.0f)});
+        return;
+    }
+    const CornerRadii inner_r{std::max(0.0f, outer.tl - th), std::max(0.0f, outer.tr - th), std::max(0.0f, outer.br - th),
+                              std::max(0.0f, outer.bl - th)};
+    const RR inner = make_rr(x0 + th, y0 + th, x1 - th, y1 - th, inner_r);
+
+    // Pixels within `band` of the perimeter may be border, anti-aliased edge or corner; everything further in is plain
+    // fill. The band is wide enough for the largest corner and for the border plus its inner anti-aliased edge.
+    const int32_t band = std::max(static_cast<int32_t>(std::ceil(outer.max_radius())), static_cast<int32_t>(std::ceil(th)) + 1);
+
+    auto edge = [&](int32_t y, int32_t xa, int32_t xb) {
+        if (xa >= xb) return;
+        uint8_t* d = t.at(xa, y);
+        const float py = static_cast<float>(y) + 0.5f;
+        for (int32_t x = xa; x < xb; ++x, d += 4) {
+            const float px = static_cast<float>(x) + 0.5f;
+            const float o = coverage_f(outer.sd(px, py)); // how much of the pixel the shape covers
+            if (o <= 0.0f) continue;
+            const float in = std::min(coverage_f(inner.sd(px, py)), o); // ... and how much of it is inside the border
+            // Of the covered part, the fraction (o - in) / o is border-over-fill and the rest is fill: one source
+            // colour for the pixel, blended once with the shape's coverage.
+            blend_px(d, border_over_fill((o - in) / o), static_cast<uint32_t>(o * 255.0f + 0.5f));
+        }
+    };
+    auto interior = [&](int32_t y, int32_t xa, int32_t xb) {
+        if (xa < xb) fill_span(t.at(xa, y), xb - xa, fill);
+    };
+
+    for (int32_t y = vis.y0; y < vis.y1; ++y) {
+        if (y < shape.y0 + band || y >= shape.y1 - band) {
+            edge(y, vis.x0, vis.x1);
+            continue;
+        }
+        const int32_t left_end = std::min(vis.x1, shape.x0 + band);
+        const int32_t right_begin = std::max(left_end, std::max(vis.x0, shape.x1 - band));
+        edge(y, vis.x0, left_end);
+        interior(y, std::max(vis.x0, left_end), std::min(vis.x1, right_begin));
+        edge(y, right_begin, vis.x1);
+    }
+}
+
 void Painter::fill_circle(float cx, float cy, float radius, Color color) noexcept {
     if (m_width == 0 || color.a == 0 || !finite(cx) || !finite(cy) || !finite(radius) || radius <= 0.0f) return;
     const Target t = make_target(m_pixels.data(), m_width, m_height, clip_bounds());

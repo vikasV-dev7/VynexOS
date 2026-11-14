@@ -529,6 +529,7 @@ void draw_everything(Painter& p) {
     p.draw_line(0.0f, 0.0f, 30.0f, 30.0f, 3.0f, kWhite);
     p.fill_radial_gradient(15.0f, 15.0f, 20.0f, kWhite, Color{255, 255, 255, 0});
     p.draw_shadow({8, 8, 14, 14}, CornerRadii::uniform(4.0f), ShadowSpec{6.0f, 0, 2, 0, Color{0, 0, 0, 200}});
+    p.draw_box({0, 0, 30, 30}, CornerRadii::uniform(6.0f), kRed, 2.0f, kWhite);
 }
 
 void test_clipping() {
@@ -902,6 +903,312 @@ void fuzz_painter(GuardedSurface& surface, uint64_t seed, int iterations) {
     }
 }
 
+// ---------------------------------------------------------------------------------------------------------
+// draw_box: a fill and its border from ONE rectangle
+// ---------------------------------------------------------------------------------------------------------
+std::vector<uint8_t> snapshot(SoftwareSurface& s) {
+    auto m = s.map_pixels();
+    std::vector<uint8_t> copy(m.begin(), m.end());
+    s.unmap_pixels();
+    return copy;
+}
+
+constexpr Color kBoxFill{0, 0, 200, 255};   // no red, no green
+constexpr Color kBoxBorder{0, 200, 0, 255}; // no red, no blue
+constexpr Px kRedPx{255, 0, 0, 255};
+
+void test_draw_box_square_is_exact() {
+    for (const int thickness : {1, 2, 3}) {
+        SoftwareSurface s(40, 30);
+        {
+            Painter p(s);
+            p.fill_rect({0, 0, 40, 30}, kRed);
+            p.draw_box({4, 3, 30, 20}, CornerRadii{}, kBoxFill, static_cast<float>(thickness), kBoxBorder);
+        }
+        // Every pixel of the rectangle is exactly the border (within `thickness` of an edge) or exactly the fill, and
+        // every pixel outside it is untouched: the border and the fill tile the rectangle with nothing in between.
+        size_t border_pixels = 0, fill_pixels = 0;
+        for (int y = 0; y < 30; ++y) {
+            for (int x = 0; x < 40; ++x) {
+                const Px px = get(s, x, y);
+                const bool inside = x >= 4 && x < 34 && y >= 3 && y < 23;
+                if (!inside) {
+                    CHECK(px == kRedPx);
+                    continue;
+                }
+                const bool on_border = x < 4 + thickness || x >= 34 - thickness || y < 3 + thickness || y >= 23 - thickness;
+                CHECK(px == (on_border ? Px{0, 200, 0, 255} : Px{0, 0, 200, 255}));
+                (on_border ? border_pixels : fill_pixels) += 1;
+            }
+        }
+        CHECK(fill_pixels == static_cast<size_t>((30 - 2 * thickness) * (20 - 2 * thickness)));
+        CHECK(border_pixels + fill_pixels == 30u * 20u);
+    }
+    std::cout << "test_draw_box_square_is_exact passed\n";
+}
+
+void test_draw_box_has_no_gap_between_fill_and_border() {
+    // Drawn over a red background with a fill and a border that contain no red: any red inside the shape would be
+    // background showing through, i.e. a gap. The reference coverage of the shape is a white fill of the same rectangle
+    // and radii on a transparent surface.
+    const Rect rect{6, 5, 48, 38};
+    for (const float radius : {0.0f, 3.0f, 6.0f, 8.0f, 10.0f, 19.0f, 40.0f}) {
+        for (const float thickness : {1.0f, 1.5f, 2.0f, 3.0f}) {
+            SoftwareSurface coverage(60, 50);
+            { Painter p(coverage); p.fill_rounded_rect(rect, CornerRadii::uniform(radius), kWhite); }
+            SoftwareSurface s(60, 50);
+            {
+                Painter p(s);
+                p.fill_rect({0, 0, 60, 50}, kRed);
+                p.draw_box(rect, CornerRadii::uniform(radius), kBoxFill, thickness, kBoxBorder);
+            }
+            for (int y = 0; y < 50; ++y) {
+                for (int x = 0; x < 60; ++x) {
+                    const int cov = alpha(coverage, x, y);
+                    const Px px = get(s, x, y);
+                    if (cov == 0) {
+                        CHECK(px == kRedPx); // outside the shape: untouched
+                    } else if (cov == 255) {
+                        CHECK(px.r == 0 && px.a == 255); // inside the shape: no background at all
+                    } else {
+                        // The anti-aliased outer edge: exactly the shape's coverage of border over background...
+                        CHECK(near(px.r, 255 - cov, 2));
+                        // ...and it is the BORDER that meets the background there, never a fringe of fill colour
+                        // (a separate fill-then-stroke leaves up to a quarter of the fill in these pixels).
+                        if (thickness >= 2.0f) CHECK(px.b <= 2);
+                        CHECK(near(px.g, 200 * cov / 255, 3));
+                    }
+                }
+            }
+        }
+    }
+    std::cout << "test_draw_box_has_no_gap_between_fill_and_border passed\n";
+}
+
+void test_draw_box_shares_the_fill_geometry() {
+    // With the border the same colour as the fill, a box is pixel-for-pixel the plain rounded fill: the border adds
+    // nothing outside the fill's shape and removes nothing inside it, whatever the radius, thickness or size.
+    const Color c{40, 90, 160, 255};
+    const Rect rects[] = {{5, 5, 50, 40}, {0, 0, 64, 48}, {10, 12, 1, 1}, {10, 12, 2, 30}, {10, 12, 30, 2}, {-8, -6, 40, 30}, {40, 30, 60, 50}};
+    for (const Rect& rect : rects) {
+        for (const float radius : {0.0f, 4.0f, 6.0f, 10.0f, 100.0f}) {
+            for (const float thickness : {0.5f, 1.0f, 2.0f, 7.0f}) {
+                SoftwareSurface plain(64, 48), boxed(64, 48);
+                { Painter p(plain); p.fill_rounded_rect(rect, CornerRadii::uniform(radius), c); }
+                { Painter p(boxed); p.draw_box(rect, CornerRadii::uniform(radius), c, thickness, c); }
+                CHECK(snapshot(plain) == snapshot(boxed));
+            }
+        }
+    }
+    // Per-corner radii too (a tab: rounded top, square bottom).
+    SoftwareSurface plain(64, 48), boxed(64, 48);
+    { Painter p(plain); p.fill_rounded_rect({8, 8, 40, 30}, CornerRadii::top(6.0f), c); }
+    { Painter p(boxed); p.draw_box({8, 8, 40, 30}, CornerRadii::top(6.0f), c, 1.0f, c); }
+    CHECK(snapshot(plain) == snapshot(boxed));
+    std::cout << "test_draw_box_shares_the_fill_geometry passed\n";
+}
+
+void test_draw_box_rounded_ring_and_interior() {
+    SoftwareSurface s(80, 60);
+    const Rect rect{10, 8, 60, 44};
+    { Painter p(s); p.draw_box(rect, CornerRadii::uniform(8.0f), kBoxFill, 2.0f, kBoxBorder); }
+    // Straight edges: the two outermost pixels are border, the third is fill.
+    CHECK(get(s, 40, 8) == Px{0, 200, 0, 255} && get(s, 40, 9) == Px{0, 200, 0, 255} && get(s, 40, 10) == Px{0, 0, 200, 255});
+    CHECK(get(s, 10, 30) == Px{0, 200, 0, 255} && get(s, 11, 30) == Px{0, 200, 0, 255} && get(s, 12, 30) == Px{0, 0, 200, 255});
+    CHECK(get(s, 69, 30) == Px{0, 200, 0, 255} && get(s, 67, 30) == Px{0, 0, 200, 255});
+    CHECK(get(s, 40, 51) == Px{0, 200, 0, 255} && get(s, 40, 49) == Px{0, 0, 200, 255});
+    CHECK(get(s, 40, 30) == Px{0, 0, 200, 255}); // the middle
+    // The corner square is transparent at its tip, and nothing is drawn outside the rectangle.
+    CHECK(alpha(s, 10, 8) == 0 && alpha(s, 69, 51) == 0);
+    CHECK(count_alpha_nonzero_outside(s, 10, 8, 70, 52) == 0);
+    // The ring follows the corner: along the diagonal, border comes before fill.
+    bool seen_border = false, seen_fill = false, fill_before_border = false;
+    for (int d = 0; d < 14; ++d) {
+        const Px px = get(s, 10 + d, 8 + d);
+        if (px.a == 0) continue;
+        // On the diagonal a 2 px ring is only ever seen blended, so classify each pixel by what dominates it.
+        if (px.g > px.b) {
+            seen_border = true;
+            if (seen_fill) fill_before_border = true;
+        } else if (px.b > px.g) {
+            seen_fill = true;
+        }
+    }
+    CHECK(seen_border && seen_fill && !fill_before_border);
+    // Mirror symmetry in both axes.
+    for (int y = 0; y < 44; ++y) {
+        for (int x = 0; x < 60; ++x) {
+            CHECK(get(s, 10 + x, 8 + y) == get(s, 10 + 59 - x, 8 + y));
+            CHECK(get(s, 10 + x, 8 + y) == get(s, 10 + x, 8 + 43 - y));
+        }
+    }
+    // The border's area (each pixel's share of border, weighted by its coverage) is the outer rounded rectangle minus
+    // the inner one: (60x44 with r=8) - (56x40 with r=6).
+    double border_area = 0.0;
+    for (int y = 0; y < 60; ++y) {
+        for (int x = 0; x < 80; ++x) {
+            const Px px = get(s, x, y);
+            border_area += (px.g / 200.0) * (px.a / 255.0);
+        }
+    }
+    const double outer_area = 60.0 * 44.0 - (4.0 - kPi) * 8.0 * 8.0;
+    const double inner_area = 56.0 * 40.0 - (4.0 - kPi) * 6.0 * 6.0;
+    CHECK(near_rel(border_area, outer_area - inner_area, 0.03));
+    std::cout << "test_draw_box_rounded_ring_and_interior passed\n";
+}
+
+void test_draw_box_degenerate_arguments() {
+    const Rect rect{6, 6, 40, 30};
+    const CornerRadii radii = CornerRadii::uniform(6.0f);
+    SoftwareSurface fill_only(60, 50);
+    { Painter p(fill_only); p.fill_rounded_rect(rect, radii, kBoxFill); }
+    const auto expected_fill = snapshot(fill_only);
+
+    // No border: zero, negative or non-finite thickness, or a transparent border, draw the fill alone.
+    for (const float thickness : {0.0f, -1.0f, -1e30f, std::nanf(""), std::numeric_limits<float>::infinity(), -std::numeric_limits<float>::infinity()}) {
+        SoftwareSurface s(60, 50);
+        { Painter p(s); p.draw_box(rect, radii, kBoxFill, thickness, kBoxBorder); }
+        CHECK(snapshot(s) == expected_fill);
+    }
+    {
+        SoftwareSurface s(60, 50);
+        { Painter p(s); p.draw_box(rect, radii, kBoxFill, 2.0f, Color{0, 200, 0, 0}); }
+        CHECK(snapshot(s) == expected_fill);
+    }
+    // No fill: the border alone, identical to stroke_rounded_rect.
+    {
+        SoftwareSurface stroked(60, 50), boxed(60, 50);
+        { Painter p(stroked); p.stroke_rounded_rect(rect, radii, 2.0f, kBoxBorder); }
+        { Painter p(boxed); p.draw_box(rect, radii, Color{0, 0, 200, 0}, 2.0f, kBoxBorder); }
+        CHECK(snapshot(stroked) == snapshot(boxed));
+        CHECK(alpha(boxed, 26, 21) == 0); // hollow
+    }
+    // A border at least half as thick as the box covers all of it.
+    {
+        SoftwareSurface solid(60, 50);
+        { Painter p(solid); p.fill_rounded_rect(rect, radii, kBoxBorder); }
+        for (const float thickness : {15.0f, 20.0f, 500.0f, 1e30f}) {
+            SoftwareSurface fresh(60, 50);
+            { Painter p(fresh); p.draw_box(rect, radii, kBoxFill, thickness, kBoxBorder); }
+            CHECK(snapshot(fresh) == snapshot(solid));
+        }
+    }
+    // Empty, inverted-by-overflow, far-away and enormous rectangles draw nothing or what is visible, and never crash.
+    {
+        GuardedSurface s(32, 24);
+        Painter p(s);
+        p.draw_box({5, 5, 0, 10}, radii, kBoxFill, 1.0f, kBoxBorder);
+        p.draw_box({5, 5, 10, 0}, radii, kBoxFill, 1.0f, kBoxBorder);
+        p.draw_box({500, 500, 10, 10}, radii, kBoxFill, 1.0f, kBoxBorder);
+        p.draw_box({-500, -500, 10, 10}, radii, kBoxFill, 1.0f, kBoxBorder);
+        p.draw_box({std::numeric_limits<int32_t>::max(), std::numeric_limits<int32_t>::max(), 10, 10}, radii, kBoxFill, 1.0f, kBoxBorder);
+        p.draw_box({std::numeric_limits<int32_t>::min(), std::numeric_limits<int32_t>::min(), 10, 10}, radii, kBoxFill, 1.0f, kBoxBorder);
+        CHECK(s.guards_intact());
+        auto m = s.map_pixels();
+        CHECK(std::all_of(m.begin(), m.end(), [](uint8_t b) { return b == 0; })); // none of those is on the surface
+        p.draw_box({-100, -100, std::numeric_limits<uint32_t>::max(), std::numeric_limits<uint32_t>::max()}, CornerRadii::uniform(std::nanf("")),
+                   kBoxFill, 1.0f, kBoxBorder);
+        CHECK(s.guards_intact());
+        // An enormous box covers the whole surface with its fill (its border is far off-screen).
+        for (size_t i = 0; i < m.size(); i += 4) CHECK(m[i] == 0 && m[i + 1] == 0 && m[i + 2] == 200 && m[i + 3] == 255);
+    }
+    std::cout << "test_draw_box_degenerate_arguments passed\n";
+}
+
+void test_draw_box_clipping() {
+    const Rect rect{4, 4, 50, 40};
+    const CornerRadii radii = CornerRadii::uniform(8.0f);
+    SoftwareSurface whole(60, 50);
+    { Painter p(whole); p.draw_box(rect, radii, kBoxFill, 2.0f, kBoxBorder); }
+    const auto reference = snapshot(whole);
+
+    // Clipped drawing equals the unclipped drawing inside the clip and leaves everything outside it alone.
+    const Rect clips[] = {{0, 0, 60, 50}, {10, 10, 20, 15}, {0, 0, 12, 12}, {40, 30, 30, 30}, {4, 4, 1, 40}, {20, 4, 30, 2}, {53, 43, 1, 1}};
+    for (const Rect& clip : clips) {
+        SoftwareSurface s(60, 50);
+        {
+            Painter p(s);
+            const Painter::ClipScope scope(p, clip);
+            CHECK(scope.pushed());
+            p.draw_box(rect, radii, kBoxFill, 2.0f, kBoxBorder);
+        }
+        const auto clipped = snapshot(s);
+        for (int y = 0; y < 50; ++y) {
+            for (int x = 0; x < 60; ++x) {
+                const bool in_clip = x >= clip.x && x < clip.x + static_cast<int>(clip.width) && y >= clip.y && y < clip.y + static_cast<int>(clip.height);
+                const size_t i = (static_cast<size_t>(y) * 60 + static_cast<size_t>(x)) * 4;
+                for (size_t ch = 0; ch < 4; ++ch) CHECK(clipped[i + ch] == (in_clip ? reference[i + ch] : 0));
+            }
+        }
+    }
+    // A box hanging off every edge of the surface draws exactly its visible part.
+    SoftwareSurface big(100, 90), cropped(60, 50);
+    { Painter p(big); p.draw_box({10, 10, 80, 70}, radii, kBoxFill, 2.0f, kBoxBorder); }
+    { Painter p(cropped); p.draw_box({-10, -10, 80, 70}, radii, kBoxFill, 2.0f, kBoxBorder); }
+    const auto big_pixels = snapshot(big);
+    const auto cropped_pixels = snapshot(cropped);
+    for (int y = 0; y < 50; ++y) {
+        for (int x = 0; x < 60; ++x) {
+            const size_t a = (static_cast<size_t>(y + 20) * 100 + static_cast<size_t>(x + 20)) * 4;
+            const size_t b = (static_cast<size_t>(y) * 60 + static_cast<size_t>(x)) * 4;
+            for (size_t ch = 0; ch < 4; ++ch) CHECK(big_pixels[a + ch] == cropped_pixels[b + ch]);
+        }
+    }
+    std::cout << "test_draw_box_clipping passed\n";
+}
+
+void test_draw_box_translucent_colours() {
+    // A translucent border tints the fill under it: the ring is exactly border-over-fill, the interior exactly the fill.
+    const Color fill{30, 40, 50, 255};
+    const Color border{34, 199, 220, 102}; // 40%
+    SoftwareSurface s(40, 30);
+    { Painter p(s); p.draw_box({4, 4, 30, 20}, CornerRadii{}, fill, 1.0f, border); }
+    const Color ring = blend_over(border, fill);
+    CHECK(get(s, 4, 10) == Px{ring.r, ring.g, ring.b, 255});
+    CHECK(get(s, 20, 4) == Px{ring.r, ring.g, ring.b, 255});
+    CHECK(get(s, 20, 14) == Px{30, 40, 50, 255});
+    CHECK(ring.r != fill.r && ring.g > fill.g); // and it really is a tint, not either colour alone
+
+    // A translucent fill keeps its alpha on a transparent surface; an opaque border over it is opaque.
+    SoftwareSurface t(40, 30);
+    { Painter p(t); p.draw_box({4, 4, 30, 20}, CornerRadii{}, Color{255, 255, 255, 0x12}, 1.0f, kBoxBorder); }
+    CHECK(get(t, 20, 14) == Px{255, 255, 255, 0x12});
+    CHECK(get(t, 4, 14) == Px{0, 200, 0, 255});
+    CHECK(alpha(t, 3, 14) == 0);
+    std::cout << "test_draw_box_translucent_colours passed\n";
+}
+
+void test_draw_box_fuzz() {
+    const std::pair<uint32_t, uint32_t> sizes[] = {{37, 29}, {1, 1}, {1, 64}, {64, 1}, {96, 72}};
+    uint64_t seed = 0xB0C5;
+    for (const auto& [w, h] : sizes) {
+        GuardedSurface s(w, h);
+        Rng rng{seed++};
+        Painter p(s);
+        for (int i = 0; i < 3000; ++i) {
+            const Rect r{rng.coord(), rng.coord(), rng.dim(), rng.dim()};
+            const CornerRadii radii{rng.wild(), rng.wild(), rng.wild(), rng.wild()};
+            switch (rng.next() % 8) {
+            case 0: p.push_clip({rng.coord(), rng.coord(), rng.dim(), rng.dim()}); break;
+            case 1: p.pop_clip(); break;
+            default: p.draw_box(r, radii, rng.color(), rng.wild(), rng.color()); break;
+            }
+            if (!s.guards_intact()) {
+                std::cout << "  guard bytes corrupted at draw_box iteration " << i << "\n";
+                CHECK(false);
+            }
+        }
+    }
+    { GuardedSurface zero(0, 0); Painter p(zero); p.draw_box({0, 0, 10, 10}, CornerRadii::uniform(3.0f), kBoxFill, 1.0f, kBoxBorder); CHECK(zero.guards_intact()); }
+    {
+        LyingSurface liar;
+        Painter p(liar);
+        p.draw_box({0, 0, 100, 100}, CornerRadii::uniform(3.0f), kBoxFill, 1.0f, kBoxBorder);
+        for (uint8_t b : liar.m_buf) CHECK(b == 0);
+    }
+    std::cout << "test_draw_box_fuzz passed\n";
+}
+
 void test_bounds_safety_fuzz() {
     const std::pair<uint32_t, uint32_t> sizes[] = {{37, 29}, {1, 1}, {1, 64}, {64, 1}, {128, 96}};
     uint64_t seed = 0x5EED;
@@ -955,6 +1262,9 @@ void test_no_heap_allocation_while_drawing() {
         p.draw_line(40.0f, 100.0f, 200.0f, 100.0f, 1.0f, Color{54, 65, 77, 255});
         p.draw_shadow({20, 20, 200, 150}, CornerRadii::uniform(10.0f), ShadowSpec{12.0f, 0, 4, 0, Color{0, 0, 0, 120}});
         p.fill_radial_gradient(128.0f, 128.0f, 100.0f, Color{34, 199, 220, 40}, Color{34, 199, 220, 0});
+        p.draw_box({30, 30, 120, 32}, CornerRadii::uniform(6.0f), Color{34, 42, 51, 255}, 1.0f, Color{54, 65, 77, 255});
+        p.draw_box({30, 70, 120, 32}, CornerRadii::top(6.0f), Color{34, 199, 220, 38}, 2.0f, Color{34, 199, 220, 176});
+        p.draw_box({-20, 110, 400, 400}, CornerRadii::uniform(10.0f), Color{26, 32, 39, 255}, 1.5f, Color{40, 49, 58, 255});
     }
     g_count_allocs = false;
     if (g_alloc_count != 0) std::cout << "  unexpected heap allocations: " << g_alloc_count.load() << "\n";
@@ -1096,6 +1406,14 @@ int main() {
     test_clipping();
     test_coverage_mask();
     test_shadow();
+    test_draw_box_square_is_exact();
+    test_draw_box_has_no_gap_between_fill_and_border();
+    test_draw_box_shares_the_fill_geometry();
+    test_draw_box_rounded_ring_and_interior();
+    test_draw_box_degenerate_arguments();
+    test_draw_box_clipping();
+    test_draw_box_translucent_colours();
+    test_draw_box_fuzz();
     test_bounds_safety_fuzz();
     test_no_heap_allocation_while_drawing();
     test_toolkit_draw_rect_compatibility();

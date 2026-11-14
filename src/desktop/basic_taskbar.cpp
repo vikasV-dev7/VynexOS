@@ -8,6 +8,10 @@ BasicTaskbar::BasicTaskbar(std::shared_ptr<IWidgetToolkit> toolkit)
     : m_toolkit(std::move(toolkit)) {
 }
 
+int32_t BasicTaskbar::start_y() const {
+    return (m_toolkit->theme().size.taskbar_height - kButtonHeight) / 2;
+}
+
 bool BasicTaskbar::synchronize(const std::vector<TaskbarEntry>& entries) {
     std::lock_guard lock(m_mutex);
     if (m_entries.size() != entries.size()) {
@@ -37,6 +41,7 @@ void BasicTaskbar::draw(std::shared_ptr<ISurface> surface) {
     if (!surface) return;
     
     int32_t current_x = kStartX;
+    const int32_t kStartY = start_y();
     
     for (const auto& entry : m_entries) {
         Color bg_color = {80, 80, 80, 255}; // Default inactive
@@ -82,6 +87,7 @@ void BasicTaskbar::draw(std::shared_ptr<ISurface> surface) {
 
 std::optional<uint32_t> BasicTaskbar::get_clicked_window(int32_t x, int32_t y) const {
     std::lock_guard lock(m_mutex);
+    const int32_t kStartY = start_y();
     
     if (y < kStartY || y > kStartY + kButtonHeight) {
         return std::nullopt;

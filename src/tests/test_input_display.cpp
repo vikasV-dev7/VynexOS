@@ -262,13 +262,13 @@ void test_shell_layout_follows_display_size() {
     CHECK(f.compositor->logical_size().height == 720);
 
     const auto work = f.wm->get_work_area();
-    CHECK(work.x == 0 && work.y == 0 && work.width == 1280 && work.height == 680);
+    CHECK(work.x == 0 && work.y == 0 && work.width == 1280 && work.height == 672); // 720 less the 48 px taskbar
 
     auto taskbar = f.find("Taskbar");
     CHECK(taskbar.has_value());
     auto geom = f.wm->get_window_geometry(taskbar->window_id);
     CHECK(geom.has_value());
-    CHECK(geom->x == 0 && geom->y == 680 && geom->width == 1280 && geom->height == 40);
+    CHECK(geom->x == 0 && geom->y == 672 && geom->width == 1280 && geom->height == 48);
 
     auto wallpaper = f.find("Wallpaper");
     CHECK(wallpaper.has_value());
@@ -300,7 +300,7 @@ void test_launcher_button_tracks_taskbar() {
     mouse(20, 1060, 0);
     CHECK(!launcher_visible());
 
-    // The real button: taskbar top (680) + 5 .. +35, x 10..90.
+    // The real button: taskbar top (672) + 6 .. +42, x 8..88.
     mouse(20, 695, 1);
     mouse(20, 695, 0);
     CHECK(launcher_visible());
@@ -309,6 +309,40 @@ void test_launcher_button_tracks_taskbar() {
     mouse(20, 695, 0);
     CHECK(!launcher_visible());
     std::cout << "test_launcher_button_tracks_taskbar passed\n";
+}
+
+void test_launcher_geometry_follows_the_tokens() {
+    // The launcher is the token size (420 x 520), one 12 px margin from the left edge and from the taskbar (48 px).
+    struct Case {
+        hal::DisplaySize display;
+        int32_t x, y;
+        uint32_t width, height;
+    };
+    const Case cases[] = {
+        {{1920, 1080}, 12, 500, 420, 520}, // 1080 - 48 - 12 - 520
+        {{1280, 720}, 12, 140, 420, 520},  // 720 - 48 - 12 - 520
+        // Too small for the token size: it shrinks to the space above the taskbar, a margin from every edge, and
+        // never starts above the top of the screen.
+        {{640, 480}, 12, 12, 420, 408},    // height 480 - 48 - 2 * 12
+        {{320, 180}, 12, 12, 296, 108},    // width 320 - 2 * 12, height 180 - 48 - 2 * 12
+    };
+    for (const Case& c : cases) {
+        ShellFixture f(c.display);
+        const auto launcher = f.find("Launcher");
+        CHECK(launcher.has_value());
+        const auto g = f.wm->get_window_geometry(launcher->window_id);
+        CHECK(g.has_value());
+        CHECK(g->x == c.x && g->y == c.y && g->width == c.width && g->height == c.height);
+        const auto work = f.wm->get_work_area();
+        CHECK(work.height == c.display.height - 48); // the work area ends where the 48 px taskbar begins
+        CHECK(g->y >= 0 && g->y + static_cast<int32_t>(g->height) <= static_cast<int32_t>(work.height)); // on screen, above the taskbar
+        CHECK(g->x >= 0 && g->x + static_cast<int32_t>(g->width) <= static_cast<int32_t>(c.display.width));
+        const auto taskbar = f.find("Taskbar");
+        CHECK(taskbar.has_value());
+        const auto t = f.wm->get_window_geometry(taskbar->window_id);
+        CHECK(t.has_value() && t->height == 48 && t->y == static_cast<int32_t>(c.display.height) - 48 && t->width == c.display.width);
+    }
+    std::cout << "test_launcher_geometry_follows_the_tokens passed\n";
 }
 
 int main() {
@@ -323,6 +357,7 @@ int main() {
     test_ordered_input_dispatch();
     test_shell_layout_follows_display_size();
     test_launcher_button_tracks_taskbar();
+    test_launcher_geometry_follows_the_tokens();
     std::cout << "All input/display tests passed successfully.\n";
     return 0;
 }

@@ -62,7 +62,8 @@ struct StyleCase {
 };
 std::vector<StyleCase> all_styles() {
     const auto& t = tokens();
-    return {{"caption", t.caption}, {"body", t.body}, {"body_strong", t.body_strong}, {"title", t.title}, {"heading", t.heading}, {"display", t.display}};
+    return {{"caption", t.caption}, {"metadata", t.metadata}, {"body", t.body},      {"body_strong", t.body_strong},
+            {"title", t.title},     {"heading", t.heading},   {"display", t.display}};
 }
 
 constexpr Color kWhite{255, 255, 255, 255};
@@ -133,7 +134,7 @@ void test_creation_and_options() {
     const auto t0 = std::chrono::steady_clock::now();
     auto r = make();
     const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
-    CHECK(r->strike_count() == 6); // 12R, 14R, 14M, 15S, 20S, 32S
+    CHECK(r->strike_count() == 7); // 12R, 12M, 14R, 14M, 15S, 20S, 32S
     CHECK(r->glyphs_per_strike() == supported_code_point_count() + 1);
     CHECK(r->atlas_bytes() > 20000 && r->atlas_bytes() < 2 * 1024 * 1024);
     CHECK(ms < 5000.0); // construction is a one-time startup cost; catches pathological slowness only
@@ -142,14 +143,15 @@ void test_creation_and_options() {
 
     // Identical styles collapse into a single strike; unusable sizes are ignored; nothing usable -> null.
     TypographyTokens same = tokens();
-    same.caption = same.body = same.body_strong = same.title = same.heading = same.display = tokens().body;
+    same.caption = same.metadata = same.body = same.body_strong = same.title = same.heading = same.display = tokens().body;
     CHECK(TextRenderer::create(same)->strike_count() == 1);
     TypographyTokens junk = tokens();
     junk.display.size_px = 100000.0f;
     junk.caption.size_px = 0.0f;
-    CHECK(TextRenderer::create(junk)->strike_count() == 4); // body, body_strong, title, heading survive
+    CHECK(TextRenderer::create(junk)->strike_count() == 5); // metadata, body, body_strong, title, heading survive
     TypographyTokens none = tokens();
-    none.caption.size_px = none.body.size_px = none.body_strong.size_px = none.title.size_px = none.heading.size_px = none.display.size_px = 0.0f;
+    none.caption.size_px = none.metadata.size_px = none.body.size_px = none.body_strong.size_px = none.title.size_px = none.heading.size_px =
+        none.display.size_px = 0.0f;
     CHECK(TextRenderer::create(none) == nullptr);
 
     // The coverage curve adds weight when gamma > 1; non-positive gamma falls back to linear.

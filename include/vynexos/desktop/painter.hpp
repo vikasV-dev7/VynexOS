@@ -70,6 +70,16 @@ public:
     /// Border drawn inside `rect` (the outer edge is the rect's edge). `thickness` in pixels.
     void stroke_rounded_rect(const Rect& rect, const CornerRadii& radii, float thickness, Color color) noexcept;
 
+    /// A filled box with a border, drawn in ONE pass from ONE rectangle: the fill covers the whole rounded shape and
+    /// the border (`border_thickness` pixels, inside `rect`) is composited over it, so the two always share the same
+    /// outer edge and corner geometry and nothing of the background can show between them, at any size or radius.
+    ///  - Each pixel is blended once with the shape's coverage, so the anti-aliased edge carries the border colour only
+    ///    (a separate fill and stroke would leave a fringe of fill colour outside the border).
+    ///  - A zero/negative/non-finite thickness or a transparent border draws the fill alone; a transparent fill draws
+    ///    the border alone; a border at least half as thick as the box covers all of it.
+    ///  - The inner edge of the border has the radius `radius - border_thickness` (concentric corners).
+    void draw_box(const Rect& rect, const CornerRadii& radii, Color fill, float border_thickness, Color border) noexcept;
+
     // --- Curves and lines -----------------------------------------------------------------------------
     void fill_circle(float cx, float cy, float radius, Color color) noexcept;
     /// Ring whose outer edge is at `radius`.

@@ -24,7 +24,8 @@ private:
     static constexpr int32_t kButtonHeight = 30;
     static constexpr int32_t kButtonMargin = 5;
     static constexpr int32_t kStartX = 100; // Leave room for "Vynex" launcher button
-    static constexpr int32_t kStartY = 5;
+    /// Top of the buttons within the bar: centred in the taskbar height the theme gives.
+    [[nodiscard]] int32_t start_y() const;
 };
 
 } // namespace vynexos::desktop

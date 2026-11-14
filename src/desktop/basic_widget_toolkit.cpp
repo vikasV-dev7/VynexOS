@@ -1,5 +1,6 @@
 #include "basic_widget_toolkit.hpp"
 #include "software_surface.hpp"
+#include "vynexos/desktop/components.hpp"
 #include "vynexos/desktop/painter.hpp"
 #include "font8x8_basic.h"
 #include <algorithm>
@@ -88,11 +89,13 @@ void BasicWidgetToolkit::draw_text_bitmap(std::shared_ptr<ISurface> surface, int
 
 BasicWidgetToolkit::BasicWidgetToolkit() : BasicWidgetToolkit(TextRenderer::shared_default()) {}
 
-BasicWidgetToolkit::BasicWidgetToolkit(const TextRenderer* text_renderer) : m_text(text_renderer) {
+BasicWidgetToolkit::BasicWidgetToolkit(const TextRenderer* text_renderer) : BasicWidgetToolkit(text_renderer, default_theme()) {}
+
+BasicWidgetToolkit::BasicWidgetToolkit(const TextRenderer* text_renderer, const Theme& theme) : m_text(text_renderer), m_theme(&theme) {
     if (m_text != nullptr) {
         // Legacy draw_text() callers pass the TOP of an 8 px glyph cell. Keep their layout meaningful by centring the
         // capitals of the body style inside that cell: baseline = top + (cell + cap_height) / 2.
-        const FontMetrics fm = m_text->font_metrics(default_theme().type.body);
+        const FontMetrics fm = m_text->font_metrics(m_theme->type.body);
         m_legacy_baseline_offset = static_cast<int32_t>(std::lround((8.0f + fm.cap_height) * 0.5f));
     }
 }
@@ -106,7 +109,7 @@ void BasicWidgetToolkit::draw_text(std::shared_ptr<ISurface> surface, int32_t x,
     Painter painter(*surface);
     const int64_t baseline = int64_t{y} + m_legacy_baseline_offset; // 64-bit: y may be extreme
     m_text->draw(painter, static_cast<float>(x), static_cast<int32_t>(std::clamp<int64_t>(baseline, INT32_MIN, INT32_MAX)), text,
-                 default_theme().type.body, color);
+                 m_theme->type.body, color);
 }
 
 void BasicWidgetToolkit::draw_text_styled(std::shared_ptr<ISurface> surface, int32_t x, int32_t baseline_y, std::string_view utf8,
@@ -141,14 +144,21 @@ float BasicWidgetToolkit::draw_text_ellipsized(std::shared_ptr<ISurface> surface
 }
 
 void BasicWidgetToolkit::draw_button(std::shared_ptr<ISurface> surface, int32_t x, int32_t y, uint32_t width, uint32_t height, std::string_view label) {
-    draw_rect(surface, x, y, width, height, Color{100, 100, 100, 255});
-    draw_rect(surface, x, y, width, 2, Color{200, 200, 200, 255}); // top
-    draw_rect(surface, x, y + static_cast<int32_t>(height) - 2, width, 2, Color{50, 50, 50, 255}); // bottom
-    draw_text(surface, x + 10, y + static_cast<int32_t>(height / 2) - 4, label, Color{255, 255, 255, 255});
+    if (!surface) return;
+    {
+        Painter painter(*surface);
+        paint_button(painter, *m_theme, m_text, Rect{x, y, width, height}, label, ButtonVariant::Default, ControlState{});
+    }
+    if (m_text == nullptr) {
+        // Without a font engine the component draws no label; the 8x8 bitmap font keeps the button readable.
+        draw_text_bitmap(std::move(surface), x + m_theme->spacing.md, y + static_cast<int32_t>(height / 2) - 4, label, m_theme->colors.text_primary);
+    }
 }
 
 void BasicWidgetToolkit::draw_panel(std::shared_ptr<ISurface> surface, int32_t x, int32_t y, uint32_t width, uint32_t height) {
-    draw_rect(surface, x, y, width, height, Color{45, 45, 45, 255}); // Opaque to prevent click confusion
+    if (!surface) return;
+    Painter painter(*surface);
+    paint_panel(painter, *m_theme, Rect{x, y, width, height}, PanelVariant::Surface); // opaque: a panel always covers what is under it
 }
 
 // -----------------------------------------------------------------------------

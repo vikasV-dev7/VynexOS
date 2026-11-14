@@ -65,11 +65,13 @@ void test_panel_drawing() {
     
     auto mapped = surface->map_pixels();
     size_t idx = (10 * 100 + 10) * 4;
-    // {45, 45, 45, 255} over {0,0,0,0} = {45, 45, 45, 255}
-    CHECK(mapped[idx] == 45);
-    CHECK(mapped[idx+1] == 45);
-    CHECK(mapped[idx+2] == 45);
+    // A panel is the theme's `surface` token (#1A2027 in the dark theme), opaque.
+    CHECK(mapped[idx] == 0x1A);
+    CHECK(mapped[idx+1] == 0x20);
+    CHECK(mapped[idx+2] == 0x27);
     CHECK(mapped[idx+3] == 255);
+    const Color surface_token = default_theme().colors.surface;
+    CHECK(mapped[idx] == surface_token.r && mapped[idx+1] == surface_token.g && mapped[idx+2] == surface_token.b);
     surface->unmap_pixels();
     
     std::cout << "test_panel_drawing passed\n";

@@ -238,7 +238,7 @@ void test_dragging_toward_every_edge() {
 }
 
 void test_small_display() {
-    Rig r({640, 480}); // work area 640 x 440
+    Rig r({640, 480}); // work area 640 x 432 (the taskbar is 48 px)
     vynex_test::context() = "a window whose usual place is off a small screen opens with its title bar on screen";
     const uint32_t off = r.open("Off");
     r.expect_title_bar_reachable(off);
@@ -256,11 +256,11 @@ void test_small_display() {
     r.pointer.drag(grab, {grab.x - 3000, grab.y}); // pushed off the left: the controls are at the visible end
     r.settle();
     const Point maximize = vynex_test::control_point(*r.wm, big, DecorationHitRegion::MaximizeButton);
-    CHECK(maximize.x >= 0 && maximize.x < 640 && maximize.y >= 0 && maximize.y < 440); // on screen, so a user can click it
+    CHECK(maximize.x >= 0 && maximize.x < 640 && maximize.y >= 0 && maximize.y < 432); // on screen, so a user can click it
     r.pointer.click(maximize);
     r.settle();
     const auto max = r.client(big);
-    CHECK(max.x == 0 && max.width == 640 && max.y == 36 && max.height == 440 - 36);
+    CHECK(max.x == 0 && max.width == 640 && max.y == 36 && max.height == 432 - 36);
     std::printf("test_small_display passed\n");
 }
 
@@ -400,7 +400,7 @@ void test_notifications_are_overlays() {
     const uint32_t first = views[0];
     CHECK(r.wm->get_window_layer(first) == WindowLayer::Overlay && r.wm->is_window_visible(first));
     const auto g = r.client(first);
-    CHECK(g.x == 1600 && g.y == 975 && g.width == 300 && g.height == 50); // just above the taskbar, at the right
+    CHECK(g.x == 1600 && g.y == 967 && g.width == 300 && g.height == 50); // just above the 48 px taskbar, at the right
     int layers_of_first = 0;
     for (const auto& l : r.wm->build_scene()) layers_of_first += (l.window_id == first) ? 1 : 0;
     CHECK(layers_of_first == 1); // no window frame
@@ -411,7 +411,14 @@ void test_notifications_are_overlays() {
     const auto shown = r.screen(1650, 1000);
     CHECK(!(shown[0] == 10 && shown[1] == 160 && shown[2] == 60)); // not the window's colour
     auto px = scene.back().surface->map_pixels();
-    const size_t s = (static_cast<size_t>(1000 - 975) * 300 + (1650 - 1600)) * 4;
+    const size_t s = (static_cast<size_t>(1000 - 967) * 300 + (1650 - 1600)) * 4;
+    // The panel is the Overlay elevation: surface_overlay (#2A333D) inside a one-pixel border (#36414D), so it stands
+    // out from the window bodies (#1A2027) it lies over.
+    CHECK(px[0] == 0x36 && px[1] == 0x41 && px[2] == 0x4D && px[3] == 255);
+    const size_t inside = (static_cast<size_t>(45) * 300 + 290) * 4; // clear of the two lines of text
+    CHECK(px[inside] == 0x2A && px[inside + 1] == 0x33 && px[inside + 2] == 0x3D && px[inside + 3] == 255);
+    const size_t last = (static_cast<size_t>(49) * 300 + 299) * 4;   // the border runs all the way round
+    CHECK(px[last] == 0x36 && px[last + 1] == 0x41 && px[last + 2] == 0x4D && px[last + 3] == 255);
     CHECK(shown[0] == px[s] && shown[1] == px[s + 1] && shown[2] == px[s + 2]); // the notification's own pixel
     scene.back().surface->unmap_pixels();
     CHECK(r.wm->get_window_at(1650, 1000) == std::optional<uint32_t>{first});
@@ -430,9 +437,9 @@ void test_notifications_are_overlays() {
     CHECK(r.wm->get_window_state(under) == WindowState::Normal && r.client(under).x == 1500); // nothing moved or resized
 
     vynex_test::context() = "outside the panels (the gap between them) the window beneath gets the pointer";
-    CHECK(r.wm->get_window_at(1650, 970) == std::optional<uint32_t>{under});
+    CHECK(r.wm->get_window_at(1650, 962) == std::optional<uint32_t>{under}); // the panels are at 907..957 and 967..1017
     r.shell->clear_focus();
-    r.pointer.click({1650, 970});
+    r.pointer.click({1650, 962});
     r.settle();
     CHECK(r.probe(under)->mouse_events == 2);
     CHECK(r.shell->focused_window() == std::optional<uint32_t>{under});
@@ -443,7 +450,7 @@ void test_notifications_are_overlays() {
     r.dismiss(1);
     r.settle();
     views = r.windows_titled("Notification");
-    CHECK(views.size() == 1 && r.client(views[0]).y == 975); // the remaining one moves down into the first slot
+    CHECK(views.size() == 1 && r.client(views[0]).y == 967); // the remaining one moves down into the first slot
     r.dismiss(2);
     r.settle();
     CHECK(r.windows_titled("Notification").empty());

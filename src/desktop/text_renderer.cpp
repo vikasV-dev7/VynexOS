@@ -117,7 +117,8 @@ std::unique_ptr<TextRenderer> TextRenderer::create(const TypographyTokens& token
         FontWeight weight;
     };
     std::vector<Key> keys;
-    for (const TextStyle* style : {&tokens.caption, &tokens.body, &tokens.body_strong, &tokens.title, &tokens.heading, &tokens.display}) {
+    for (const TextStyle* style :
+         {&tokens.caption, &tokens.metadata, &tokens.body, &tokens.body_strong, &tokens.title, &tokens.heading, &tokens.display}) {
         const Key k{style->size_px, effective_weight(style->weight)};
         const bool known = std::any_of(keys.begin(), keys.end(), [&](const Key& o) {
             return std::fabs(o.px - k.px) < 0.01f && o.weight == k.weight;

@@ -1,4 +1,5 @@
 #include "desktop_shell.hpp"
+#include "vynexos/desktop/components.hpp"
 #include "vynexos/desktop/decoration_layout.hpp"
 #include "vynexos/hal/input_driver.hpp"
 #include <algorithm>
@@ -67,9 +68,10 @@ DesktopShell::DesktopShell(std::shared_ptr<desktop::IWindowManager> wm,
                 set_hover({}); // hover feedback is for a free pointer; a press takes over
 
                 // Vynex launcher button, anchored to the taskbar at the bottom of the logical desktop.
-                const int32_t button_top = display_height() - kTaskbarHeight + kLauncherButtonY;
-                if (mouse_ev.x >= kLauncherButtonX && mouse_ev.x <= kLauncherButtonX + kLauncherButtonWidth &&
-                    mouse_ev.y >= button_top && mouse_ev.y <= button_top + kLauncherButtonHeight) {
+                const desktop::Rect button = launcher_button_rect();
+                const int32_t button_top = display_height() - taskbar_height() + button.y;
+                if (mouse_ev.x >= button.x && mouse_ev.x <= button.x + static_cast<int32_t>(button.width) &&
+                    mouse_ev.y >= button_top && mouse_ev.y <= button_top + static_cast<int32_t>(button.height)) {
                     bool show = false;
                     {
                         std::lock_guard lock(m_mutex);
@@ -362,7 +364,8 @@ DesktopShell::~DesktopShell() {
 }
 
 void DesktopShell::launch() {
-    m_wm->set_work_area({0, 0, m_display_size.width, m_display_size.height - kTaskbarHeight});
+    const uint32_t bar = static_cast<uint32_t>(taskbar_height());
+    m_wm->set_work_area({0, 0, m_display_size.width, m_display_size.height - bar});
     
     // 1. Wallpaper (Fullscreen)
     desktop::WindowGeometry wall_geom{0, 0, m_display_size.width, m_display_size.height};
@@ -383,7 +386,7 @@ void DesktopShell::launch() {
     m_wm->set_window_surface(m_wallpaper_id, m_wallpaper_surface);
     
     // 2. Taskbar (Bottom panel)
-    desktop::WindowGeometry task_geom{0, display_height() - kTaskbarHeight, m_display_size.width, kTaskbarHeight};
+    desktop::WindowGeometry task_geom{0, display_height() - taskbar_height(), m_display_size.width, bar};
     m_taskbar_id = m_wm->create_window("Taskbar", task_geom);
     
     m_taskbar_surface = m_compositor->create_surface(task_geom.width, task_geom.height);
@@ -395,7 +398,8 @@ void DesktopShell::launch() {
     m_wm->set_window_surface(m_taskbar_id, m_taskbar_surface);
     
     // 3. Launcher Window
-    desktop::WindowGeometry launcher_geom{10, display_height() - kTaskbarHeight - 400, 300, 400};
+    const desktop::Rect launcher = launcher_rect();
+    desktop::WindowGeometry launcher_geom{launcher.x, launcher.y, launcher.width, launcher.height};
     m_launcher_id = m_wm->create_window("Launcher", launcher_geom);
     
     m_launcher_surface = m_compositor->create_surface(launcher_geom.width, launcher_geom.height);
@@ -447,10 +451,19 @@ void DesktopShell::update_frame() {
         m_taskbar_surface->unmap_pixels();
         
         // Draw Taskbar using toolkit (native ISurface interface)
-        m_toolkit->draw_panel(m_taskbar_surface, 0, 0, m_display_size.width, kTaskbarHeight);
-        m_toolkit->draw_button(m_taskbar_surface, kLauncherButtonX, kLauncherButtonY, kLauncherButtonWidth, kLauncherButtonHeight, "Vynex");
+        const uint32_t bar = static_cast<uint32_t>(taskbar_height());
+        m_toolkit->draw_panel(m_taskbar_surface, 0, 0, m_display_size.width, bar);
+        {
+            // The bar and the windows above it are both `surface`; the separator along its top edge keeps them apart.
+            desktop::Painter painter(*m_taskbar_surface);
+            desktop::paint_separator(painter, theme(), {0, 0, m_display_size.width, static_cast<uint32_t>(theme().size.border_width)},
+                                     desktop::Orientation::Horizontal);
+        }
+        const desktop::Rect button = launcher_button_rect();
+        m_toolkit->draw_button(m_taskbar_surface, button.x, button.y, button.width, button.height, "Vynex");
         m_taskbar->draw(m_taskbar_surface);
-        m_toolkit->draw_text(m_taskbar_surface, display_width() - 70, 15, "12:00", desktop::Color{255, 255, 255, 255});
+        // Legacy text call: y is the top of an 8 px cell, centred in the bar.
+        m_toolkit->draw_text(m_taskbar_surface, display_width() - 70, (taskbar_height() - 8) / 2, "12:00", desktop::Color{255, 255, 255, 255});
         
         invalidate_window_region(m_taskbar_id);
     }
@@ -468,8 +481,11 @@ void DesktopShell::update_frame() {
                 m_launcher_surface->unmap_pixels();
             }
             
-            m_toolkit->draw_panel(m_launcher_surface, 0, 0, 300, 400);
-            m_toolkit->draw_rect(m_launcher_surface, 0, 0, 300, 30, desktop::Color{50, 50, 70, 255});
+            paint_overlay_panel(*m_launcher_surface);
+            // The header sits inside the panel's border.
+            const int32_t line = theme().size.border_width;
+            const uint32_t inner = m_launcher_surface->width() > 2 * static_cast<uint32_t>(line) ? m_launcher_surface->width() - 2 * static_cast<uint32_t>(line) : 0;
+            m_toolkit->draw_rect(m_launcher_surface, line, line, inner, kLauncherHeaderHeight - static_cast<uint32_t>(line), desktop::Color{50, 50, 70, 255});
             m_toolkit->draw_text(m_launcher_surface, 10, 10, "Applications", desktop::Color{255, 255, 255, 255});
 
             // One button per application the host offers
@@ -591,7 +607,7 @@ void DesktopShell::set_launcher_visible(bool visible) {
 
 desktop::Rect DesktopShell::notification_rect(size_t index) const {
     // Stacked upwards from just above the taskbar at the right edge, 60 px apart (the layout the wallpaper used to carry).
-    const int32_t bottom = display_height() - kTaskbarHeight - 5 - static_cast<int32_t>(index) * kNotificationStep;
+    const int32_t bottom = display_height() - taskbar_height() - 5 - static_cast<int32_t>(index) * kNotificationStep;
     return {display_width() - 320, bottom - kNotificationStep, kNotificationWidth, kNotificationHeight};
 }
 
@@ -622,7 +638,7 @@ void DesktopShell::sync_notifications() {
             m_notification_views.push_back({current[i].id, 0}); // refused by the surface limits: listed, not shown
             continue;
         }
-        m_toolkit->draw_panel(surface, 0, 0, r.width, r.height);
+        paint_overlay_panel(*surface);
         m_toolkit->draw_text(surface, 10, 10, current[i].title, desktop::Color{255, 255, 255, 255});
         m_toolkit->draw_text(surface, 10, 30, current[i].body, desktop::Color{200, 200, 200, 255});
         const uint32_t window = m_wm->create_window("Notification", {r.x, r.y, r.width, r.height});
@@ -661,6 +677,39 @@ void DesktopShell::focus_next_after(uint32_t leaving) {
     } else {
         clear_focus();
     }
+}
+
+desktop::Rect DesktopShell::launcher_button_rect() const {
+    const auto& t = theme();
+    return {t.spacing.sm, (t.size.taskbar_height - t.size.taskbar_button_height) / 2, kLauncherButtonWidth,
+            static_cast<uint32_t>(t.size.taskbar_button_height)};
+}
+
+desktop::Rect DesktopShell::launcher_rect() const {
+    // Anchored above the taskbar at the left edge, one margin away from both. On a display too small for the token
+    // size it shrinks to the space there is (a margin from the top and right edges too), never off screen.
+    const auto& t = theme();
+    const int32_t margin = t.spacing.md;
+    const int32_t width = std::max(0, std::min(t.size.launcher_width, display_width() - 2 * margin));
+    const int32_t height = std::max(0, std::min(t.size.launcher_height, display_height() - t.size.taskbar_height - 2 * margin));
+    return {margin, display_height() - t.size.taskbar_height - margin - height, static_cast<uint32_t>(width), static_cast<uint32_t>(height)};
+}
+
+desktop::Rect DesktopShell::launcher_entry_rect(size_t index) const {
+    // One button per application: the panel's width less a margin on each side.
+    const auto& t = theme();
+    const int32_t margin = t.spacing.md;
+    const int32_t width = std::max(0, static_cast<int32_t>(launcher_rect().width) - 2 * margin);
+    return {margin, kLauncherEntryTop + static_cast<int32_t>(index) * kLauncherEntryStep, static_cast<uint32_t>(width), kLauncherEntryHeight};
+}
+
+void DesktopShell::paint_overlay_panel(desktop::ISurface& surface) const {
+    // The Overlay elevation (surface_overlay with a border) sets launcher and notifications apart from the windows
+    // under them. Square corners for now: these panels' contents are still laid out for a rectangle.
+    desktop::Painter painter(surface);
+    desktop::BoxStyle style = desktop::panel_style(theme(), desktop::PanelVariant::Overlay);
+    style.radii = {};
+    desktop::paint_box(painter, {0, 0, surface.width(), surface.height()}, style);
 }
 
 std::optional<size_t> DesktopShell::launcher_entry_at(int32_t x, int32_t y) const {
